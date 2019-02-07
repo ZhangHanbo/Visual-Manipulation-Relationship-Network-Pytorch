@@ -89,15 +89,22 @@ class _ROIGN(nn.Module):
         self.RCNN_roi_crop = _RoICrop()
 
     def forward(self, im_data, gt):
-
         batch_size = im_data.size(0)
 
         gt_boxes = gt['boxes']
+        # for jacquard dataset, the bounding box labels are set to -1. For training, we set them to 1, which does not
+        # affect the training process.
+        if gt_boxes[:, :, -1].sum().item() < 0:
+            gt_boxes[:, :, -1] = -gt_boxes[:, :, -1]
         gt_grasps = gt['grasps']
         gt_grasp_inds = gt['grasp_inds']
         num_boxes = gt['num_boxes']
         num_grasps = gt['num_grasps']
         im_info = gt['im_info']
+
+        for i in range(batch_size):
+            if torch.sum(gt_grasp_inds[i]).item() == 0:
+                gt_grasp_inds[i, :num_grasps[i].item()] = 1
 
         # features
         base_feat = self.base(im_data)
@@ -108,16 +115,9 @@ class _ROIGN(nn.Module):
         if self.training:
             roi_data = self.RCNN_proposal_target(rois, gt_boxes, num_boxes)
             rois, rois_label, rois_target, rois_inside_ws, rois_outside_ws = roi_data
-
             rois_label = Variable(rois_label.view(-1).long())
-            rois_target = Variable(rois_target.view(-1, rois_target.size(2)))
-            rois_inside_ws = Variable(rois_inside_ws.view(-1, rois_inside_ws.size(2)))
-            rois_outside_ws = Variable(rois_outside_ws.view(-1, rois_outside_ws.size(2)))
         else:
             rois_label = None
-            rois_target = None
-            rois_inside_ws = None
-            rois_outside_ws = None
             rpn_loss_cls = 0
             rpn_loss_bbox = 0
 
@@ -282,7 +282,7 @@ class _ROIGN(nn.Module):
 
         # anchors = self._anchors.view(1, A, 5) + shifts.view(1, K, 5).permute(1, 0, 2).contiguous()
 
-        if cfg.ROIGN.USE_ADAPTIVE_ANCHOR:
+        if cfg.MGN.USE_ADAPTIVE_ANCHOR:
             # bs x N x 1
             anchor_size = torch.sqrt(torch.pow(torch.from_numpy(fsx), 2) +
                                      torch.pow(torch.from_numpy(fsy), 2)).type_as(shifts)

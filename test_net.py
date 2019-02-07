@@ -654,12 +654,13 @@ if __name__ == '__main__':
                     
                 else:
                     cls_dets = cls_dets[0:1]
+                    # for cornell grasp dataset, when testing, the input image is cropped from (100, 100), therefore,
+                    # the coordinates of grasp rectangles should be added to this offset.
+                    # cls_dets[:, :8] += np.tile(np.array([[100, 100]]), 4)
                     if vis:
-                        im2show_gr = np.array(im_data[0].data.permute(1,2,0)) + cfg.PIXEL_MEANS
                         im2show_gr = draw_grasp(im2show_gr, cls_dets)
                     cls_dets = cls_dets.cpu().numpy()
-                    # offset comming from crop
-                    cls_dets[:, :8] += np.tile(np.array([[100, 100]]), 4)
+
                 all_boxes[j][i] = cls_dets
                 if args.frame == 'mgn' or args.frame == 'all_in_one':
                     all_grasp[j][i] = [cls_dets.copy(), cur_grasp]

@@ -159,7 +159,8 @@ class imdb(object):
         boxes[:, 0::2] = w - (boxes[:, 0::2].copy())[:,::-1] - 1
         assert (boxes[:, 2] >= boxes[:, 0]).all()
         entry['boxes'] = boxes
-        entry['gt_classes'] = self.roidb[i]['gt_classes']
+        if 'gt_classes' in self.roidb[i]:
+          entry['gt_classes'] = self.roidb[i]['gt_classes']
       if 'grasps' in self.roidb[i]:
         grasps = self.roidb[i]['grasps'].copy()
         if grasps.size>0:
@@ -225,7 +226,8 @@ class imdb(object):
           boxes = rotcoords(boxes, r, widths[i], heights[i], True)
           assert (boxes[:, 2] >= boxes[:, 0]).all()
           entry['boxes'] = boxes
-          entry['gt_classes'] = self.roidb[i]['gt_classes']
+          if 'gt_classes' in self.roidb[i]:
+            entry['gt_classes'] = self.roidb[i]['gt_classes']
         if 'grasps' in self.roidb[i]:
           grasps = self.roidb[i]['grasps'].copy()
           if grasps.size > 0:

@@ -56,7 +56,7 @@ def parse_args():
                       help='training dataset',
                       default='pascal_voc', type=str)
   parser.add_argument('--frame', dest='frame',
-                    help='faster_rcnn, ssd, faster_rcnn_vmrn, ssd_vmrn, fcgn',
+                    help='faster_rcnn, fpn, ssd, faster_rcnn_vmrn, ssd_vmrn, fcgn, mgn, allinone, roign',
                     default='faster_rcnn', type=str)
   parser.add_argument('--net', dest='net',
                     help='vgg16, res101',
@@ -844,6 +844,7 @@ if __name__ == '__main__':
 
                 loss = rpn_loss_cls.mean() + rpn_loss_box.mean() \
                        + loss_cls.mean() + loss_bbox.mean()
+
             elif args.frame == 'fcgn':
                 bbox_pred, cls_prob, loss_bbox, loss_cls, rois_label,rois = \
                     Network(im_data, im_info, gt_grasps, num_grasps)
@@ -859,8 +860,12 @@ if __name__ == '__main__':
                     'num_grasps': num_grasps,
                     'im_info': im_info
                 }
-                rois, rpn_loss_cls, rpn_loss_bbox, rois_label, \
-                grasp_loc, grasp_prob, grasp_bbox_loss, grasp_cls_loss, grasp_conf_label, grasp_all_anchors
+                rois, rpn_loss_cls, rpn_loss_box, rois_label, \
+                grasp_loc, grasp_prob, grasp_bbox_loss, grasp_cls_loss, \
+                grasp_conf_label, grasp_all_anchors = Network(im_data, gt)
+
+                loss = rpn_loss_box.mean() + rpn_loss_cls.mean() \
+                       + grasp_bbox_loss.mean() + grasp_cls_loss.mean()
 
             elif args.frame == 'mgn':
                 gt = {
@@ -928,8 +933,10 @@ if __name__ == '__main__':
                     loss_rpn_cls += rpn_loss_cls.mean().data[0].item()
                 if rpn_loss_box is not None:
                     loss_rpn_box += rpn_loss_box.mean().data[0].item()
-                loss_rcnn_cls += loss_cls.mean().data[0].item()
-                loss_rcnn_box += loss_bbox.mean().data[0].item()
+                if loss_cls is not None:
+                    loss_rcnn_cls += loss_cls.mean().data[0].item()
+                if loss_bbox is not None:
+                    loss_rcnn_box += loss_bbox.mean().data[0].item()
                 if rel_loss_cls is not None:
                     loss_rel_pred += rel_loss_cls.mean().data[0].item()
                 if grasp_cls_loss is not None:
@@ -949,8 +956,10 @@ if __name__ == '__main__':
                     loss_rpn_cls += rpn_loss_cls.item()
                 if rpn_loss_cls is not None:
                     loss_rpn_box += rpn_loss_box.item()
-                loss_rcnn_cls += loss_cls.item()
-                loss_rcnn_box += loss_bbox.item()
+                if loss_cls is not None:
+                    loss_rcnn_cls += loss_cls.item()
+                if loss_bbox is not None:
+                    loss_rcnn_box += loss_bbox.item()
                 if rel_loss_cls is not None:
                     loss_rel_pred += rel_loss_cls.item()
                 if grasp_cls_loss is not None:

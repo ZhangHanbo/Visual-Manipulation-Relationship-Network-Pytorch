@@ -30,6 +30,9 @@ def get_minibatch(roidb, num_classes, training = True):
 
     if 'boxes' in roidb[0]:
         box_dim = roidb[0]['boxes'].shape[1]
+        # for jacquard, there is no labels for object bounding boxes. Therefore, we set -1 label for these boxes.
+        if 'gt_classes' not in roidb[0]:
+            roidb[0]['gt_classes'] = -np.ones(roidb[0]['boxes'].shape[0], dtype=np.int32)
 
     assert(cfg.TRAIN.RCNN_COMMON.BATCH_SIZE % num_images == 0), \
         'num_images ({}) must divide BATCH_SIZE ({})'. \
@@ -85,6 +88,7 @@ def get_minibatch(roidb, num_classes, training = True):
             gt_boxes[:, box_dim] = roidb[0]['gt_classes'][gt_inds]
             gt_bk = None
 
+
         # deal with grasps
         if 'grasps' in roidb[0] and roidb[0]['grasps'].size > 0:
             gt_grasps = roidb[0]['grasps'].astype(np.float32)
@@ -95,6 +99,7 @@ def get_minibatch(roidb, num_classes, training = True):
 
     elif training and cfg.TRAIN.COMMON.FIXED_INPUT_SIZE and cfg.TRAIN.COMMON.AUGMENTATION \
             or (not training and cfg.TEST.COMMON.FIXED_INPUT_SIZE and cfg.TEST.COMMON.AUGMENTATION):
+
         im_blob, im_scales, gt_b, gt_c, gt_g, gt_bk, gt_gk =  \
             _get_image_blob_with_aug(roidb, training=training)
 

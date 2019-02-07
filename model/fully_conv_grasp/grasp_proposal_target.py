@@ -72,8 +72,8 @@ class _GraspTargetLayer(nn.Module):
             loc_t = ((loc_t - self.BBOX_NORMALIZE_MEANS.expand_as(loc_t))
                         / self.BBOX_NORMALIZE_STDS.expand_as(loc_t))
 
-        if ((conf_t == 0).sum()/(conf_t == 1).sum()).item() != 3:
-            pdb.set_trace()
+        #if ((conf_t == 0).sum()/(conf_t == 1).sum()).item() != 3:
+        #    pdb.set_trace()
 
         return loc_t, conf_t, iw, ow
 
@@ -221,8 +221,8 @@ class _GraspTargetLayer(nn.Module):
         # To find element indexes that indicate elements which have highest confidence loss
         _, idx_rank = loss_idx.sort(1)
         num_pos = pos.long().sum(1, keepdim=True)
-        num_neg = torch.clamp(self.negpos_ratio * num_pos, max=pos.size(1) - 1)
-        neg = idx_rank < num_neg.expand_as(idx_rank)
+        num_neg = self.negpos_ratio * num_pos
+        neg = (idx_rank < num_neg.expand_as(idx_rank)) & (pos != 1)
 
         conf_t[neg.eq(0) & pos.eq(0)] = -1
 
