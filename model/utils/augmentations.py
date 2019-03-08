@@ -725,6 +725,18 @@ class Augmentation_Grasp(object):
                  boxes_keep=None, grasps_keep=None):
         return self.augment(img, boxes, labels , grasps, boxes_keep, grasps_keep)
 
+class Augmentation_Grasp_Roign_Cornell(object):
+    def __init__(self, mean=(104, 117, 123)):
+        self.mean = mean
+        self.augment = Compose([
+            FixedSizeCrop(100, 50, 200, 150, 320, 320),
+            PhotometricDistort(),
+        ])
+
+    def __call__(self, img, boxes=None, labels=None , grasps=None,
+                 boxes_keep=None, grasps_keep=None):
+        return self.augment(img, boxes, labels , grasps, boxes_keep, grasps_keep)
+
 class Augmentation_Grasp_Test(object):
     def __init__(self, mean=(104, 117, 123)):
         self.mean = mean

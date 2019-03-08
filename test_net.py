@@ -28,7 +28,7 @@ from model.rpn.bbox_transform import clip_boxes
 from model.nms.nms_wrapper import nms
 from model.rpn.bbox_transform import bbox_transform_inv
 from model.fully_conv_grasp.bbox_transform_grasp import labels2points, grasp_decode
-from model.utils.net_utils import save_net, load_net, vis_detections, draw_grasp
+from model.utils.net_utils import save_net, load_net, vis_detections, draw_grasp, draw_single_bbox
 from model.FasterRCNN import vgg16
 from model.FasterRCNN import resnet
 from model import SSD
@@ -38,6 +38,7 @@ import model.SSD_VMRN as SSD_VMRN
 import model.FullyConvGrasp as FCGN
 import model.MultiGrasp as MGN
 import model.AllinOne as ALL_IN_ONE
+import model.RoIGrasp as ROIGN
 
 import pdb
 
@@ -154,7 +155,6 @@ if __name__ == '__main__':
         #args.set_cfgs = ['ANCHOR_SCALES', '[8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '20']
     elif args.dataset[:7] == 'cornell':
         cornell = args.dataset.split('_')
-        args.frame = 'fcgn'
         args.imdb_name = 'cornell_{}_{}_trainval_{}'.format(cornell[1],cornell[2],cornell[3])
         args.imdbval_name = 'cornell_{}_{}_test_{}'.format(cornell[1],cornell[2],cornell[3])
         args.set_cfgs = ['MAX_NUM_GT_BOXES', '50']
@@ -253,6 +253,12 @@ if __name__ == '__main__':
             Network = FCGN.resnet(num_layers = 34, pretrained=True)
         elif args.net == 'vgg16':
             Network = FCGN.vgg16(pretrained=True)
+        else:
+            print("network is not defined")
+            pdb.set_trace()
+    elif args.frame == 'roign':
+        if args.net == 'res101':
+            Network = ROIGN.resnet(imdb.classes, 101, pretrained=True)
         else:
             print("network is not defined")
             pdb.set_trace()
@@ -448,6 +454,21 @@ if __name__ == '__main__':
             loss_cls, rois_label, boxes = \
                 Network(im_data, im_info, gt_grasps, num_boxes)
 
+        elif args.frame == 'roign':
+            gt = {
+                'boxes': gt_boxes,
+                'grasps': gt_grasps,
+                'grasp_inds': gt_grasp_inds,
+                'num_boxes': num_boxes,
+                'num_grasps': num_grasps,
+                'im_info': im_info
+            }
+            rois, rpn_loss_cls, rpn_loss_box, rois_label, \
+            grasp_loc, grasp_prob, grasp_bbox_loss, grasp_cls_loss, \
+            grasp_conf_label, grasp_all_anchors = Network(im_data, gt)
+
+            boxes = rois.data[:, :, 1:5]
+
         elif args.frame == 'mgn':
             gt = {
                 'boxes': gt_boxes,
@@ -486,15 +507,17 @@ if __name__ == '__main__':
             all_rel.append(rel_result)
 
         # bs x N x N_class
-        scores = cls_prob.data
-        if args.frame == 'mgn' or args.frame == 'all_in_one':
+        if args.frame != 'roign':
+            scores = cls_prob.data
+        if args.frame == 'mgn' or args.frame == 'all_in_one' or args.frame == 'roign':
             # bs*N x K*A x 2
             grasp_scores = grasp_prob.data
 
         if cfg.TEST.COMMON.BBOX_REG:
             # Apply bounding-box regression deltas
-            box_deltas = bbox_pred.data
-            if args.frame == 'mgn' or args.frame == 'all_in_one':
+            if args.frame != 'roign':
+                box_deltas = bbox_pred.data
+            if args.frame == 'mgn' or args.frame == 'all_in_one' or args.frame == 'roign':
                 grasp_box_deltas = grasp_loc.data
             if cfg.TRAIN.COMMON.BBOX_NORMALIZE_TARGETS_PRECOMPUTED:
                 # Optionally normalize targets by a precomputed mean and stdev
@@ -510,7 +533,7 @@ if __name__ == '__main__':
                     keep = (((pred_boxes > imshape) | (pred_boxes < 0)).sum(2) == 0)
                     pred_boxes = pred_boxes[keep]
                     scores = scores[keep]
-                elif args.frame == 'mgn' or args.frame == 'all_in_one' :
+                elif args.frame == 'mgn' or args.frame == 'all_in_one' or args.frame == 'roign':
                     grasp_box_deltas = grasp_box_deltas.view(-1, 5) * torch.FloatTensor(cfg.FCGN.BBOX_NORMALIZE_STDS).cuda() \
                                  + torch.FloatTensor(cfg.FCGN.BBOX_NORMALIZE_STDS).cuda()
                     grasp_box_deltas = grasp_box_deltas.view(grasp_all_anchors.size())
@@ -547,20 +570,23 @@ if __name__ == '__main__':
                     # scores = scores * grasp_maxscores[:, :, 0:1]
                     # bs x N x topN x 8
                     grasp_pred_boxes = grasp_pred_boxes[grasp_maxscore_mask].view(rois.size()[:2] + (topn_grasp, 8))
-                    if args.class_agnostic:
-                        box_deltas = box_deltas.view(-1, 4) * torch.FloatTensor(
-                            cfg.TRAIN.COMMON.BBOX_NORMALIZE_STDS).cuda() \
-                                     + torch.FloatTensor(cfg.TRAIN.COMMON.BBOX_NORMALIZE_MEANS).cuda()
-                        box_deltas = box_deltas.view(1, -1, 4)
-                        pred_boxes = bbox_transform_inv(boxes, box_deltas, 1)
-                        pred_boxes = clip_boxes(pred_boxes, im_info.data, 1)
+                    if args.frame != 'roign':
+                        if args.class_agnostic:
+                            box_deltas = box_deltas.view(-1, 4) * torch.FloatTensor(
+                                cfg.TRAIN.COMMON.BBOX_NORMALIZE_STDS).cuda() \
+                                         + torch.FloatTensor(cfg.TRAIN.COMMON.BBOX_NORMALIZE_MEANS).cuda()
+                            box_deltas = box_deltas.view(1, -1, 4)
+                            pred_boxes = bbox_transform_inv(boxes, box_deltas, 1)
+                            pred_boxes = clip_boxes(pred_boxes, im_info.data, 1)
+                        else:
+                            box_deltas = box_deltas.view(-1, 4) * torch.FloatTensor(
+                                cfg.TRAIN.COMMON.BBOX_NORMALIZE_STDS).cuda() \
+                                         + torch.FloatTensor(cfg.TRAIN.COMMON.BBOX_NORMALIZE_MEANS).cuda()
+                            box_deltas = box_deltas.view(1, -1, 4 * len(imdb.classes))
+                            pred_boxes = bbox_transform_inv(boxes, box_deltas, 1)
+                            pred_boxes = clip_boxes(pred_boxes, im_info.data, 1)
                     else:
-                        box_deltas = box_deltas.view(-1, 4) * torch.FloatTensor(
-                            cfg.TRAIN.COMMON.BBOX_NORMALIZE_STDS).cuda() \
-                                     + torch.FloatTensor(cfg.TRAIN.COMMON.BBOX_NORMALIZE_MEANS).cuda()
-                        box_deltas = box_deltas.view(1, -1, 4 * len(imdb.classes))
-                        pred_boxes = bbox_transform_inv(boxes, box_deltas, 1)
-                        pred_boxes = clip_boxes(pred_boxes, im_info.data, 1)
+                        pred_boxes = boxes
 
                 elif args.class_agnostic:
                     box_deltas = box_deltas.view(-1, 4) * torch.FloatTensor(cfg.TRAIN.COMMON.BBOX_NORMALIZE_STDS).cuda() \
@@ -575,16 +601,18 @@ if __name__ == '__main__':
                     pred_boxes = bbox_transform_inv(boxes, box_deltas, 1)
                     pred_boxes = clip_boxes(pred_boxes, im_info.data, 1)
         else:
-            # Simply repeat the boxes, once for each class
-            pred_boxes = np.tile(boxes, (1, scores.shape[1]))
+            if args.frame != 'roign':
+                # Simply repeat the boxes, once for each class
+                pred_boxes = np.tile(boxes, (1, scores.shape[1]))
 
-        scores = scores.squeeze()
+        if args.frame != 'roign':
+            scores = scores.squeeze()
         pred_boxes = pred_boxes.squeeze()
         pred_boxes[:, 0::4] /= data[1][0][3].item()
         pred_boxes[:, 1::4] /= data[1][0][2].item()
         pred_boxes[:, 2::4] /= data[1][0][3].item()
         pred_boxes[:, 3::4] /= data[1][0][2].item()
-        if args.frame == 'mgn' or args.frame == 'all_in_one':
+        if args.frame == 'mgn' or args.frame == 'all_in_one' or args.frame == 'roign':
             grasp_pred_boxes = grasp_pred_boxes.squeeze()
             grasp_scores = grasp_scores.squeeze()
             if grasp_pred_boxes.dim() == 2:
@@ -613,59 +641,86 @@ if __name__ == '__main__':
             im = cv2.imread(imdb.image_path_at(roidb[i]['img_id']))
             im2show_gr = np.copy(im)
             im2show_obj = np.copy(im)
-        for j in xrange(1, imdb.num_classes):
-            inds = torch.nonzero(scores[:, j] > thresh).view(-1)
-            # if there is det
-            if inds.numel() > 0:
-                cls_scores = scores[:, j][inds]
-                _, order = torch.sort(cls_scores, 0, True)
-                if args.class_agnostic or args.frame == 'fcgn':
-                    cls_boxes = pred_boxes[inds, :]
-                else:
-                    cls_boxes = pred_boxes[inds][:, j * 4:(j + 1) * 4]
-                cls_dets = torch.cat((cls_boxes, cls_scores.unsqueeze(1)), 1)
-                # cls_dets = torch.cat((cls_boxes, cls_scores), 1)
-                cls_dets = cls_dets[order]
-                if args.frame == 'mgn' or args.frame == 'all_in_one':
-                    cur_grasp = grasp_pred_boxes[inds, :]
-                    cur_grasp = cur_grasp[order]
-
-                if args.frame != 'fcgn':
-                    keep = nms(cls_dets, cfg.TEST.COMMON.NMS)
-                    cls_dets = cls_dets[keep.view(-1).long()]
-                    obj_index_end = obj_index_begin + (cls_dets[:, -1] > cfg.TEST.COMMON.OBJ_DET_THRESHOLD).sum()
-
+        if args.frame != 'roign':
+            for j in xrange(1, imdb.num_classes):
+                inds = torch.nonzero(scores[:, j] > thresh).view(-1)
+                # if there is det
+                if inds.numel() > 0:
+                    cls_scores = scores[:, j][inds]
+                    _, order = torch.sort(cls_scores, 0, True)
+                    if args.class_agnostic or args.frame == 'fcgn':
+                        cls_boxes = pred_boxes[inds, :]
+                    else:
+                        cls_boxes = pred_boxes[inds][:, j * 4:(j + 1) * 4]
+                    cls_dets = torch.cat((cls_boxes, cls_scores.unsqueeze(1)), 1)
+                    # cls_dets = torch.cat((cls_boxes, cls_scores), 1)
+                    cls_dets = cls_dets[order]
                     if args.frame == 'mgn' or args.frame == 'all_in_one':
-                        cur_grasp = cur_grasp[keep.view(-1).long()]
-                    if vis:
-                        if args.frame == 'mgn' or args.frame == 'all_in_one':
-                            im2show_obj, im2show_gr = vis_detections(im2show_obj, im2show_gr,
-                                                     imdb.classes[j], cls_dets.cpu().numpy(),
-                                                     cfg.TEST.COMMON.OBJ_DET_THRESHOLD, cur_grasp.cpu().numpy(),
-                                                     color_dict=color_dict, index=range(obj_index_begin, obj_index_end))
-                        else:
-                            im2show_obj, im2show_gr = vis_detections(im2show_obj, im2show_gr,
-                                                     imdb.classes[j], cls_dets.cpu().numpy(),
-                                                     cfg.TEST.COMMON.OBJ_DET_THRESHOLD,
-                                                     color_dict=color_dict, index=range(obj_index_begin, obj_index_end))
-                            
-                    cls_dets = cls_dets.cpu().numpy()
-                    obj_index_begin = obj_index_end
-                    
-                else:
-                    cls_dets = cls_dets[0:1]
-                    # for cornell grasp dataset, when testing, the input image is cropped from (100, 100), therefore,
-                    # the coordinates of grasp rectangles should be added to this offset.
-                    # cls_dets[:, :8] += np.tile(np.array([[100, 100]]), 4)
-                    if vis:
-                        im2show_gr = draw_grasp(im2show_gr, cls_dets)
-                    cls_dets = cls_dets.cpu().numpy()
+                        cur_grasp = grasp_pred_boxes[inds, :]
+                        cur_grasp = cur_grasp[order]
 
-                all_boxes[j][i] = cls_dets
-                if args.frame == 'mgn' or args.frame == 'all_in_one':
-                    all_grasp[j][i] = [cls_dets.copy(), cur_grasp]
+                    if args.frame != 'fcgn':
+                        keep = nms(cls_dets, cfg.TEST.COMMON.NMS)
+                        cls_dets = cls_dets[keep.view(-1).long()]
+                        obj_index_end = obj_index_begin + (cls_dets[:, -1] > cfg.TEST.COMMON.OBJ_DET_THRESHOLD).sum()
+
+                        if args.frame == 'mgn' or args.frame == 'all_in_one':
+                            cur_grasp = cur_grasp[keep.view(-1).long()]
+                        if vis:
+                            if args.frame == 'mgn' or args.frame == 'all_in_one':
+                                im2show_obj, im2show_gr = vis_detections(im2show_obj, im2show_gr,
+                                                         imdb.classes[j], cls_dets.cpu().numpy(),
+                                                         cfg.TEST.COMMON.OBJ_DET_THRESHOLD, cur_grasp.cpu().numpy(),
+                                                         color_dict=color_dict, index=range(obj_index_begin, obj_index_end))
+                            else:
+                                im2show_obj, im2show_gr = vis_detections(im2show_obj, im2show_gr,
+                                                         imdb.classes[j], cls_dets.cpu().numpy(),
+                                                         cfg.TEST.COMMON.OBJ_DET_THRESHOLD,
+                                                         color_dict=color_dict, index=range(obj_index_begin, obj_index_end))
+
+                        cls_dets = cls_dets.cpu().numpy()
+                        obj_index_begin = obj_index_end
+
+                    else:
+                        cls_dets = cls_dets[0:1]
+                        if vis:
+                            im2show_gr = draw_grasp(im2show_gr, cls_dets)
+                        cls_dets = cls_dets.cpu().numpy()
+                        # for cornell grasp dataset, when testing, the input image is cropped from (100, 100), therefore,
+                        # the coordinates of grasp rectangles should be added to this offset.
+                        if args.dataset[:7] == 'cornell':
+                            cls_dets[:, :8] += np.tile(np.array([[100, 100]]), 4)
+
+                    all_boxes[j][i] = cls_dets
+                    if args.frame == 'mgn' or args.frame == 'all_in_one':
+                        all_grasp[j][i] = [cls_dets.copy(), cur_grasp]
+                else:
+                    all_boxes[j][i] = empty_array
+        else:
+            # N x 8
+            best_roi = pred_boxes[0]
+            if grasp_pred_boxes.dim() == 3:
+                roicx = (best_roi[0] + best_roi[2]) / 2
+                roicy = (best_roi[1] + best_roi[3]) / 2
+                grasp_pred_cx = (grasp_pred_boxes[0,:,0] + grasp_pred_boxes[0,:,4]) / 2
+                grasp_pred_cy = (grasp_pred_boxes[0,:,1] + grasp_pred_boxes[0,:,5]) / 2
+                dist = torch.pow((grasp_pred_cx - roicx),2) + torch.pow((grasp_pred_cy - roicy),2)
+                grasp_ind = torch.argmin(dist)
+                cls_dets = grasp_pred_boxes[0:1, grasp_ind,:]
             else:
-                all_boxes[j][i] = empty_array
+                cls_dets = grasp_pred_boxes[0:1]
+                
+            cls_dets = cls_dets.cpu().numpy()
+            # for cornell grasp dataset, when testing, the input image is cropped from (100, 100), therefore,
+            # the coordinates of grasp rectangles should be added to this offset.
+            best_roi = best_roi.cpu().numpy().astype(np.int32)
+            if args.dataset[:7] == 'cornell':
+                best_roi += np.tile(np.array([100, 100]), 2)
+                cls_dets[:, :8] += np.tile(np.array([[100, 100]]), 4)
+            if vis:
+                im2show_gr = draw_single_bbox(im2show_gr, tuple(best_roi), 'ROI', (128, 255, 50))
+                im2show_gr = draw_grasp(im2show_gr, cls_dets)
+            all_boxes[1][i] = cls_dets
 
         # Limit to max_per_image detections *over all classes*
         if max_per_image > 0:

@@ -14,7 +14,7 @@ import torch.utils.data as data
 
 from model.utils.config import cfg
 from roi_data_layer.minibatch import get_minibatch
-from model.utils.net_utils import draw_grasp
+from model.utils.net_utils import draw_grasp, vis_detections, draw_single_bbox, draw_single_grasp
 
 import cv2
 import os
@@ -22,7 +22,7 @@ import os
 import pdb
 
 class roibatchLoader(data.Dataset):
-    def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True, normalize=None):
+    def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True, normalize=None, cls_list=None):
         self._roidb = roidb
         self._num_classes = num_classes
         # we make the height of image consistent to trim_height, trim_width
@@ -36,6 +36,7 @@ class roibatchLoader(data.Dataset):
         self.ratio_index = ratio_index
         self.batch_size = batch_size
         self.data_size = len(self.ratio_list)
+        self.cls_list = cls_list
 
         # given the ratio_list, we want to make the ratio same for each batch.
         self.ratio_list_batch = torch.Tensor(self.data_size).zero_()
@@ -426,11 +427,18 @@ class roibatchLoader(data.Dataset):
             # permute trim_data to adapt to downstream processing
             padding_data = padding_data.permute(2, 0, 1).contiguous()
             im_info = im_info.view(4)
-            #if num_grasps < 10:
-            #im2show = padding_data.clone()
-            #label = gt_grasps.clone()
-            #print(blobs['img_id'])
-            #self._show_label(im2show=im2show, gt_boxes=label, filename=os.path.basename(blobs['img_path']))
+
+            '''
+            im2show = padding_data.clone().squeeze().permute(1, 2, 0).cpu().numpy()
+            grasps2show = gt_grasps.clone().cpu().numpy()
+            box2show = gt_boxes.clone().cpu().numpy()
+            label2show = box2show[:, -1].astype(np.int32)
+            box2show = box2show[:,:-1]
+            inds2show = range(1, box2show.shape[0]+1)
+            graspinds2show = gt_grasp_inds_padding.clone().cpu().numpy()
+            print(blobs['img_id'])
+            self._show_object_label(im2show, box2show, label2show, grasps2show, inds2show, graspinds2show)
+            '''
 
             return padding_data, im_info, gt_boxes_padding, gt_grasps_padding, num_boxes, \
                    num_grasps, rel_mat, gt_grasp_inds_padding
@@ -448,23 +456,80 @@ class roibatchLoader(data.Dataset):
 
             return data, im_info, gt_boxes, gt_grasps, num_boxes, num_grasps, rel_mat, gt_grasp_inds
 
-
-    def _show_label(self,im2show, gt_boxes, filename = 'labelshow.png'):
-        if gt_boxes.size(1) == 5:
-            label = np.array(torch.cat([
-                gt_boxes[:, 0:2],
-                gt_boxes[:, 0:1],
-                gt_boxes[:, 3:4],
-                gt_boxes[:, 2:4],
-                gt_boxes[:, 2:3],
-                gt_boxes[:, 1:2]
-            ],1))
-        else:
-            label = np.array(gt_boxes[:, :8])
-        im2show = np.array(im2show.squeeze().permute(1, 2, 0))+cfg.PIXEL_MEANS
+    def _show_object_label(self,im2show, gt_boxes, label = None, grasps = None, index = None, grasp_inds = None):
+        im2show = im2show + cfg.PIXEL_MEANS
+        im2show = np.ascontiguousarray(im2show)
         cv2.imwrite("origin.png", im2show)
-        im2show = draw_grasp(im2show, label)
-        cv2.imwrite(filename, im2show)
+        color_pool = [
+            (255, 0, 0),
+            (255, 102, 0),
+            (255, 153, 0),
+            (255, 204, 0),
+            (255, 255, 0),
+            (204, 255, 0),
+            (153, 255, 0),
+            (0, 255, 51),
+            (0, 255, 153),
+            (0, 255, 204),
+            (0, 255, 255),
+            (0, 204, 255),
+            (0, 153, 255),
+            (0, 102, 255),
+            (102, 0, 255),
+            (153, 0, 255),
+            (204, 0, 255),
+            (255, 0, 204),
+            (187, 68, 68),
+            (187, 116, 68),
+            (187, 140, 68),
+            (187, 163, 68),
+            (187, 187, 68),
+            (163, 187, 68),
+            (140, 187, 68),
+            (68, 187, 92),
+            (68, 187, 140),
+            (68, 187, 163),
+            (68, 187, 187),
+            (68, 163, 187),
+            (68, 140, 187),
+            (68, 116, 187),
+            (116, 68, 187),
+            (140, 68, 187),
+            (163, 68, 187),
+            (187, 68, 163),
+            (255, 119, 119),
+            (255, 207, 136),
+            (119, 255, 146),
+            (153, 214, 255)
+        ]
+        # if no index, zero is used
+        if index is None:
+            index = np.zeros(gt_boxes.shape[0])
+        else:
+            index2label = {}
+            for i,v in enumerate(label):
+                index2label[index[i]] = label[i]
+
+        im_obj = im2show.copy()
+        for i in range(gt_boxes.shape[0]):
+            if label is not None:
+                bbox_color = color_pool[label[i]]
+            else:
+                bbox_color = color_pool[10]
+            bbox = tuple(int(np.round(x)) for x in gt_boxes[i, :4])
+            im_obj = draw_single_bbox(im_obj, bbox, '%s: ind: %d' % (self.cls_list[label[i]], index[i]), bbox_color)
+        cv2.imwrite('object_label.png', im_obj)
+
+        if grasps is not None:
+            im_grasp = im2show.copy()
+            for i in range(grasps.shape[0]):
+                if index is not None and grasp_inds is not None:
+                    im_grasp = draw_single_grasp(im_grasp, grasps[i].astype(np.int32),
+                                                 'ind:%d' % (grasp_inds[i]),
+                                                 color_pool[index2label[grasp_inds[i]]])
+                else:
+                    im_grasp = draw_single_grasp(im_grasp, grasps[i], '', color_pool[10])
+            cv2.imwrite('grasp_label.png', im_grasp)
         pdb.set_trace()
 
     def __len__(self):

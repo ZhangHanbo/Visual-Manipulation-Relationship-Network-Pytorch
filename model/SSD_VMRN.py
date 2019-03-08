@@ -194,7 +194,7 @@ class SSD(nn.Module):
                 obj_labels = torch.Tensor([]).type_as(gt_boxes).long()
                 obj_rois = obj_rois.type_as(gt_boxes)
                 obj_num = obj_num.type_as(num_boxes)
-
+        '''
         if self.training:
             # offline data
             for i in range(self.batch_size):
@@ -203,12 +203,13 @@ class SSD(nn.Module):
                                                  (gt_boxes[i][:num_boxes[i]][:, 0:4])], 1)
                                       ])
                 obj_num = torch.cat([obj_num, torch.Tensor([num_boxes[i]]).type_as(obj_num)])
+        '''
 
         obj_rois = Variable(obj_rois)
 
         VMRN_rel_loss_cls = 0
         rel_cls_prob = torch.Tensor([]).type_as(obj_rois)
-        if obj_rois.size(0) > 1:
+        if (obj_num > 1).sum().item() > 0:
 
             obj_pair_feat = self.VMRN_rel_op2l(base_feat, obj_rois, self.batch_size, obj_num)
             # obj_pair_feat = obj_pair_feat.detach()
@@ -224,14 +225,15 @@ class SSD(nn.Module):
                 obj_pair_rel_label = obj_pair_rel_label.type_as(gt_boxes).long()
 
                 rel_not_keep = (obj_pair_rel_label == 0)
-                rel_keep = torch.nonzero(rel_not_keep == 0).view(-1)
+                # no relationship is kept
+                if (rel_not_keep == 0).sum().item() > 0:
+                    rel_keep = torch.nonzero(rel_not_keep == 0).view(-1)
 
-                rel_cls_score = rel_cls_score[rel_keep]
+                    rel_cls_score = rel_cls_score[rel_keep]
 
-                obj_pair_rel_label = obj_pair_rel_label[rel_keep]
-                obj_pair_rel_label -= 1
-
-                VMRN_rel_loss_cls = F.cross_entropy(rel_cls_score, obj_pair_rel_label)
+                    obj_pair_rel_label = obj_pair_rel_label[rel_keep]
+                    obj_pair_rel_label -= 1
+                    VMRN_rel_loss_cls = F.cross_entropy(rel_cls_score, obj_pair_rel_label)
             else:
                 if (not cfg.TEST.VMRN.ISEX) and cfg.TRAIN.VMRN.ISEX:
                     rel_cls_prob = rel_cls_prob[::2, :]

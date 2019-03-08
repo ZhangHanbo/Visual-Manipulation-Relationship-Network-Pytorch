@@ -49,7 +49,7 @@ class _ROIGN(nn.Module):
         self._ROIGN_as = cfg.FCGN.ANCHOR_SCALES
         self._ROIGN_ar = cfg.FCGN.ANCHOR_RATIOS
         self._ROIGN_aa = cfg.FCGN.ANCHOR_ANGLES
-        self._fs = cfg.FCGN.FEAT_STRIDE[0]
+        self._fs = cfg.RCNN_COMMON.FEAT_STRIDE[0]
         # for resnet
         if self.dout_base_model is None:
             if self._fs == 16:
@@ -94,8 +94,9 @@ class _ROIGN(nn.Module):
         gt_boxes = gt['boxes']
         # for jacquard dataset, the bounding box labels are set to -1. For training, we set them to 1, which does not
         # affect the training process.
-        if gt_boxes[:, :, -1].sum().item() < 0:
-            gt_boxes[:, :, -1] = -gt_boxes[:, :, -1]
+        if self.training:
+            if gt_boxes[:, :, -1].sum().item() < 0:
+                gt_boxes[:, :, -1] = -gt_boxes[:, :, -1]
         gt_grasps = gt['grasps']
         gt_grasp_inds = gt['grasp_inds']
         num_boxes = gt['num_boxes']
@@ -121,18 +122,41 @@ class _ROIGN(nn.Module):
             rpn_loss_cls = 0
             rpn_loss_bbox = 0
 
-        if cfg.RCNN_COMMON.POOLING_MODE == 'crop':
-            # pdb.set_trace()
-            # pooled_feat_anchor = _crop_pool_layer(base_feat, rois.view(-1, 5))
-            grid_xy = _affine_grid_gen(rois.view(-1, 5), base_feat.size()[2:], self.grid_size)
-            grid_yx = torch.stack([grid_xy.data[:,:,:,1], grid_xy.data[:,:,:,0]], 3).contiguous()
-            pooled_feat = self.RCNN_roi_crop(base_feat, Variable(grid_yx).detach())
-            if cfg.RCNN_COMMON.CROP_RESIZE_WITH_MAX_POOL:
-                pooled_feat = F.max_pool2d(pooled_feat, 2, 2)
-        elif cfg.RCNN_COMMON.POOLING_MODE == 'align':
-            pooled_feat = self.RCNN_roi_align(base_feat, rois.view(-1, 5))
-        elif cfg.RCNN_COMMON.POOLING_MODE == 'pool':
-            pooled_feat = self.RCNN_roi_pool(base_feat, rois.view(-1, 5))
+        if cfg.MGN.USE_FIXED_SIZE_ROI:
+            _rois = rois.view(-1, 5)
+            rois_cx = (_rois[:, 1:2] + _rois[:, 3:4]) / 2
+            rois_cy = (_rois[:, 2:3] + _rois[:, 4:5]) / 2
+            rois_xmin = torch.clamp(rois_cx - 100, min = 1, max = 600)
+            rois_ymin = torch.clamp(rois_cy - 100, min = 1, max = 600)
+            rois_xmax = rois_xmin + 200
+            rois_ymax = rois_ymin + 200
+            rois_for_grasp = torch.cat([_rois[:, :1], rois_xmin, rois_ymin, rois_xmax, rois_ymax], dim = 1)
+            if cfg.RCNN_COMMON.POOLING_MODE == 'crop':
+                # pdb.set_trace()
+                # pooled_feat_anchor = _crop_pool_layer(base_feat, rois.view(-1, 5))
+                grid_xy = _affine_grid_gen(rois_for_grasp, base_feat.size()[2:], self.grid_size)
+                grid_yx = torch.stack([grid_xy.data[:,:,:,1], grid_xy.data[:,:,:,0]], 3).contiguous()
+                pooled_feat = self.RCNN_roi_crop(base_feat, Variable(grid_yx).detach())
+                if cfg.RCNN_COMMON.CROP_RESIZE_WITH_MAX_POOL:
+                    pooled_feat = F.max_pool2d(pooled_feat, 2, 2)
+            elif cfg.RCNN_COMMON.POOLING_MODE == 'align':
+                pooled_feat = self.RCNN_roi_align(base_feat, rois_for_grasp)
+            elif cfg.RCNN_COMMON.POOLING_MODE == 'pool':
+                pooled_feat = self.RCNN_roi_pool(base_feat, rois_for_grasp)
+
+        else:
+            if cfg.RCNN_COMMON.POOLING_MODE == 'crop':
+                # pdb.set_trace()
+                # pooled_feat_anchor = _crop_pool_layer(base_feat, rois.view(-1, 5))
+                grid_xy = _affine_grid_gen(rois.view(-1, 5), base_feat.size()[2:], self.grid_size)
+                grid_yx = torch.stack([grid_xy.data[:,:,:,1], grid_xy.data[:,:,:,0]], 3).contiguous()
+                pooled_feat = self.RCNN_roi_crop(base_feat, Variable(grid_yx).detach())
+                if cfg.RCNN_COMMON.CROP_RESIZE_WITH_MAX_POOL:
+                    pooled_feat = F.max_pool2d(pooled_feat, 2, 2)
+            elif cfg.RCNN_COMMON.POOLING_MODE == 'align':
+                pooled_feat = self.RCNN_roi_align(base_feat, rois.view(-1, 5))
+            elif cfg.RCNN_COMMON.POOLING_MODE == 'pool':
+                pooled_feat = self.RCNN_roi_pool(base_feat, rois.view(-1, 5))
 
         # feed pooled features to top model
         # grasp top

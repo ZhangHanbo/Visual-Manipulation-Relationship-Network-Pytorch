@@ -90,7 +90,7 @@ class jacquard(imdb):
         if self._version == 'rgb':
             image_path = index + '_RGB.png'
         elif self._version == 'rgd':
-            image_path = index + '_RGD.png'
+            image_path = index + '_RGD_.png'
         elif self._version == 'depth':
             image_path = index + '_Depth.png'
         else:

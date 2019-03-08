@@ -9,7 +9,7 @@ import numpy as np
 from easydict import EasyDict as edict
 
 from model.utils.augmentations import Augmentation, Augmentation_Grasp, \
-  Augmentation_Grasp_Test, Augmentation_VMRD
+  Augmentation_Grasp_Test, Augmentation_VMRD, Augmentation_Grasp_Roign_Cornell
 
 __C = edict()
 # Consumers can get config by:
@@ -322,6 +322,7 @@ __C.MGN = edict()
 __C.MGN.USE_POOLED_FEATS = True
 __C.MGN.USE_ADAPTIVE_ANCHOR = False
 __C.MGN.OBJECT_GRASP_BALANCE = 1
+__C.MGN.USE_FIXED_SIZE_ROI = False
 
 import pdb
 def get_output_dir(imdb, weights_filename):
@@ -376,6 +377,7 @@ def _merge_a_into_b(a, b):
       if k == 'AUGMENTER':
         augmenter_list = ("Augmentation()",
                           "Augmentation_Grasp()",
+                          "Augmentation_Grasp_Roign_Cornell()",
                           "Augmentation_Grasp_Test()",
                           "Augmentation_VMRD()")
         if v in augmenter_list:

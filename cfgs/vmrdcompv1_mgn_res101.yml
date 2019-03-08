@@ -11,8 +11,8 @@ TRAIN:
     BBOX_NORMALIZE_TARGETS_PRECOMPUTED: True
     FIXED_INPUT_SIZE : False
     USE_VERTICAL_ROTATED : True
-    AUGMENTATION : True # When this is True, remember to go to utils/augmantation.py to config augmentation.
-    AUGMENTER : Augmentation_VMRD()
+    # AUGMENTATION : True # When this is True, remember to go to utils/augmantation.py to config augmentation.
+    # AUGMENTER : Augmentation_VMRD()
     SNAPSHOT_ITERS: 10000
   RCNN_COMMON:
     HAS_RPN: True

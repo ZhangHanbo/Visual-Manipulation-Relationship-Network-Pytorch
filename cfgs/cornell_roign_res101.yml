@@ -3,17 +3,17 @@ TRAIN:
   COMMON:
     LEARNING_RATE : 0.002
     LR_DECAY_STEPSIZE: [0]
-    GAMMA : 0.000003
-    WEIGHT_DECAY: 0.0005
-    MAX_EPOCH: 30
+    GAMMA : 0.0003
+    WEIGHT_DECAY: 0.002
+    MAX_EPOCH: 300
     IMS_PER_BATCH : 4
     DISPLAY : 20
     BBOX_NORMALIZE_TARGETS_PRECOMPUTED: True
     FIXED_INPUT_SIZE : False
     # USE_VERTICAL_ROTATED : True
-    # AUGMENTATION : True # When this is True, remember to go to utils/augmantation.py to config augmentation.
-    # AUGMENTER : Augmentation_VMRD()
-    SNAPSHOT_ITERS: 20000
+    AUGMENTATION : True # When this is True, remember to go to utils/augmantation.py to config augmentation.
+    AUGMENTER : Augmentation_Grasp_Roign_Cornell()
+    SNAPSHOT_ITERS: 400
     SNAPSHOT_AFTER_TEST: True
   RCNN_COMMON:
     HAS_RPN: True
@@ -33,8 +33,9 @@ TRAIN:
 TEST:
   COMMON:
     FIXED_INPUT_SIZE: False
-    AUGMENTATION : False # When this is True, remember to go to utils/augmantation.py to config augmentation.
     OBJ_DET_THRESHOLD: 0.7
+    AUGMENTATION : True # When this is True, remember to go to utils/augmantation.py to config augmentation.
+    AUGMENTER: Augmentation_Grasp_Test()
   RCNN_COMMON:
     HAS_RPN: True
     SCALES: [800,]
@@ -61,3 +62,4 @@ MGN:
   USE_ADAPTIVE_ANCHOR: False
   #############
   OBJECT_GRASP_BALANCE: 0.2
+  USE_FIXED_SIZE_ROI: False

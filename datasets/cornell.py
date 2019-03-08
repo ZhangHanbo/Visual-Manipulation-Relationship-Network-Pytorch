@@ -63,6 +63,7 @@ class cornell(imdb):
         self._class_to_ind = dict(zip(self.classes, xrange(self.num_classes)))
         self._image_ext = '.png'
         self._image_index = self._load_image_set_index()
+        self._image_bbox = self._load_image_bbox()
         # Default to roidb handler
         # self._roidb_handler = self.selective_search_roidb
         self._roidb_handler = self.gt_roidb
@@ -117,6 +118,18 @@ class cornell(imdb):
             with open(image_set_file) as f:
                 image_index = [x.strip() for x in f.readlines()]
         return image_index
+
+    def _load_image_bbox(self):
+        bbox_file_path = os.path.join(self._data_path, 'bbox.txt')
+        bbox_file = open(bbox_file_path, 'r')
+        bbox_list = bbox_file.readlines()
+        bbox_dict = {}
+        for bbox in bbox_list:
+            box = bbox[:-1].split(' ')
+            img_index = box[0][:7]
+            box = np.array(box[1:], dtype = np.int32)
+            bbox_dict[img_index] = box
+        return bbox_dict
 
     def _get_default_path(self):
         """
@@ -174,7 +187,10 @@ class cornell(imdb):
                 boxes[id, :] = grasp - 1
         keep = boxes.sum(1)>0
 
+        obj_boxes = np.expand_dims(self._image_bbox[index], axis=0)
+
         return {'grasps': boxes[keep],
+                'boxes': obj_boxes,
                 'flipped': False,
                 'rotated': 0}
 

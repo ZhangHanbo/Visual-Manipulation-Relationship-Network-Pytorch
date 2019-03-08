@@ -189,6 +189,7 @@ class _fasterRCNN_VMRN(nn.Module):
                 obj_num = obj_num.type_as(num_boxes)
 
         # offline data
+
         if self.training:
             for i in range(self.batch_size):
                 obj_rois = torch.cat([obj_rois,
@@ -197,12 +198,13 @@ class _fasterRCNN_VMRN(nn.Module):
                                   ])
                 obj_num = torch.cat([obj_num,torch.Tensor([num_boxes[i]]).type_as(obj_num)])
 
+
         obj_rois = Variable(obj_rois)
 
-        if obj_rois.size(0)>1:
+        if (obj_num > 1).sum().item() > 0:
             # filter out the detection of only one object instance
             obj_pair_feat = self.VMRN_rel_op2l(base_feat, obj_rois, self.batch_size, obj_num)
-            #obj_pair_feat = obj_pair_feat.detach()
+            obj_pair_feat = obj_pair_feat.detach()
             obj_pair_feat = self._rel_head_to_tail(obj_pair_feat)
             rel_cls_score = self.VMRN_rel_cls_score(obj_pair_feat)
 
@@ -216,14 +218,17 @@ class _fasterRCNN_VMRN(nn.Module):
                 obj_pair_rel_label = obj_pair_rel_label.type_as(gt_boxes).long()
 
                 rel_not_keep = (obj_pair_rel_label == 0)
-                rel_keep = torch.nonzero(rel_not_keep == 0).view(-1)
 
-                rel_cls_score = rel_cls_score[rel_keep]
-                obj_pair_rel_label = obj_pair_rel_label[rel_keep]
+                # no relationship is kept
+                if (rel_not_keep == 0).sum().item() > 0:
+                    rel_keep = torch.nonzero(rel_not_keep == 0).view(-1)
 
-                obj_pair_rel_label -= 1
+                    rel_cls_score = rel_cls_score[rel_keep]
+                    obj_pair_rel_label = obj_pair_rel_label[rel_keep]
 
-                VMRN_rel_loss_cls = F.cross_entropy(rel_cls_score, obj_pair_rel_label)
+                    obj_pair_rel_label -= 1
+
+                    VMRN_rel_loss_cls = F.cross_entropy(rel_cls_score, obj_pair_rel_label)
             else:
                 if (not cfg.TEST.VMRN.ISEX) and cfg.TRAIN.VMRN.ISEX:
                     rel_cls_prob = rel_cls_prob[::2,:]
@@ -231,7 +236,7 @@ class _fasterRCNN_VMRN(nn.Module):
         else:
             VMRN_rel_loss_cls = 0
             # no detected relationships
-            rel_cls_prob = Variable(torch.Tensor([]).type_as(obj_labels))
+            rel_cls_prob = Variable(torch.Tensor([]).type_as(cls_prob))
 
         rel_result = None
         if not self.training:
@@ -428,7 +433,9 @@ class _fasterRCNN_VMRN(nn.Module):
 
 class resnet(_fasterRCNN_VMRN):
     def __init__(self, classes, num_layers=101, pretrained=False, class_agnostic=False):
-        self.model_path = 'data/pretrained_model/resnet101_caffe.pth'
+
+        self.num_layers = num_layers
+        self.model_path = 'data/pretrained_model/resnet'+str(num_layers)+'_caffe.pth'
         self.dout_base_model = 1024
         self.pretrained = pretrained
         self.class_agnostic = class_agnostic
@@ -436,7 +443,12 @@ class resnet(_fasterRCNN_VMRN):
         _fasterRCNN_VMRN.__init__(self, classes, class_agnostic)
 
     def _init_modules(self):
-        resnet = resnet101()
+        if self.num_layers == 50:
+            resnet = resnet50()
+        elif self.num_layers == 101:
+            resnet = resnet101()
+        else:
+            assert 0, "network not defined"
 
         if self.pretrained == True:
             print("Loading pretrained weights from %s" % (self.model_path))
