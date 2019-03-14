@@ -194,7 +194,7 @@ class SSD(nn.Module):
                 obj_labels = torch.Tensor([]).type_as(gt_boxes).long()
                 obj_rois = obj_rois.type_as(gt_boxes)
                 obj_num = obj_num.type_as(num_boxes)
-        '''
+
         if self.training:
             # offline data
             for i in range(self.batch_size):
@@ -203,7 +203,7 @@ class SSD(nn.Module):
                                                  (gt_boxes[i][:num_boxes[i]][:, 0:4])], 1)
                                       ])
                 obj_num = torch.cat([obj_num, torch.Tensor([num_boxes[i]]).type_as(obj_num)])
-        '''
+
 
         obj_rois = Variable(obj_rois)
 

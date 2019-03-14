@@ -28,10 +28,17 @@ from model.op2l.rois_pair_expanding_layer import  _RoisPairExpandingLayer
 from model.op2l.op2l import _OP2L
 
 import torchvision
+import pdb
 
 import numpy as np
 
 from model.rpn.bbox_transform import bbox_transform_inv, clip_boxes
+
+t2i = torchvision.transforms.ToPILImage()
+i2t = torchvision.transforms.ToTensor()
+trans = torchvision.transforms.Compose(
+            [t2i, torchvision.transforms.Resize(size=[224,224]), i2t]
+        )
 
 class L2Norm(nn.Module):
     def __init__(self,n_channels, scale):
@@ -115,6 +122,8 @@ class SSD(nn.Module):
         """
 
         self._train_iter_conter += 1
+
+        input_imgs = x.clone()
 
         sources = list()
         loc = list()
@@ -383,6 +392,57 @@ class SSD(nn.Module):
             final = torch.Tensor([]).type_as(bbox_pred)
         return final
 
+    def VMRN_obj_pair_feat_extractor(self, input_imgs, obj_rois, batch_size, obj_num):
+        bbox_imgs = torch.Tensor([]).type_as(input_imgs)
+        union_bbox_imgs = torch.Tensor([]).type_as(input_imgs)
+        for i in range(obj_num.size(0)):
+            img_index = i % batch_size
+            cur_img = input_imgs[img_index]
+            if obj_num[i] <=1 :
+                continue
+            begin_ind = torch.sum(obj_num[:i])
+            cur_obj_bboxes = obj_rois[begin_ind:(begin_ind+obj_num[i])]
+            for o1ind in range(obj_num[i]):
+                o1_bbox = cur_obj_bboxes[o1ind][1:5].long()
+                o1_img = cur_img[:, o1_bbox[1]:o1_bbox[3], o1_bbox[0]:o1_bbox[2]].unsqueeze(0)
+                o1_img = F.upsample_bilinear(o1_img, size = [224,224])
+                bbox_imgs = torch.cat((bbox_imgs, o1_img), dim = 0)
+                for o2ind in range(o1ind + 1, obj_num[i]):
+                    o2_bbox = cur_obj_bboxes[o2ind][1:5].long()
+                    union_bbox = torch.cat((torch.min(o1_bbox[0:2],o2_bbox[0:2]),
+                                            torch.max(o1_bbox[2:4],o2_bbox[2:4])), 0)
+                    # 1 x 3 x H x W
+                    union_img = cur_img[:, union_bbox[1]:union_bbox[3],
+                                union_bbox[0]:union_bbox[2]].unsqueeze(0)
+                    union_img = F.upsample_bilinear(union_img, size = [224,224])
+                    union_bbox_imgs = torch.cat((union_bbox_imgs, union_img), dim=0)
+
+        bbox_num = bbox_imgs.size(0)
+        union_bbox_num = union_bbox_imgs.size(0)
+        if isinstance(self.rel_base, nn.ModuleList):
+            for k,v in enumerate(self.rel_base):
+                bbox_imgs = self.rel_base(bbox_imgs)
+                union_bbox_imgs = self.rel_base(union_bbox_imgs)
+        else:
+            bbox_imgs = self.rel_base(bbox_imgs).reshape(bbox_num, -1)
+            union_bbox_imgs = self.rel_base(union_bbox_imgs).reshape(union_bbox_num, -1)
+
+        obj_pair_feats = torch.Tensor([]).type_as(input_imgs)
+
+        union_counter = 0
+        for i in range(obj_num.size(0)):
+            for o1ind in range(obj_num[i]):
+                for o2ind in range(o1ind + 1, obj_num[i]):
+                    cur_pair_feat = torch.cat((bbox_imgs[o1ind], bbox_imgs[o2ind],
+                                               union_bbox_imgs[union_counter]),dim = 0).unsqueeze(0)
+                    obj_pair_feats = torch.cat((obj_pair_feats, cur_pair_feat), dim = 0)
+                    if self._isex:
+                        cur_pair_feat = torch.cat((bbox_imgs[o2ind], bbox_imgs[o1ind],
+                                                   union_bbox_imgs[union_counter]), dim=0).unsqueeze(0)
+                        obj_pair_feats = torch.cat((obj_pair_feats, cur_pair_feat), dim=0)
+                    union_counter += 1
+        return obj_pair_feats
+
     def create_architecture(self):
         self._init_modules()
         def weights_init(m):
@@ -447,7 +507,7 @@ class vgg16(SSD):
         vgg_weights = torch.load(self.rel_module_path)
         rel_base.load_state_dict(vgg_weights)
 
-        rel_base = rel_base.features()
+        self.rel_base = rel_base.features
 
         self.VMRN_rel_cls_score = vmrn_rel_classifier(512 * 7 * 7 * 3)
 
@@ -520,25 +580,6 @@ class vgg16(SSD):
                    nn.ReLU(inplace=True), conv7, nn.ReLU(inplace=True)]
         return layers
 
-    def VMRN_obj_pair_feat_extractor(self, input_imgs, obj_rois, batch_size, obj_num):
-        for i in range(obj_num.size(0)):
-            img_index = i % batch_size
-            cur_img = input_imgs[img_index]
-            if obj_num[i] <=1 :
-                continue
-            begin_ind = torch.sum(obj_num[:i])
-            cur_obj_bboxes = obj_rois[begin_ind:(begin_ind+obj_num[i])]
-            for o1ind in range(obj_num[i]):
-                o1_bbox = cur_obj_bboxes[o1ind]
-                o1_img = cur_img[:, o1_bbox[1]:o1_bbox[3], o1_bbox[0]:o1_bbox[2]].resize(1, 3, 224, 224)
-                for o2ind in range(o1ind + 1, obj_num[i]):
-                    o2_bbox = cur_obj_bboxes[o2ind]
-                    o2_img = cur_img[:, o2_bbox[1]:o2_bbox[3], o2_bbox[0]:o2_bbox[2]].resize(1, 3, 224, 224)
-                    union_bbox = torch.cat((torch.min(o1_bbox[0:2],o2_bbox[0:2]),
-                                            torch,max(o1_bbox[2:4],o2_bbox[2:4])), 0)
-                    union_img = cur_img[:, union_bbox[1]:union_bbox[3], union_bbox[0]:union_bbox[2]].resize(1, 3, 224, 224)
-
-
 class resnet(SSD):
     def __init__(self, num_classes, pretrained=False, layer_num = 50):
         super(resnet , self).__init__(num_classes)
@@ -570,34 +611,19 @@ class resnet(SSD):
         self.loc = nn.ModuleList(head[0])
         self.conf = nn.ModuleList(head[1])
 
-        if cfg.VMRN.SHARE_WEIGHTS:
-            self.VMRN_rel_top = nn.Sequential(
-                nn.Conv2d(512, 256, 1, stride=1, padding=0),
-                nn.Conv2d(256, 256, 3, stride=1, padding=1),
-                nn.Conv2d(256, 64, 1, stride=1, padding=0),
-                nn.Conv2d(64, 64, 3, stride=1, padding=1)
-            )
+        if self.layer_num == 50:
+            rel_base = torchvision.models.resnet50()
+        elif self.layer_num==101:
+            rel_base = torchvision.models.resnet101()
         else:
-            self.VMRN_rel_top_o1 = nn.Sequential(
-                nn.Conv2d(512, 256, 1, stride=1, padding=0),
-                nn.Conv2d(256, 256, 3, stride=1, padding=1),
-                nn.Conv2d(256, 64, 1, stride=1, padding=0),
-                nn.Conv2d(64, 64, 3, stride=1, padding=1)
-            )
-            self.VMRN_rel_top_o2 = nn.Sequential(
-                nn.Conv2d(512, 256, 1, stride=1, padding=0),
-                nn.Conv2d(256, 256, 3, stride=1, padding=1),
-                nn.Conv2d(256, 64, 1, stride=1, padding=0),
-                nn.Conv2d(64, 64, 3, stride=1, padding=1)
-            )
-            self.VMRN_rel_top_union = nn.Sequential(
-                nn.Conv2d(512, 256, 1, stride=1, padding=0),
-                nn.Conv2d(256, 256, 3, stride=1, padding=1),
-                nn.Conv2d(256, 64, 1, stride=1, padding=0),
-                nn.Conv2d(64, 64, 3, stride=1, padding=1)
-            )
+            assert 0, "This ResNet is not defined."
+        res_weights = torch.load(self.module_path)
+        rel_base.load_state_dict(res_weights)
 
-        self.VMRN_rel_cls_score = vmrn_rel_classifier(64 * 7 * 7 * 3)
+        self.rel_base = nn.ModuleList([rel_base.conv1, rel_base.bn1, rel_base.relu, rel_base.maxpool,
+                    rel_base.layer1, rel_base.layer2, rel_base.layer3, rel_base.layer4, rel_base.avgpool])
+
+        self.VMRN_rel_cls_score = vmrn_rel_classifier(2048 * 3)
 
     def _rel_head_to_tail(self, pooled_pair):
         # box_type: o1, o2, union

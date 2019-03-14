@@ -39,6 +39,7 @@ import model.SSD_VMRN as SSD_VMRN
 import model.MultiGrasp as MGN
 import model.AllinOne as ALL_IN_ONE
 import model.RoIGrasp as ROIGN
+import model.VAM as VAM
 
 from model.rpn.bbox_transform import bbox_transform_inv, clip_boxes
 from model.nms.nms_wrapper import nms
@@ -251,13 +252,22 @@ def evalute_model(Network, namedb, args):
             net_loss_bbox, net_loss_cls = Network(im_data, im_info, gt_boxes, num_boxes)
 
             boxes = Network.priors.type_as(bbox_pred)
-        elif args.frame[-4:] == 'vmrn':
+
+        elif args.frame == 'faster_rcnn_vmrn':
             rois, cls_prob, bbox_pred, rel_result, \
             rpn_loss_cls, rpn_loss_box, \
             RCNN_loss_cls, RCNN_loss_bbox, RCNN_rel_loss_cls, \
             rois_label = Network(im_data, im_info, gt_boxes, num_boxes, rel_mat)
 
             boxes = rois.data[:, :, 1:5]
+
+            all_rel.append(rel_result)
+
+        elif args.frame == 'ssd_vmrn' or args.frame == 'vam':
+            bbox_pred, cls_prob, rel_result, \
+            loss_bbox, loss_cls, rel_loss_cls = Network(im_data, im_info, gt_boxes, num_boxes, rel_mat)
+
+            boxes = Network.priors.type_as(bbox_pred)
 
             all_rel.append(rel_result)
 
@@ -778,6 +788,17 @@ if __name__ == '__main__':
         else:
             print("network is not defined")
             pdb.set_trace()
+
+    elif args.frame == 'vam':
+        if args.net == 'vgg16':
+            Network = VAM.vgg16(imdb.classes, pretrained=True)
+        elif args.net == 'res50' :
+            Network = VAM.resnet(imdb.classes, layer_num=50, pretrained=True)
+        elif args.net == 'res101' :
+            Network = VAM.resnet(imdb.classes, layer_num=101, pretrained=True)
+        else:
+            print("network is not defined")
+            pdb.set_trace()
     else:
         print("frame is not defined")
         pdb.set_trace()
@@ -973,7 +994,7 @@ if __name__ == '__main__':
 
                 loss = loss_bbox.mean() + loss_cls.mean()
 
-            elif args.frame == 'ssd_vmrn':
+            elif args.frame == 'ssd_vmrn' or args.frame == 'vam':
                 bbox_pred, cls_prob, rel_result, \
                 loss_bbox, loss_cls, rel_loss_cls = Network(im_data, im_info, gt_boxes, num_boxes, rel_mat)
                 if rel_loss_cls==0:
