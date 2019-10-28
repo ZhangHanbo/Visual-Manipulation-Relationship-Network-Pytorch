@@ -11,14 +11,14 @@ Users for other GPUs: you have to follow the installation steps from https://git
 2. Run codes.
 
 ## Training Example
-```python
+```bash
 python trainval_net.py --dataset (DatasetName) --frame (AlgName) --net (BackboneName) --cuda
 # like:
 python trainval_net.py --dataset vmrdcompv1 --frame all_in_one --net res101 --cuda
 ```
 
 ## Testing
-```python
+```bash
 python test_net.py --dataset (DatasetName) --frame (AlgName) --net (BackboneName) --cuda --checkpoint (PointNum) --checkepoch (EpochNum) --GPU (GpuNum, Default:0)
 #like:
 python test_net.py --dataset vmrdcompv1 --frame all_in_one --net res101 --cuda --checkpoint 1000 --checkepoch 1 --GPU 0
