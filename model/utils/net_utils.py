@@ -76,7 +76,8 @@ def vis_detections(im_obj, im_grasp, class_name, dets, thresh=0.8, grasps = None
 
     return im_obj, im_grasp
 
-def draw_single_bbox(img, bbox, text_str, bbox_color):
+def draw_single_bbox(img, bbox, text_str="", bbox_color=(255,0,0)):
+    bbox = tuple(bbox)
     text_rd = (bbox[2], bbox[1] + 25)
     cv2.rectangle(img, bbox[0:2], bbox[2:4], bbox_color, 2)
     cv2.rectangle(img, bbox[0:2], text_rd, bbox_color, -1)
@@ -85,7 +86,7 @@ def draw_single_bbox(img, bbox, text_str, bbox_color):
                 2, (255, 255, 255), thickness=2)
     return img
 
-def draw_single_grasp(img, grasp, test_str, bbox_color):
+def draw_single_grasp(img, grasp, test_str="", bbox_color=(255,0,0)):
     text_len = len(test_str)
     gr_c = (int((grasp[0] + grasp[4]) / 2), int((grasp[1] + grasp[5]) / 2))
     for j in range(4):

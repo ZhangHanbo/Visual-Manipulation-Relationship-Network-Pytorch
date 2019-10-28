@@ -62,5 +62,5 @@ MGN:
   #############
   USE_ADAPTIVE_ANCHOR: False
   #############
-  OBJECT_GRASP_BALANCE: 1
+  OBJECT_GRASP_BALANCE: 1.0
 
