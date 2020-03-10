@@ -223,7 +223,7 @@ class _RPN(nn.Module):
             rpn_label = torch.index_select(rpn_label.view(-1), 0, rpn_keep.data)
             rpn_label = Variable(rpn_label.long())
 
-            print('rpn fg/bg:'+ str(int((rpn_label==1).sum())) +'/' +str(int((rpn_label==0).sum())))
+            # print('rpn fg/bg:'+ str(int((rpn_label==1).sum())) +'/' +str(int((rpn_label==0).sum())))
             # FOCAL LOSS
             if cfg.TRAIN.RCNN_COMMON.RPN_USE_FOCAL_LOSS:
                 rpn_cls_prob = torch.index_select(all_rpn_cls_prob.view(-1, 2), 0, rpn_keep)

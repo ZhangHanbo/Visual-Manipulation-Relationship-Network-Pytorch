@@ -308,7 +308,7 @@ __C.FPN.SHARE_RPN = True
 # k is in {0,1,2,3,4}
 __C.FPN.K = 3
 # add a convolutional layer after each unsampling layer
-__C.FPN.UNSAMPLE_CONV = False
+__C.FPN.UPSAMPLE_CONV = False
 
 __C.FCGN = edict()
 __C.FCGN.ANCHOR_SCALES = [54]

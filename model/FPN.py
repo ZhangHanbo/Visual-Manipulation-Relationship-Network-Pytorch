@@ -86,24 +86,16 @@ class _FPN(nn.Module):
         for i, newconv in enumerate(self.RCNN_newconvs):
             C256.append(newconv(C[i+1]))
 
-        ups = [C256[3]]
-        for i, deconv in enumerate(self.RCNN_deconvs):
-            if cfg.FPN.UNSAMPLE_CONV:
-                ups.append(F.upsample(deconv(ups[i]),
-                                      size=(C256[2 - i].size(2), C256[2 - i].size(3)),
-                                      mode='bilinear') + C256[2 - i])
+        source = [C256[3]]
+        for i, upsampleconv in enumerate(self.RCNN_upsampleconvs):
+            if cfg.FPN.UPSAMPLE_CONV:
+                source.append(F.upsample(upsampleconv(source[i]),size=(C256[2 - i].size(-2), C256[2 - i].size(-1)), mode = 'bilinear') + C256[2 - i])
             else:
-                ups.append(F.upsample(ups[i],
-                                      size=(C256[2 - i].size(2), C256[2 - i].size(3)),
-                                      mode='bilinear') + C256[2 - i])
+                source.append(F.upsample(source[i],size=(C256[2 - i].size(-2), C256[2 - i].size(-1)), mode = 'bilinear') + C256[2 - i])
         # reverse ups list
-        ups = ups[::-1]
+        source = source[::-1]
 
         # P2 P3 P4 P5 P6
-        source = []
-        for i in range(3):
-            source.append(ups[i])
-        source.append(C256[3])
         source.append(C256[4])
 
         for i in range(len(source)):
@@ -297,7 +289,7 @@ class _FPN(nn.Module):
         # FPN layers init
         for newconv in self.RCNN_newconvs:
             normal_init(newconv, 0, 0.001, cfg.TRAIN.COMMON.TRUNCATED)
-        for deconv in self.RCNN_deconvs:
+        for deconv in self.RCNN_upsampleconvs:
             normal_init(deconv, 0, 0.001, cfg.TRAIN.COMMON.TRUNCATED)
         for mixconv in self.RCNN_mixconvs:
             normal_init(mixconv, 0, 0.001, cfg.TRAIN.COMMON.TRUNCATED)
@@ -379,10 +371,10 @@ class resnet(_FPN):
     self.RCNN_mixconvs.append(nn.Conv2d(256, 256, 3, stride=1, padding=1))
     self.RCNN_mixconvs.append(nn.Conv2d(256, 256, 3, stride=1, padding=1))
 
-    # FPN deconvoutional layers (totally 3)
-    self.RCNN_deconvs = nn.ModuleList()
+    # FPN upsample conv layers (whether to attach a conv layer after upsampling, totally 3)
+    self.RCNN_upsampleconvs = nn.ModuleList()
     for i in range(3):
-        self.RCNN_deconvs.append(
+        self.RCNN_upsampleconvs.append(
             nn.Conv2d(256, 256, 1, stride=1)
         )
     hidden_num = 1024

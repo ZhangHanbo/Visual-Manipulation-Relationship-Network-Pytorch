@@ -559,7 +559,8 @@ if __name__ == '__main__':
     if args.use_tfboard:
         from model.utils.logger import Logger
         # Set the logger
-        logger = Logger('./logs')
+        current_t = time.time()
+        logger = Logger(os.path.join('.', 'current_t'))
 
     if args.dataset == "pascal_voc":
         args.imdb_name = "voc_2007_trainval"
@@ -1103,7 +1104,7 @@ if __name__ == '__main__':
                     if rel_loss_cls:
                         info['loss_rel_pred'] = loss_rel_pred
                     for tag, value in info.items():
-                        logger.scalar_summary(tag, value, step)
+                        logger.scalar_summary(tag, value, iter_counter)
 
                 loss_temp = 0.
                 loss_rpn_cls = 0.
@@ -1133,6 +1134,8 @@ if __name__ == '__main__':
                 if cfg.TRAIN.COMMON.SNAPSHOT_AFTER_TEST:
                     Network.eval()
                     cresult = evalute_model(Network, args.imdbval_name, args)
+                    if args.use_tfboard:
+                        logger.scalar_summary('mAP', cresult, iter_counter)
                     Network.train()
                     if cresult > best_result:
                         best_result = cresult
