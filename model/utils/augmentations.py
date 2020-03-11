@@ -257,7 +257,8 @@ class ToTensor(object):
         return torch.from_numpy(cvimage.astype(np.float32)).permute(2, 0, 1), \
                boxes, labels, grasps, boxes_keep, grasps_keep
 
-# only for vertical bounding box
+# WARNING: When using this crop method, the image's height-width ratio will change and may cause some problems for
+#          training grasp detector.
 class RandomSampleCrop(object):
     """Crop
     Arguments:
@@ -369,7 +370,8 @@ class RandomSampleCrop(object):
 
                 return image, boxes, labels, grasps, boxes_keep, grasps_keep
 
-# random crop keeping all bboxes
+# WARNING: When using this crop method, the image's height-width ratio will change and may cause some problems for
+#          training grasp detector.
 class RandomCropKeepBoxes(object):
     def __call__(self, im, bs=None, ls=None, gr=None, bk=None, gk=None):
         height, width, _ = im.shape

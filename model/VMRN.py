@@ -61,7 +61,7 @@ class _fasterRCNN_VMRN(nn.Module):
         self._isex = cfg.TRAIN.VMRN.ISEX
         self.VMRN_rel_op2l = _OP2L(cfg.VMRN.OP2L_POOLING_SIZE, cfg.VMRN.OP2L_POOLING_SIZE, 1.0 / 16.0, self._isex)
 
-        self.iter_conter = 0
+        self.iter_counter = 0
 
 
     def forward(self, data_batch):
@@ -73,7 +73,7 @@ class _fasterRCNN_VMRN(nn.Module):
 
         # object detection
         if self.training:
-            self.iter_conter += 1
+            self.iter_counter += 1
         self.batch_size = im_data.size(0)
 
         # feed image data to base model to obtain base feature map
@@ -159,7 +159,7 @@ class _fasterRCNN_VMRN(nn.Module):
 
         # online data
         if self.training:
-            if self.iter_conter > cfg.TRAIN.VMRN.ONLINEDATA_BEGIN_ITER:
+            if self.iter_counter > cfg.TRAIN.VMRN.ONLINEDATA_BEGIN_ITER:
                 obj_rois, obj_num = self._obj_det(obj_det_rois,
                         obj_det_cls_prob.contiguous().view(self.batch_size, -1, self.n_classes),
                         obj_det_bbox_pred.contiguous().view(self.batch_size,
@@ -431,7 +431,7 @@ class _fasterRCNN_VMRN(nn.Module):
         self._init_weights()
 
     def resume_iter(self, epoch, iter_per_epoch):
-        self.iter_conter = epoch * iter_per_epoch
+        self.iter_counter = epoch * iter_per_epoch
 
 class resnet(_fasterRCNN_VMRN):
     def __init__(self, classes, num_layers=101, pretrained=False, class_agnostic=False):

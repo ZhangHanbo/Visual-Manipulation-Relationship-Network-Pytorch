@@ -355,7 +355,6 @@ def init_network(args, n_cls, resume = None):
         print("frame is not defined")
         pdb.set_trace()
     Network.create_architecture()
-    Network.iter_counter = 0
 
     lr = args.lr
     # tr_momentum = cfg.TRAIN.COMMON.MOMENTUM

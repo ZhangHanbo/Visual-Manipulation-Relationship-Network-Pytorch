@@ -178,7 +178,7 @@ class SSD(nn.Module):
 
         # online data
         if self.training:
-            if self.iter_conter > cfg.TRAIN.VMRN.ONLINEDATA_BEGIN_ITER:
+            if self.iter_counter > cfg.TRAIN.VMRN.ONLINEDATA_BEGIN_ITER:
                 obj_rois, obj_num = self._obj_det(conf, loc, self.batch_size, im_info)
                 obj_rois = obj_rois.type_as(gt_boxes)
                 obj_num = obj_num.type_as(num_boxes)
@@ -414,7 +414,7 @@ class SSD(nn.Module):
         return prior_cfg
 
     def resume_iter(self, epoch, iter_per_epoch):
-        self.iter_conter = epoch * iter_per_epoch
+        self.iter_counter = epoch * iter_per_epoch
 
 class vgg16(SSD):
     def __init__(self, num_classes, pretrained=False):
