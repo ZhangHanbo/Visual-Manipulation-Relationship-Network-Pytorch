@@ -66,14 +66,19 @@ class _FPN(nn.Module):
             )
 
         self.RCNN_proposal_target = _ProposalTargetLayer(self.n_classes)
+        self.iter_counter = 0
 
 
-    def forward(self, im_data, im_info, gt_boxes, num_boxes):
+    def forward(self, data_batch):
+        im_data = data_batch[0]
+        im_info = data_batch[1]
+        gt_boxes = data_batch[2]
+        num_boxes = data_batch[3]
+
         batch_size = im_data.size(0)
 
-        im_info = im_info.data
-        gt_boxes = gt_boxes.data
-        num_boxes = num_boxes.data
+        if self.training:
+            self.iter_counter += 1
 
         # feed image data to base model to obtain base feature map
         base_feat = self.RCNN_base(im_data)

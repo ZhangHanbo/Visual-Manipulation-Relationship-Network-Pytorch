@@ -100,11 +100,11 @@ class SSD(nn.Module):
         self._isex = cfg.TRAIN.VMRN.ISEX
         self.VMRN_rel_op2l = _OP2L(cfg.VMRN.OP2L_POOLING_SIZE, cfg.VMRN.OP2L_POOLING_SIZE, 1.0/8.0, self._isex)
 
-        self._train_iter_conter = 0
+        self.iter_conter = 0
 
         self.criterion = MultiBoxLoss(self.num_classes)
 
-    def forward(self, x, im_info, gt_boxes, num_boxes, rel_mat):
+    def forward(self, data_batch):
         """Applies network layers and ops on input image(s) x.
         Args:
             x: input image or batch of images. Shape: [batch,3,300,300].
@@ -121,7 +121,14 @@ class SSD(nn.Module):
                     3: priorbox layers, Shape: [2,num_priors*4]
         """
 
-        self._train_iter_conter += 1
+        x = data_batch[0]
+        im_info = data_batch[1]
+        gt_boxes = data_batch[2]
+        num_boxes = data_batch[3]
+        rel_mat = data_batch[4]
+
+        if self.training:
+            self.iter_counter += 1
 
         input_imgs = x.clone()
 
@@ -183,7 +190,7 @@ class SSD(nn.Module):
 
         # online data
         if self.training:
-            if self._train_iter_conter > cfg.TRAIN.VMRN.ONLINEDATA_BEGIN_ITER:
+            if self.iter_conter > cfg.TRAIN.VMRN.ONLINEDATA_BEGIN_ITER:
                 obj_rois, obj_num = self._obj_det(conf, loc, self.batch_size, im_info)
                 obj_rois = obj_rois.type_as(gt_boxes)
                 obj_num = obj_num.type_as(num_boxes)
@@ -469,7 +476,7 @@ class SSD(nn.Module):
         return prior_cfg
 
     def resume_iter(self, epoch, iter_per_epoch):
-        self._train_iter_conter = epoch * iter_per_epoch
+        self.iter_conter = epoch * iter_per_epoch
 
 class vgg16(SSD):
     def __init__(self, num_classes, pretrained=False):

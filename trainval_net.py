@@ -25,7 +25,7 @@ import torchvision.transforms as transforms
 from torch.utils.data.sampler import Sampler
 
 from roi_data_layer.roidb import combined_roidb
-from roi_data_layer.roibatchLoader import roibatchLoader
+from roi_data_layer.roibatchLoader import *
 from model.utils.config import cfg, cfg_from_file, cfg_from_list, get_output_dir
 from model.utils.net_utils import weights_normal_init, save_net, load_net, \
       adjust_learning_rate, save_checkpoint, clip_gradient
@@ -47,6 +47,8 @@ from model.fully_conv_grasp.bbox_transform_grasp import labels2points, grasp_dec
 
 import warnings
 
+# implemented-algorithm list
+LEGAL_FRAMES = {"faster_rcnn", "ssd", "fpn", "faster_rcnn_vmrn", "ssd_vmrn", "all_in_one", "fcgn", "roign", "vam"}
 
 def parse_args():
   """
@@ -166,90 +168,282 @@ class sampler(Sampler):
     def __len__(self):
         return self.num_data
 
+def makeCudaData(data_list):
+    for i, data in enumerate(data_list):
+        data_list[i] = data.cuda()
+    return data_list
+
+def read_cfgs():
+    args = parse_args()
+    print('Called with args:')
+    print(args)
+    if args.dataset == "pascal_voc":
+        args.imdb_name = "voc_2007_trainval"
+        args.imdbval_name = "voc_2007_test"
+        args.set_cfgs = ['MAX_NUM_GT_BOXES', '20']
+    elif args.dataset == "pascal_voc_0712":
+        args.imdb_name = "voc_2007_trainval+voc_2012_trainval"
+        args.imdbval_name = "voc_2007_test"
+        args.set_cfgs = ['MAX_NUM_GT_BOXES', '20']
+    elif args.dataset == "coco":
+        args.imdb_name = "coco_2014_train+coco_2014_valminusminival"
+        args.imdbval_name = "coco_2014_minival"
+        args.set_cfgs = ['MAX_NUM_GT_BOXES', '50']
+    elif args.dataset == "imagenet":
+        args.imdb_name = "imagenet_train"
+        args.imdbval_name = "imagenet_val"
+        args.set_cfgs = ['MAX_NUM_GT_BOXES', '30']
+    elif args.dataset == "vg":
+        # train sizes: train, smalltrain, minitrain
+        # train scale: ['150-50-20', '150-50-50', '500-150-80', '750-250-150', '1750-700-450', '1600-400-20']
+        args.imdb_name = "vg_150-50-50_minitrain"
+        args.imdbval_name = "vg_150-50-50_minival"
+        args.set_cfgs = ['MAX_NUM_GT_BOXES', '50']
+    elif args.dataset == 'vmrdcompv1':
+        args.imdb_name = "vmrd_compv1_trainval"
+        args.imdbval_name = "vmrd_compv1_test"
+        args.set_cfgs = ['MAX_NUM_GT_BOXES', '20']
+    elif args.dataset == 'bdds':
+        args.imdb_name = "bdds_trainval"
+        args.imdbval_name = "bdds_test"
+        args.set_cfgs = ['MAX_NUM_GT_BOXES', '20']
+    elif args.dataset[:7] == 'cornell':
+        cornell = args.dataset.split('_')
+        args.imdb_name = 'cornell_{}_{}_trainval_{}'.format(cornell[1],cornell[2],cornell[3])
+        args.imdbval_name = 'cornell_{}_{}_test_{}'.format(cornell[1],cornell[2],cornell[3])
+        args.set_cfgs = ['MAX_NUM_GT_BOXES', '50']
+    elif args.dataset[:8] == 'jacquard':
+        jacquard = args.dataset.split('_')
+        args.imdb_name = 'jacquard_{}_trainval_{}'.format(jacquard[1], jacquard[2])
+        args.imdbval_name = 'jacquard_{}_test_{}'.format(jacquard[1], jacquard[2])
+        args.set_cfgs = ['MAX_NUM_GT_GRASPS', '1000']
+    if args.dataset[:7] == 'cornell':
+        args.cfg_file = "cfgs/cornell_{}_{}_ls.yml".format(args.frame, args.net) if args.large_scale \
+        else "cfgs/cornell_{}_{}.yml".format(args.frame, args.net)
+    elif args.dataset[:8] == 'jacquard':
+        args.cfg_file = "cfgs/jacquard_{}_{}_ls.yml".format(args.frame, args.net) if args.large_scale \
+        else "cfgs/jacquard_{}_{}.yml".format(args.frame, args.net)
+    else:
+        args.cfg_file = "cfgs/{}_{}_{}_ls.yml".format(args.dataset, args.frame, args.net) if args.large_scale \
+        else "cfgs/{}_{}_{}.yml".format(args.dataset, args.frame, args.net)
+    print("Using cfg file: " + args.cfg_file)
+    if args.cfg_file is not None:
+        cfg_from_file(args.cfg_file)
+    if args.set_cfgs is not None:
+        cfg_from_list(args.set_cfgs)
+    if not args.disp_interval:
+        args.disp_interval = cfg.TRAIN.COMMON.DISPLAY
+    if not args.batch_size:
+        args.batch_size = cfg.TRAIN.COMMON.IMS_PER_BATCH
+    if not args.lr_decay_step:
+        args.lr_decay_step = cfg.TRAIN.COMMON.LR_DECAY_STEPSIZE[0]
+    if not args.lr:
+        args.lr = cfg.TRAIN.COMMON.LEARNING_RATE
+    if not args.lr_decay_gamma:
+        args.lr_decay_gamma = cfg.TRAIN.COMMON.GAMMA
+    if not args.max_epochs:
+        args.max_epochs = cfg.TRAIN.COMMON.MAX_EPOCH
+    print('Using config:')
+    # train set
+    # -- Note: Use validation set and disable the flipped to enable faster loading.
+    cfg.TRAIN.COMMON.USE_FLIPPED = True
+    cfg.USE_GPU_NMS = args.cuda
+    pprint.pprint(cfg)
+    if args.cuda:
+        cfg.CUDA = True
+
+    return args
+
+def init_network(args, n_cls, resume = None):
+    """
+    :param args: define hyperparameters
+    :param n_cls: number of object classes for initializing network output layers
+    :return:
+    """
+    # initilize the network here.'
+    if args.frame == 'faster_rcnn':
+        if args.net == 'vgg16':
+            Network = FasterRCNN.vgg16(n_cls, pretrained=True, class_agnostic=args.class_agnostic)
+        elif args.net == 'res101':
+            Network = FasterRCNN.resnet(n_cls, 101, pretrained=True, class_agnostic=args.class_agnostic)
+        elif args.net == 'res50':
+            Network = FasterRCNN.resnet(n_cls, 50, pretrained=True, class_agnostic=args.class_agnostic)
+        elif args.net == 'res152':
+            Network = FasterRCNN.resnet(n_cls, 152, pretrained=True, class_agnostic=args.class_agnostic)
+        else:
+            print("network is not defined")
+            pdb.set_trace()
+    elif args.frame == 'faster_rcnn_vmrn':
+        if args.net == 'vgg16':
+            Network = VMRN.vgg16(n_cls, pretrained=True, class_agnostic=args.class_agnostic)
+        elif args.net == 'res101':
+            Network = VMRN.resnet(n_cls, 101, pretrained=True, class_agnostic=args.class_agnostic)
+        elif args.net == 'res50':
+            Network = VMRN.resnet(n_cls, 50, pretrained=True, class_agnostic=args.class_agnostic)
+        elif args.net == 'res152':
+            Network = VMRN.resnet(n_cls, 152, pretrained=True, class_agnostic=args.class_agnostic)
+        else:
+            print("network is not defined")
+            pdb.set_trace()
+    elif args.frame == 'fpn':
+        if args.net == 'res101':
+            Network = FPN.resnet(n_cls, 101, pretrained=True, class_agnostic=args.class_agnostic)
+        elif args.net == 'res50':
+            Network = FPN.resnet(n_cls, 50, pretrained=True, class_agnostic=args.class_agnostic)
+        elif args.net == 'res152':
+            Network = FPN.resnet(n_cls, 152, pretrained=True, class_agnostic=args.class_agnostic)
+        else:
+            print("network is not defined")
+            pdb.set_trace()
+    elif args.frame == 'fcgn':
+        if args.net == 'res101':
+            Network = FCGN.resnet(num_layers=101, pretrained=True)
+        elif args.net == 'res50':
+            Network = FCGN.resnet(num_layers=50, pretrained=True)
+        elif args.net == 'res34':
+            Network = FCGN.resnet(num_layers=34, pretrained=True)
+        elif args.net == 'vgg16':
+            Network = FCGN.vgg16(pretrained=True)
+        else:
+            print("network is not defined")
+            pdb.set_trace()
+    elif args.frame == 'roign':
+        if args.net == 'res101':
+            Network = ROIGN.resnet(n_cls, 101, pretrained=True)
+        else:
+            print("network is not defined")
+            pdb.set_trace()
+    elif args.frame == 'mgn':
+        if args.net == 'res101':
+            Network = MGN.resnet(n_cls, 101, pretrained=True, class_agnostic=args.class_agnostic)
+        else:
+            print("network is not defined")
+            pdb.set_trace()
+    elif args.frame == 'all_in_one':
+        if args.net == 'res101':
+            Network = ALL_IN_ONE.resnet(n_cls, 101, pretrained=True, class_agnostic=args.class_agnostic)
+        else:
+            print("network is not defined")
+            pdb.set_trace()
+    elif args.frame == 'ssd':
+        if args.net == 'vgg16':
+            Network = SSD.vgg16(n_cls, pretrained=True)
+        else:
+            print("network is not defined")
+            pdb.set_trace()
+    elif args.frame == 'ssd_vmrn':
+        if args.net == 'vgg16':
+            Network = SSD_VMRN.vgg16(n_cls, pretrained=True)
+        elif args.net == 'res50':
+            Network = SSD_VMRN.resnet(n_cls, layer_num=50, pretrained=True)
+        elif args.net == 'res101':
+            Network = SSD_VMRN.resnet(n_cls, layer_num=101, pretrained=True)
+        else:
+            print("network is not defined")
+            pdb.set_trace()
+    elif args.frame == 'vam':
+        if args.net == 'vgg16':
+            Network = VAM.vgg16(n_cls, pretrained=True)
+        elif args.net == 'res50':
+            Network = VAM.resnet(n_cls, layer_num=50, pretrained=True)
+        elif args.net == 'res101':
+            Network = VAM.resnet(n_cls, layer_num=101, pretrained=True)
+        else:
+            print("network is not defined")
+            pdb.set_trace()
+    else:
+        print("frame is not defined")
+        pdb.set_trace()
+    Network.create_architecture()
+    Network.iter_counter = 0
+
+    lr = args.lr
+    # tr_momentum = cfg.TRAIN.COMMON.MOMENTUM
+    # tr_momentum = args.momentum
+
+    if resume is not None:
+        output_dir = resume['load_dir']
+        iters_per_epoch = resume['iters_per_epoch']
+        load_name = os.path.join(output_dir,
+                                 args.frame + '_{}_{}_{}_{}.pth'.format(args.checksession, args.checkepoch,
+                                                                        args.checkpoint, args.GPU))
+        print("loading checkpoint %s" % (load_name))
+        checkpoint = torch.load(load_name)
+        args.session = checkpoint['session']
+        args.start_epoch = checkpoint['epoch']
+        Network.load_state_dict(checkpoint['model'])
+        if 'pooling_mode' in checkpoint.keys():
+            cfg.RCNN_COMMON.POOLING_MODE = checkpoint['pooling_mode']
+        print("loaded checkpoint %s" % (load_name))
+
+        Network.iter_counter = (args.start_epoch - 1) * iters_per_epoch
+        print("start iteration:", Network.iter_counter)
+
+    if args.cuda:
+        Network.cuda()
+
+    if args.mGPUs:
+        Network = nn.DataParallel(Network)
+
+    params = []
+    for key, value in dict(Network.named_parameters()).items():
+        if value.requires_grad:
+            if 'bias' in key:
+                params += [{'params': [value], 'lr': lr * (cfg.TRAIN.COMMON.DOUBLE_BIAS + 1),
+                          'weight_decay': cfg.TRAIN.COMMON.BIAS_DECAY and cfg.TRAIN.COMMON.WEIGHT_DECAY or 0}]
+            else:
+                params += [{'params': [value], 'lr': lr, 'weight_decay': cfg.TRAIN.COMMON.WEIGHT_DECAY}]
+
+    # init optimizer
+    if args.optimizer == "adam":
+        optimizer = torch.optim.Adam(params)
+    elif args.optimizer == "sgd":
+        optimizer = torch.optim.SGD(params, momentum=cfg.TRAIN.COMMON.MOMENTUM)
+    if resume is not None:
+        optimizer.load_state_dict(checkpoint['optimizer'])
+
+    return Network, optimizer
+
 def evalute_model(Network, namedb, args):
     max_per_image = 100
 
+    # load test dataset
     imdb, roidb, ratio_list, ratio_index = combined_roidb(namedb, False)
-    # imdb.competition_mode(on=True)
-
-    im_data = torch.FloatTensor(1)
-    im_info = torch.FloatTensor(1)
-    num_boxes = torch.LongTensor(1)
-    num_grasps = torch.LongTensor(1)
-    gt_boxes = torch.FloatTensor(1)
-    gt_grasps = torch.FloatTensor(1)
-    # visual manipulation relationship matrix
-    rel_mat = torch.FloatTensor(1)
-    gt_grasp_inds = torch.LongTensor(1)
-
-    # ship to cuda
-    if args.cuda:
-        im_data = im_data.cuda()
-        im_info = im_info.cuda()
-        num_boxes = num_boxes.cuda()
-        num_grasps = num_grasps.cuda()
-        gt_boxes = gt_boxes.cuda()
-        gt_grasps = gt_grasps.cuda()
-        rel_mat = rel_mat.cuda()
-        gt_grasp_inds = gt_grasp_inds.cuda()
-
-    # make variable
-    im_data = Variable(im_data,requires_grad = False)
-    im_info = Variable(im_info,requires_grad = False)
-    num_grasps = Variable(num_grasps,requires_grad = False)
-    num_boxes = Variable(num_boxes,requires_grad = False)
-    gt_boxes = Variable(gt_boxes,requires_grad = False)
-    gt_grasps = Variable(gt_grasps,requires_grad = False)
-    rel_mat = Variable(rel_mat,requires_grad = False)
-    gt_grasp_inds = Variable(gt_grasp_inds,requires_grad = False)
+    dataset = roibatchLoader(roidb, ratio_list, ratio_index, 1, imdb.num_classes, training=False)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False, num_workers=0, pin_memory=True)
+    data_iter = iter(dataloader)
+    num_images = len(imdb.image_index)
 
     start = time.time()
-
     thresh = 0.01
 
-    num_images = len(imdb.image_index)
+    # init variables
     all_boxes = [[[] for _ in xrange(num_images)]
                  for _ in xrange(imdb.num_classes)]
     all_rel = []
     all_grasp = [[[] for _ in xrange(num_images)]
                  for _ in xrange(imdb.num_classes)]
 
-    dataset = roibatchLoader(roidb, ratio_list, ratio_index, 1,
-                             imdb.num_classes, training=False, normalize=False)
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=1,
-                                             shuffle=False, num_workers=0,
-                                             pin_memory=True)
-
-    data_iter = iter(dataloader)
-
-    _t = {'im_detect': time.time(), 'misc': time.time()}
-
     Network.eval()
     empty_array= np.transpose(np.array([[], [], [], [], []]), (1, 0))
 
     for i in range(num_images):
 
-        data = next(data_iter)
-        im_data.data.resize_(data[0].size()).copy_(data[0])
-        im_info.data.resize_(data[1].size()).copy_(data[1])
-        gt_boxes.data.resize_(data[2].size()).copy_(data[2])
-        gt_grasps.data.resize_(data[3].size()).copy_(data[3])
-        num_boxes.data.resize_(data[4].size()).copy_(data[4])
-        num_grasps.data.resize_(data[5].size()).copy_(data[5])
-        rel_mat.data.resize_(data[6].size()).copy_(data[6])
-        gt_grasp_inds.data.resize_(data[7].size()).copy_(data[7])
+        data_batch = next(data_iter)
+        if args.cuda:
+            data_batch = makeCudaData(data_batch)
 
         det_tic = time.time()
         if args.frame == 'faster_rcnn' or args.frame == 'fpn':
             rois, cls_prob, bbox_pred, \
             rpn_loss_cls, rpn_loss_box, \
             net_loss_cls, net_loss_bbox, \
-            rois_label = Network(im_data, im_info, gt_boxes, num_boxes)
+            rois_label = Network(data_batch)
 
             boxes = rois.data[:, :, 1:5]
         elif args.frame == 'ssd':
             bbox_pred, cls_prob, \
-            net_loss_bbox, net_loss_cls = Network(im_data, im_info, gt_boxes, num_boxes)
+            net_loss_bbox, net_loss_cls = Network(data_batch)
 
             boxes = Network.priors.type_as(bbox_pred)
 
@@ -257,7 +451,7 @@ def evalute_model(Network, namedb, args):
             rois, cls_prob, bbox_pred, rel_result, \
             rpn_loss_cls, rpn_loss_box, \
             RCNN_loss_cls, RCNN_loss_bbox, RCNN_rel_loss_cls, \
-            rois_label = Network(im_data, im_info, gt_boxes, num_boxes, rel_mat)
+            rois_label = Network(data_batch)
 
             boxes = rois.data[:, :, 1:5]
 
@@ -265,7 +459,7 @@ def evalute_model(Network, namedb, args):
 
         elif args.frame == 'ssd_vmrn' or args.frame == 'vam':
             bbox_pred, cls_prob, rel_result, \
-            loss_bbox, loss_cls, rel_loss_cls = Network(im_data, im_info, gt_boxes, num_boxes, rel_mat)
+            loss_bbox, loss_cls, rel_loss_cls = Network(data_batch)
 
             boxes = Network.priors.type_as(bbox_pred)
 
@@ -274,55 +468,30 @@ def evalute_model(Network, namedb, args):
         elif args.frame == 'fcgn':
             bbox_pred, cls_prob, loss_bbox, \
             loss_cls, rois_label, boxes = \
-                Network(im_data, im_info, gt_grasps, num_boxes)
+                Network(data_batch)
 
         elif args.frame == 'roign':
-            gt = {
-                'boxes': gt_boxes,
-                'grasps': gt_grasps,
-                'grasp_inds': gt_grasp_inds,
-                'num_boxes': num_boxes,
-                'num_grasps': num_grasps,
-                'im_info': im_info
-            }
             rois, rpn_loss_cls, rpn_loss_box, rois_label, \
             grasp_loc, grasp_prob, grasp_bbox_loss, grasp_cls_loss, \
-            grasp_conf_label, grasp_all_anchors = Network(im_data, gt)
+            grasp_conf_label, grasp_all_anchors = Network(data_batch)
 
             boxes = rois.data[:, :, 1:5]
 
         elif args.frame == 'mgn':
-            gt = {
-                'boxes': gt_boxes,
-                'grasps': gt_grasps,
-                'grasp_inds': gt_grasp_inds,
-                'num_boxes': num_boxes,
-                'num_grasps': num_grasps,
-                'im_info': im_info
-            }
             rois, cls_prob, bbox_pred, rpn_loss_cls, \
             rpn_loss_box, loss_cls, loss_bbox, rois_label, \
             grasp_loc, grasp_prob, grasp_bbox_loss, \
             grasp_cls_loss, grasp_conf_label, grasp_all_anchors \
-                = Network(im_data, gt)
+                = Network(data_batch)
 
             boxes = rois.data[:, :, 1:5]
 
         elif args.frame == 'all_in_one':
-            gt = {
-                'boxes': gt_boxes,
-                'grasps': gt_grasps,
-                'grasp_inds': gt_grasp_inds,
-                'num_boxes': num_boxes,
-                'num_grasps': num_grasps,
-                'im_info': im_info,
-                'rel_mat': rel_mat
-            }
             rois, cls_prob, bbox_pred, rel_result, rpn_loss_cls, rpn_loss_box, \
             loss_cls, loss_bbox, rel_loss_cls, rois_label, \
             grasp_loc, grasp_prob, grasp_bbox_loss, \
             grasp_cls_loss, grasp_conf_label, grasp_all_anchors \
-                = Network(im_data, gt)
+                = Network(data_batch)
 
             boxes = rois.data[:, :, 1:5]
 
@@ -551,327 +720,85 @@ def evalute_model(Network, namedb, args):
 
 if __name__ == '__main__':
 
-    args = parse_args()
+    # init arguments
+    args = read_cfgs()
 
-    print('Called with args:')
-    print(args)
+    # check algorithm
+    assert args.frame in LEGAL_FRAMES, "Illegal algorithm name."
 
+    # check cuda devices
+    if torch.cuda.is_available() and not args.cuda:
+        print("WARNING: You have a CUDA device, so you should probably run with --cuda")
+
+    # init random seed
+    np.random.seed(cfg.RNG_SEED)
+
+    # init logger
     if args.use_tfboard:
         from model.utils.logger import Logger
         # Set the logger
         current_t = time.time()
         logger = Logger(os.path.join('.', 'current_t'))
 
-    if args.dataset == "pascal_voc":
-        args.imdb_name = "voc_2007_trainval"
-        args.imdbval_name = "voc_2007_test"
-        args.set_cfgs = ['MAX_NUM_GT_BOXES', '20']
-    elif args.dataset == "pascal_voc_0712":
-        args.imdb_name = "voc_2007_trainval+voc_2012_trainval"
-        args.imdbval_name = "voc_2007_test"
-        args.set_cfgs = ['MAX_NUM_GT_BOXES', '20']
-    elif args.dataset == "coco":
-        args.imdb_name = "coco_2014_train+coco_2014_valminusminival"
-        args.imdbval_name = "coco_2014_minival"
-        args.set_cfgs = ['MAX_NUM_GT_BOXES', '50']
-    elif args.dataset == "imagenet":
-        args.imdb_name = "imagenet_train"
-        args.imdbval_name = "imagenet_val"
-        args.set_cfgs = ['MAX_NUM_GT_BOXES', '30']
-    elif args.dataset == "vg":
-        # train sizes: train, smalltrain, minitrain
-        # train scale: ['150-50-20', '150-50-50', '500-150-80', '750-250-150', '1750-700-450', '1600-400-20']
-        args.imdb_name = "vg_150-50-50_minitrain"
-        args.imdbval_name = "vg_150-50-50_minival"
-        args.set_cfgs = ['MAX_NUM_GT_BOXES', '50']
-    elif args.dataset == 'vmrdcompv1':
-        args.imdb_name = "vmrd_compv1_trainval"
-        args.imdbval_name = "vmrd_compv1_test"
-        args.set_cfgs = ['MAX_NUM_GT_BOXES', '20']
-    elif args.dataset == 'bdds':
-        args.imdb_name = "bdds_trainval"
-        args.imdbval_name = "bdds_test"
-        args.set_cfgs = ['MAX_NUM_GT_BOXES', '20']
-    elif args.dataset[:7] == 'cornell':
-        cornell = args.dataset.split('_')
-        args.imdb_name = 'cornell_{}_{}_trainval_{}'.format(cornell[1],cornell[2],cornell[3])
-        args.imdbval_name = 'cornell_{}_{}_test_{}'.format(cornell[1],cornell[2],cornell[3])
-        args.set_cfgs = ['MAX_NUM_GT_BOXES', '50']
-    elif args.dataset[:8] == 'jacquard':
-        jacquard = args.dataset.split('_')
-        args.imdb_name = 'jacquard_{}_trainval_{}'.format(jacquard[1], jacquard[2])
-        args.imdbval_name = 'jacquard_{}_test_{}'.format(jacquard[1], jacquard[2])
-        args.set_cfgs = ['MAX_NUM_GT_GRASPS', '1000']
-
-    if args.dataset[:7] == 'cornell':
-        args.cfg_file = "cfgs/cornell_{}_{}_ls.yml".format(args.frame, args.net) if args.large_scale \
-        else "cfgs/cornell_{}_{}.yml".format(args.frame, args.net)
-    elif args.dataset[:8] == 'jacquard':
-        args.cfg_file = "cfgs/jacquard_{}_{}_ls.yml".format(args.frame, args.net) if args.large_scale \
-        else "cfgs/jacquard_{}_{}.yml".format(args.frame, args.net)
-    else:
-        args.cfg_file = "cfgs/{}_{}_{}_ls.yml".format(args.dataset, args.frame, args.net) if args.large_scale \
-        else "cfgs/{}_{}_{}.yml".format(args.dataset, args.frame, args.net)
-
-    print("Using cfg file: " + args.cfg_file)
-    if args.cfg_file is not None:
-        cfg_from_file(args.cfg_file)
-    if args.set_cfgs is not None:
-        cfg_from_list(args.set_cfgs)
-
-    if not args.disp_interval:
-        args.disp_interval = cfg.TRAIN.COMMON.DISPLAY
-
-    if not args.batch_size:
-        args.batch_size = cfg.TRAIN.COMMON.IMS_PER_BATCH
-
-    if not args.lr_decay_step:
-        args.lr_decay_step = cfg.TRAIN.COMMON.LR_DECAY_STEPSIZE[0]
-
-    if not args.lr:
-        args.lr = cfg.TRAIN.COMMON.LEARNING_RATE
-
-    if not args.lr_decay_gamma:
-        args.lr_decay_gamma = cfg.TRAIN.COMMON.GAMMA
-
-    if not args.max_epochs:
-        args.max_epochs = cfg.TRAIN.COMMON.MAX_EPOCH
-
-    print('Using config:')
-    pprint.pprint(cfg)
-    np.random.seed(cfg.RNG_SEED)
-
-    #torch.backends.cudnn.benchmark = True
-    if torch.cuda.is_available() and not args.cuda:
-        print("WARNING: You have a CUDA device, so you should probably run with --cuda")
-
-    # train set
-    # -- Note: Use validation set and disable the flipped to enable faster loading.
-    cfg.TRAIN.COMMON.USE_FLIPPED = True
-    cfg.USE_GPU_NMS = args.cuda
+    # init dataset
     imdb, roidb, ratio_list, ratio_index = combined_roidb(args.imdb_name)
     train_size = len(roidb)
-
     print('{:d} roidb entries'.format(len(roidb)))
-
-    output_dir = args.save_dir + "/" + args.net + "/" + args.dataset
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
     sampler_batch = sampler(train_size, args.batch_size)
     iters_per_epoch = int(train_size / args.batch_size)
-
+    # check augmentation setting
     if args.dataset[:4] == 'vmrd' or args.dataset[:7] == 'cornell' or args.dataset == 'jacquard':
         if args.frame != 'faster_rcnn' and args.frame !='ssd':
             if cfg.TRAIN.COMMON.AUGMENTATION:
                 warnings.warn('########Grasps may be not rectangles due to augmentation!!!########')
-
-    dataset = roibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+    if args.frame in {"fpn", "faster_rcnn"}:
+        dataset = objdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
                            imdb.num_classes, training=True, cls_list=imdb.classes)
-
+    elif args.frame in {"ssd"}:
+        dataset = objdetRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+                           imdb.num_classes, training=True, cls_list=imdb.classes)
+    elif args.frame in {"ssd_vmrn", "vam"}:
+        dataset = vmrdetRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+                           imdb.num_classes, training=True, cls_list=imdb.classes)
+    elif args.frame in {"faster_rcnn_vmrn"}:
+        dataset = vmrdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+                           imdb.num_classes, training=True, cls_list=imdb.classes)
+    elif args.frame in {"fcgn"}:
+        dataset = graspdetRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+                           imdb.num_classes, training=True, cls_list=imdb.classes)
+    elif args.frame in {"all_in_one"}:
+        dataset = allInOneMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+                           imdb.num_classes, training=True, cls_list=imdb.classes)
+    elif args.frame in {"roign", "mgn"}:
+        dataset = roigdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+                           imdb.num_classes, training=True, cls_list=imdb.classes)
+    else:
+        raise RuntimeError
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size,
                             sampler=sampler_batch, num_workers=args.num_workers)
 
-    # initilize the tensor holder here.
-    im_data = torch.FloatTensor(1)
-    im_info = torch.FloatTensor(1)
-    num_boxes = torch.LongTensor(1)
-    num_grasps = torch.LongTensor(1)
-    gt_boxes = torch.FloatTensor(1)
-    gt_grasps = torch.FloatTensor(1)
-    # visual manipulation relationship matrix
-    rel_mat = torch.FloatTensor(1)
-    gt_grasp_inds = torch.LongTensor(1)
+    # init output directory for model saving
+    output_dir = args.save_dir + "/" + args.net + "/" + args.dataset
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
-
-    # ship to cuda
-    if args.cuda:
-        im_data = im_data.cuda()
-        im_info = im_info.cuda()
-        num_boxes = num_boxes.cuda()
-        num_grasps = num_grasps.cuda()
-        gt_boxes = gt_boxes.cuda()
-        gt_grasps = gt_grasps.cuda()
-        rel_mat = rel_mat.cuda()
-        gt_grasp_inds = gt_grasp_inds.cuda()
-
-    # make variable
-    im_data = Variable(im_data)
-    im_info = Variable(im_info)
-    num_boxes = Variable(num_boxes)
-    num_grasps = Variable(num_grasps)
-    gt_boxes = Variable(gt_boxes)
-    gt_grasps = Variable(gt_grasps)
-    rel_mat = Variable(rel_mat)
-    gt_grasp_inds = Variable(gt_grasp_inds)
-
-    if args.cuda:
-        cfg.CUDA = True
-
-    # initilize the network here.'
-    if args.frame == 'faster_rcnn':
-        if args.net == 'vgg16':
-            Network = FasterRCNN.vgg16(imdb.classes, pretrained=True, class_agnostic=args.class_agnostic)
-        elif args.net == 'res101':
-            Network = FasterRCNN.resnet(imdb.classes, 101, pretrained=True, class_agnostic=args.class_agnostic)
-        elif args.net == 'res50':
-            Network = FasterRCNN.resnet(imdb.classes, 50, pretrained=True, class_agnostic=args.class_agnostic)
-        elif args.net == 'res152':
-            Network = FasterRCNN.resnet(imdb.classes, 152, pretrained=True, class_agnostic=args.class_agnostic)
-        else:
-            print("network is not defined")
-            pdb.set_trace()
-    elif args.frame == 'faster_rcnn_vmrn':
-        if args.net == 'vgg16':
-            Network = VMRN.vgg16(imdb.classes, pretrained=True, class_agnostic=args.class_agnostic)
-        elif args.net == 'res101':
-            Network = VMRN.resnet(imdb.classes, 101, pretrained=True, class_agnostic=args.class_agnostic)
-        elif args.net == 'res50':
-            Network = VMRN.resnet(imdb.classes, 50, pretrained=True, class_agnostic=args.class_agnostic)
-        elif args.net == 'res152':
-            Network = VMRN.resnet(imdb.classes, 152, pretrained=True, class_agnostic=args.class_agnostic)
-        else:
-            print("network is not defined")
-            pdb.set_trace()
-    elif args.frame == 'fpn':
-        if args.net == 'res101':
-            Network = FPN.resnet(imdb.classes, 101, pretrained=True, class_agnostic=args.class_agnostic)
-        elif args.net == 'res50':
-            Network = FPN.resnet(imdb.classes, 50, pretrained=True, class_agnostic=args.class_agnostic)
-        elif args.net == 'res152':
-            Network = FPN.resnet(imdb.classes, 152, pretrained=True, class_agnostic=args.class_agnostic)
-        else:
-            print("network is not defined")
-            pdb.set_trace()
-    elif args.frame == 'fcgn':
-        if args.net == 'res101':
-            Network = FCGN.resnet(num_layers = 101, pretrained=True)
-        elif args.net == 'res50':
-            Network = FCGN.resnet(num_layers = 50, pretrained=True)
-        elif args.net == 'res34':
-            Network = FCGN.resnet(num_layers = 34, pretrained=True)
-        elif args.net == 'vgg16':
-            Network = FCGN.vgg16(pretrained=True)
-        else:
-            print("network is not defined")
-            pdb.set_trace()
-    elif args.frame == 'roign':
-        if args.net == 'res101':
-            Network = ROIGN.resnet(imdb.classes, 101, pretrained=True)
-        else:
-            print("network is not defined")
-            pdb.set_trace()
-    elif args.frame == 'mgn':
-        if args.net == 'res101':
-            Network = MGN.resnet(imdb.classes, 101, pretrained=True, class_agnostic=args.class_agnostic)
-        else:
-            print("network is not defined")
-            pdb.set_trace()
-    elif args.frame == 'all_in_one':
-        if args.net == 'res101':
-            Network = ALL_IN_ONE.resnet(imdb.classes, 101, pretrained=True, class_agnostic=args.class_agnostic)
-        else:
-            print("network is not defined")
-            pdb.set_trace()
-    elif args.frame == 'ssd':
-        if args.net == 'vgg16':
-            Network = SSD.vgg16(imdb.classes, pretrained=True)
-        else:
-            print("network is not defined")
-            pdb.set_trace()
-    elif args.frame == 'ssd_vmrn':
-        if args.net == 'vgg16':
-            Network = SSD_VMRN.vgg16(imdb.classes, pretrained=True)
-        elif args.net == 'res50' :
-            Network = SSD_VMRN.resnet(imdb.classes, layer_num=50, pretrained=True)
-        elif args.net == 'res101' :
-            Network = SSD_VMRN.resnet(imdb.classes, layer_num=101, pretrained=True)
-        else:
-            print("network is not defined")
-            pdb.set_trace()
-
-    elif args.frame == 'vam':
-        if args.net == 'vgg16':
-            Network = VAM.vgg16(imdb.classes, pretrained=True)
-        elif args.net == 'res50' :
-            Network = VAM.resnet(imdb.classes, layer_num=50, pretrained=True)
-        elif args.net == 'res101' :
-            Network = VAM.resnet(imdb.classes, layer_num=101, pretrained=True)
-        else:
-            print("network is not defined")
-            pdb.set_trace()
-    else:
-        print("frame is not defined")
-        pdb.set_trace()
-
-    Network.create_architecture()
-
-    lr = args.lr
-    #tr_momentum = cfg.TRAIN.COMMON.MOMENTUM
-    #tr_momentum = args.momentum
-
+    # init network
+    resume = None
     if args.resume:
-        load_name = os.path.join(output_dir,
-                                args.frame + '_{}_{}_{}_{}.pth'.format(args.checksession, args.checkepoch,
-                                                                    args.checkpoint, args.GPU))
-        print("loading checkpoint %s" % (load_name))
-        checkpoint = torch.load(load_name)
-        args.session = checkpoint['session']
-        args.start_epoch = checkpoint['epoch']
-        Network.load_state_dict(checkpoint['model'])
-        if 'pooling_mode' in checkpoint.keys():
-            cfg.RCNN_COMMON.POOLING_MODE = checkpoint['pooling_mode']
-        print("loaded checkpoint %s" % (load_name))
-        if args.frame[-4:] == 'vmrn':
-            Network.resume_iter(checkpoint['epoch'], iters_per_epoch)
+        resume = {}
+        resume['load_dir'] = output_dir
+        resume['iters_per_epoch'] = iters_per_epoch
+    Network, optimizer = init_network(args, imdb.classes, resume=resume)
 
-    if args.mGPUs:
-        Network = nn.DataParallel(Network)
+    # init variables
+    current_result, best_result, loss_temp, loss_rpn_cls, loss_rpn_box, loss_rcnn_cls, loss_rcnn_box, loss_rel_pred, \
+        loss_grasp_box, loss_grasp_cls, fg_cnt, bg_cnt, fg_grasp_cnt, bg_grasp_cnt = 0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    save_flag, rois, rpn_loss_cls, rpn_loss_box, rel_loss_cls, cls_prob, bbox_pred, rel_cls_prob, loss_bbox, loss_cls, \
+        rois_label, grasp_cls_loss, grasp_conf_label = False, None,None,None,None,None,None,None,None,None,None,None,None
 
-    if args.cuda:
-        Network.cuda()
-
-    params = []
-    for key, value in dict(Network.named_parameters()).items():
-        if value.requires_grad:
-            if 'bias' in key:
-                params += [{'params': [value], 'lr': lr * (cfg.TRAIN.COMMON.DOUBLE_BIAS + 1),
-                          'weight_decay': cfg.TRAIN.COMMON.BIAS_DECAY and cfg.TRAIN.COMMON.WEIGHT_DECAY or 0}]
-            else:
-                params += [{'params': [value], 'lr': lr, 'weight_decay': cfg.TRAIN.COMMON.WEIGHT_DECAY}]
-
-    if args.optimizer == "adam":
-        lr = lr * 0.1
-        optimizer = torch.optim.Adam(params)
-    elif args.optimizer == "sgd":
-        optimizer = torch.optim.SGD(params, momentum=cfg.TRAIN.COMMON.MOMENTUM)
-
-    iter_counter = 0
-    if args.resume:
-        iter_counter = (args.start_epoch -1) * iters_per_epoch
-        print("start iteration:")
-        print(iter_counter)
-        optimizer.load_state_dict(checkpoint['optimizer'])
-        lr = optimizer.param_groups[0]['lr']
-
-    cresult = 0
-    prev_result = 0
-    best_result = 0
     for epoch in range(args.start_epoch, args.max_epochs + 1):
         # setting to train mode
         Network.train()
-        loss_temp = 0.
-        loss_rpn_cls = 0.
-        loss_rpn_box = 0.
-        loss_rcnn_cls = 0.
-        loss_rcnn_box = 0.
-        loss_rel_pred = 0.
-        loss_grasp_box = 0.
-        loss_grasp_cls = 0.
-        fg_cnt = 0.
-        bg_cnt = 0.
-        fg_grasp_cnt = 0.
-        bg_grasp_cnt = 0.
 
         start = time.time()
 
@@ -879,133 +806,56 @@ if __name__ == '__main__':
         for step in range(iters_per_epoch):
 
             # get data batch
-            data = next(data_iter)
-            im_data.data.resize_(data[0].size()).copy_(data[0])
-            im_info.data.resize_(data[1].size()).copy_(data[1])
-            gt_boxes.data.resize_(data[2].size()).copy_(data[2])
-            gt_grasps.data.resize_(data[3].size()).copy_(data[3])
-            num_boxes.data.resize_(data[4].size()).copy_(data[4])
-            num_grasps.data.resize_(data[5].size()).copy_(data[5])
-            rel_mat.data.resize_(data[6].size()).copy_(data[6])
-            gt_grasp_inds.data.resize_(data[7].size()).copy_(data[7])
+            data_batch = next(data_iter)
+            # ship to cuda
+            if args.cuda:
+                data_batch = makeCudaData(data_batch)
 
             # network forward
             Network.zero_grad()
-            rois = None
-            rpn_loss_cls = None
-            rpn_loss_box = None
-            rel_loss_cls = None
-            rois = None
-            cls_prob = None
-            bbox_pred = None
-            rel_cls_prob = None
-            loss_bbox = None
-            loss_cls = None
-            rois_label = None
-            grasp_cls_loss = None
-            grasp_bbox_loss = None
-            grasp_conf_label = None
 
+            # forward process
             if args.frame == 'faster_rcnn_vmrn':
-                rois, cls_prob, bbox_pred, rel_cls_prob, \
-                rpn_loss_cls, rpn_loss_box, \
-                loss_cls, loss_bbox, rel_loss_cls, \
-                rois_label = Network(im_data, im_info, gt_boxes, num_boxes, rel_mat)
-
-                if rel_loss_cls==0:
-                    loss = rpn_loss_cls.mean() + rpn_loss_box.mean() \
-                       + loss_cls.mean() + loss_bbox.mean()
+                rois, cls_prob, bbox_pred, rel_cls_prob, rpn_loss_cls, rpn_loss_box, loss_cls, \
+                            loss_bbox, rel_loss_cls,rois_label = Network(data_batch)
+                if rel_loss_cls == 0:
+                    loss = rpn_loss_cls.mean() + rpn_loss_box.mean() + loss_cls.mean() + loss_bbox.mean()
                 else:
-                    loss = rpn_loss_cls.mean() + rpn_loss_box.mean() \
-                       + loss_cls.mean() + loss_bbox.mean() + rel_loss_cls.mean()
-
+                    loss = rpn_loss_cls.mean() + rpn_loss_box.mean() + loss_cls.mean() + loss_bbox.mean() + rel_loss_cls.mean()
             elif args.frame == 'faster_rcnn' or args.frame == 'fpn':
-                rois, cls_prob, bbox_pred, \
-                rpn_loss_cls, rpn_loss_box, \
-                loss_cls, loss_bbox, \
-                rois_label = Network(im_data, im_info, gt_boxes, num_boxes)
-
-                loss = rpn_loss_cls.mean() + rpn_loss_box.mean() \
-                       + loss_cls.mean() + loss_bbox.mean()
-
+                rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_box, loss_cls, loss_bbox, \
+                            rois_label = Network(data_batch)
+                loss = rpn_loss_cls.mean() + rpn_loss_box.mean() + loss_cls.mean() + loss_bbox.mean()
             elif args.frame == 'fcgn':
-                bbox_pred, cls_prob, loss_bbox, loss_cls, rois_label,rois = \
-                    Network(im_data, im_info, gt_grasps, num_grasps)
-
+                bbox_pred, cls_prob, loss_bbox, loss_cls, rois_label,rois = Network(data_batch)
                 loss = loss_bbox.mean() + loss_cls.mean()
-
             elif args.frame == 'roign':
-                gt = {
-                    'boxes': gt_boxes,
-                    'grasps': gt_grasps,
-                    'grasp_inds': gt_grasp_inds,
-                    'num_boxes': num_boxes,
-                    'num_grasps': num_grasps,
-                    'im_info': im_info
-                }
-                rois, rpn_loss_cls, rpn_loss_box, rois_label, \
-                grasp_loc, grasp_prob, grasp_bbox_loss, grasp_cls_loss, \
-                grasp_conf_label, grasp_all_anchors = Network(im_data, gt)
-
+                rois, rpn_loss_cls, rpn_loss_box, rois_label, grasp_loc, grasp_prob, grasp_bbox_loss, grasp_cls_loss, \
+                            grasp_conf_label, grasp_all_anchors = Network(data_batch)
                 loss = rpn_loss_box.mean() + rpn_loss_cls.mean() \
                        + cfg.MGN.OBJECT_GRASP_BALANCE * (grasp_bbox_loss.mean() + grasp_cls_loss.mean())
-
             elif args.frame == 'mgn':
-                gt = {
-                    'boxes': gt_boxes,
-                    'grasps': gt_grasps,
-                    'grasp_inds': gt_grasp_inds,
-                    'num_boxes': num_boxes,
-                    'num_grasps': num_grasps,
-                    'im_info':im_info
-                }
-                rois, cls_prob, bbox_pred, rpn_loss_cls, \
-                rpn_loss_box, loss_cls, loss_bbox, rois_label, \
-                grasp_loc, grasp_prob, grasp_bbox_loss, \
-                grasp_cls_loss, grasp_conf_label, grasp_all_anchors \
-                = Network(im_data, gt)
-
-                loss = rpn_loss_box.mean() + rpn_loss_cls.mean() \
-                       + loss_cls.mean() + loss_bbox.mean() + \
+                rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_box, loss_cls, loss_bbox, rois_label, grasp_loc, \
+                grasp_prob, grasp_bbox_loss, grasp_cls_loss, grasp_conf_label, grasp_all_anchors = Network(data_batch)
+                loss = rpn_loss_box.mean() + rpn_loss_cls.mean() + loss_cls.mean() + loss_bbox.mean() + \
                        cfg.MGN.OBJECT_GRASP_BALANCE * (grasp_bbox_loss.mean() + grasp_cls_loss.mean())
-
             elif args.frame == 'all_in_one':
-                gt = {
-                    'boxes': gt_boxes,
-                    'grasps': gt_grasps,
-                    'grasp_inds': gt_grasp_inds,
-                    'num_boxes': num_boxes,
-                    'num_grasps': num_grasps,
-                    'im_info': im_info,
-                    'rel_mat': rel_mat
-                }
-                rois, cls_prob, bbox_pred, rel_cls_prob, rpn_loss_cls, rpn_loss_box, \
-                loss_cls, loss_bbox, rel_loss_cls, rois_label, \
-                grasp_loc, grasp_prob, grasp_bbox_loss, \
-                grasp_cls_loss, grasp_conf_label, grasp_all_anchors \
-                    = Network(im_data, gt)
-
-                loss = rpn_loss_box.mean() + rpn_loss_cls.mean() \
-                       + loss_cls.mean() + loss_bbox.mean() + rel_loss_cls.mean() + \
+                rois, cls_prob, bbox_pred, rel_cls_prob, rpn_loss_cls, rpn_loss_box, loss_cls, loss_bbox, rel_loss_cls, rois_label, \
+                grasp_loc, grasp_prob, grasp_bbox_loss,grasp_cls_loss, grasp_conf_label, grasp_all_anchors = Network(data_batch)
+                loss = rpn_loss_box.mean() + rpn_loss_cls.mean() + loss_cls.mean() + loss_bbox.mean() + rel_loss_cls.mean() + \
                        cfg.MGN.OBJECT_GRASP_BALANCE * grasp_bbox_loss.mean() + grasp_cls_loss.mean()
-
             elif args.frame == 'ssd':
-                bbox_pred, cls_prob, \
-                loss_bbox, loss_cls = Network(im_data, im_info, gt_boxes, num_boxes)
-
+                bbox_pred, cls_prob, loss_bbox, loss_cls = Network(data_batch)
                 loss = loss_bbox.mean() + loss_cls.mean()
-
             elif args.frame == 'ssd_vmrn' or args.frame == 'vam':
-                bbox_pred, cls_prob, rel_result, \
-                loss_bbox, loss_cls, rel_loss_cls = Network(im_data, im_info, gt_boxes, num_boxes, rel_mat)
+                bbox_pred, cls_prob, rel_result, loss_bbox, loss_cls, rel_loss_cls = Network(data_batch)
                 if rel_loss_cls==0:
                     loss = loss_cls.mean() + loss_bbox.mean()
                 else:
                     loss = loss_cls.mean() + loss_bbox.mean() + rel_loss_cls.mean()
-
             loss_temp += loss.data.item()
 
-            # backward
+            # backward process
             optimizer.zero_grad()
             loss.backward()
             if args.net == "vgg16":
@@ -1073,7 +923,7 @@ if __name__ == '__main__':
                     loss_grasp_box /= args.disp_interval
 
                 print("[session %d][epoch %2d][iter %4d/%4d] \n\t\t\tloss: %.4f, lr: %.2e" \
-                      % (args.session, epoch, step, iters_per_epoch, loss_temp, lr))
+                      % (args.session, epoch, step, iters_per_epoch, loss_temp, optimizer.param_groups[0]['lr']))
                 print('\t\t\ttime cost: %f' % (end - start,))
                 if rois_label is not None:
                     print("\t\t\tfg/bg=(%d/%d)" % (fg_cnt, bg_cnt))
@@ -1104,7 +954,7 @@ if __name__ == '__main__':
                     if rel_loss_cls:
                         info['loss_rel_pred'] = loss_rel_pred
                     for tag, value in info.items():
-                        logger.scalar_summary(tag, value, iter_counter)
+                        logger.scalar_summary(tag, value, Network.iter_counter)
 
                 loss_temp = 0.
                 loss_rpn_cls = 0.
@@ -1120,82 +970,56 @@ if __name__ == '__main__':
                 bg_grasp_cnt = 0.
                 start = time.time()
 
-            iter_counter += 1
+            # adjust learning rate
             if args.lr_decay_step == 0:
-                # clr = lr * (1 + decay * n) -> lr_n / lr_n+1 = (1 + decay * (n+1)) / (1 + decay * n)
-                decay = (1 + args.lr_decay_gamma * iter_counter) / (1 + args.lr_decay_gamma * (iter_counter + 1))
+                # clr = lr / (1 + decay * n) -> lr_n / lr_n+1 = (1 + decay * (n+1)) / (1 + decay * n)
+                decay = (1 + args.lr_decay_gamma * Network.iter_counter) / (1 + args.lr_decay_gamma * (Network.iter_counter + 1))
                 adjust_learning_rate(optimizer, decay)
-                lr *= decay
-            elif iter_counter % (args.lr_decay_step + 1) == 0:
+            elif Network.iter_counter % (args.lr_decay_step + 1) == 0:
                 adjust_learning_rate(optimizer, args.lr_decay_gamma)
-                lr *= args.lr_decay_gamma
 
-            if iter_counter % cfg.TRAIN.COMMON.SNAPSHOT_ITERS == 0:
+            # test and save
+            if Network.iter_counter % cfg.TRAIN.COMMON.SNAPSHOT_ITERS == 0:
+                # test network and record results
+                Network.eval()
+                current_result = evalute_model(Network, args.imdbval_name, args)
+                if args.use_tfboard:
+                    logger.scalar_summary('mAP', current_result, Network.iter_counter)
+                Network.train()
+
                 if cfg.TRAIN.COMMON.SNAPSHOT_AFTER_TEST:
-                    Network.eval()
-                    cresult = evalute_model(Network, args.imdbval_name, args)
-                    if args.use_tfboard:
-                        logger.scalar_summary('mAP', cresult, iter_counter)
-                    Network.train()
-                    if cresult > best_result:
-                        best_result = cresult
-                        re_f_name = os.path.join(output_dir,
-                                                     args.frame + '_{}_{}_{}_{}.txt'.format(args.session, epoch, step, args.GPU))
-                        re_f = open(re_f_name, 'w')
-                        re_f.write(str(best_result))
-                        re_f.close()
-                        if args.mGPUs:
-                            save_name = os.path.join(output_dir,
-                                                     args.frame + '_{}_{}_{}_{}.pth'.format(args.session, epoch, step,
-                                                                                            args.imdb_name))
-                            save_checkpoint({
-                                'session': args.session,
-                                'epoch': epoch + 1,
-                                'model': Network.module.state_dict(),
-                                'optimizer': optimizer.state_dict(),
-                                'pooling_mode': cfg.RCNN_COMMON.POOLING_MODE,
-                                'class_agnostic': args.class_agnostic,
-                                'result': cresult,
-                            }, save_name)
-                        else:
-                            save_name = os.path.join(output_dir,
-                                                     args.frame + '_{}_{}_{}_{}.pth'.format(args.session, epoch, step, args.GPU))
-                            save_checkpoint({
-                                'session': args.session,
-                                'epoch': epoch + 1,
-                                'model': Network.state_dict(),
-                                'optimizer': optimizer.state_dict(),
-                                'pooling_mode': cfg.RCNN_COMMON.POOLING_MODE,
-                                'class_agnostic': args.class_agnostic,
-                                'result': cresult,
-                            }, save_name)
-                        print('save model: {}'.format(save_name))
+                    if current_result > best_result:
+                        best_result = current_result
+                        save_flag = True
+                else:
+                    save_flag = True
 
-                else :
+                if save_flag:
                     if args.mGPUs:
                         save_name = os.path.join(output_dir,
-                                args.frame + '_{}_{}_{}_{}.pth'.format(args.session, epoch, step,
-                                                                    args.imdb_name))
+                                                 args.frame + '_{}_{}_{}_{}.pth'.format(args.session, epoch, step,
+                                                                                        args.imdb_name))
                         save_checkpoint({
-                                'session': args.session,
-                                'epoch': epoch + 1,
-                                'model': Network.module.state_dict(),
-                                'optimizer': optimizer.state_dict(),
-                                'pooling_mode': cfg.RCNN_COMMON.POOLING_MODE,
-                                'class_agnostic': args.class_agnostic,
+                            'session': args.session,
+                            'epoch': epoch + 1,
+                            'model': Network.module.state_dict(),
+                            'optimizer': optimizer.state_dict(),
+                            'pooling_mode': cfg.RCNN_COMMON.POOLING_MODE,
+                            'class_agnostic': args.class_agnostic,
                         }, save_name)
                     else:
                         save_name = os.path.join(output_dir,
-                                    args.frame + '_{}_{}_{}_{}.pth'.format(args.session, epoch, step, args.GPU))
+                                                 args.frame + '_{}_{}_{}_{}.pth'.format(args.session, epoch, step, args.GPU))
                         save_checkpoint({
-                                'session': args.session,
-                                'epoch': epoch + 1,
-                                'model': Network.state_dict(),
-                                'optimizer': optimizer.state_dict(),
-                                'pooling_mode': cfg.RCNN_COMMON.POOLING_MODE,
-                                'class_agnostic': args.class_agnostic,
+                            'session': args.session,
+                            'epoch': epoch + 1,
+                            'model': Network.state_dict(),
+                            'optimizer': optimizer.state_dict(),
+                            'pooling_mode': cfg.RCNN_COMMON.POOLING_MODE,
+                            'class_agnostic': args.class_agnostic,
                         }, save_name)
                     print('save model: {}'.format(save_name))
+                    save_flag = False
 
         end = time.time()
         print(end - start)

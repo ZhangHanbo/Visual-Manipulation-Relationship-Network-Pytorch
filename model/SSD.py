@@ -81,7 +81,9 @@ class _SSD(nn.Module):
 
         self.criterion = MultiBoxLoss(self.num_classes)
 
-    def forward(self, x, im_info, gt_boxes, num_boxes):
+        self.iter_counter = 0
+
+    def forward(self, data_batch):
         """Applies network layers and ops on input image(s) x.
         Args:
             x: input image or batch of images. Shape: [batch,3,300,300].
@@ -97,6 +99,14 @@ class _SSD(nn.Module):
                     2: localization layers, Shape: [batch,num_priors*4]
                     3: priorbox layers, Shape: [2,num_priors*4]
         """
+        x = data_batch[0]
+        im_info = data_batch[1]
+        gt_boxes = data_batch[2]
+        num_boxes = data_batch[3]
+
+        if self.training:
+            self.iter_counter += 1
+
         sources = list()
         loc = list()
         conf = list()

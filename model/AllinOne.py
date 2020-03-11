@@ -79,7 +79,7 @@ class _All_in_One(nn.Module):
         self._isex = cfg.TRAIN.VMRN.ISEX
         self.VMRN_rel_op2l = _OP2L(cfg.VMRN.OP2L_POOLING_SIZE, cfg.VMRN.OP2L_POOLING_SIZE, 1.0 / 16.0, self._isex)
 
-        self._train_iter_conter = 0
+        self.iter_conter = 0
 
         self._MGN_as = cfg.FCGN.ANCHOR_SCALES
         self._MGN_ar = cfg.FCGN.ANCHOR_RATIOS
@@ -105,20 +105,20 @@ class _All_in_One(nn.Module):
         ], dim=1)
         self._MGN_USE_POOLED_FEATS = cfg.MGN.USE_POOLED_FEATS
 
-    def forward(self, im_data, gt):
+    def forward(self, data_batch):
+        im_data = data_batch[0]
+        im_info = data_batch[1]
+        gt_boxes = data_batch[2]
+        gt_grasps = data_batch[3]
+        num_boxes = data_batch[4]
+        num_grasps = data_batch[5]
+        rel_mat = data_batch[6]
+        gt_grasp_inds = data_batch[7]
+
         # object detection
         if self.training:
-            self._train_iter_conter += 1
-
+            self.iter_conter += 1
         self.batch_size = im_data.size(0)
-
-        gt_boxes = gt['boxes']
-        gt_grasps = gt['grasps']
-        gt_grasp_inds = gt['grasp_inds']
-        num_boxes = gt['num_boxes']
-        num_grasps = gt['num_grasps']
-        im_info = gt['im_info']
-        rel_mat = gt['rel_mat']
 
         # feed image data to base model to obtain base feature map
         base_feat = self.VMRN_base(im_data)
@@ -225,7 +225,7 @@ class _All_in_One(nn.Module):
         ############################################
         # online data
         if self.training:
-            if self._train_iter_conter > cfg.TRAIN.VMRN.ONLINEDATA_BEGIN_ITER:
+            if self.iter_conter > cfg.TRAIN.VMRN.ONLINEDATA_BEGIN_ITER:
                 obj_rois, obj_num = self._obj_det(obj_det_rois,
                         obj_det_cls_prob.contiguous().view(self.batch_size, -1, self.n_classes),
                         obj_det_bbox_pred.contiguous().view(self.batch_size,
@@ -657,7 +657,7 @@ class _All_in_One(nn.Module):
         self._init_weights()
 
     def resume_iter(self, epoch, iter_per_epoch):
-        self._train_iter_conter = epoch * iter_per_epoch
+        self.iter_conter = epoch * iter_per_epoch
 
 class resnet(_All_in_One):
     def __init__(self, classes, num_layers=101, pretrained=False, class_agnostic=False):

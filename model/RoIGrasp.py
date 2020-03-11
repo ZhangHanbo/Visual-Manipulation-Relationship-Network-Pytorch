@@ -88,20 +88,26 @@ class _ROIGN(nn.Module):
         self.grid_size = cfg.RCNN_COMMON.POOLING_SIZE * 2 if cfg.RCNN_COMMON.CROP_RESIZE_WITH_MAX_POOL else cfg.RCNN_COMMON.POOLING_SIZE
         self.RCNN_roi_crop = _RoICrop()
 
-    def forward(self, im_data, gt):
-        batch_size = im_data.size(0)
+        self.iter_counter = 0
 
-        gt_boxes = gt['boxes']
+    def forward(self, data_batch):
+        im_data = data_batch[0]
+        im_info = data_batch[1]
+        gt_boxes = data_batch[2]
+        gt_grasps = data_batch[3]
+        num_boxes = data_batch[4]
+        num_grasps = data_batch[5]
+        gt_grasp_inds = data_batch[6]
+
+        batch_size = im_data.size(0)
+        if self.training:
+            self.iter_counter += 1
+
         # for jacquard dataset, the bounding box labels are set to -1. For training, we set them to 1, which does not
         # affect the training process.
         if self.training:
             if gt_boxes[:, :, -1].sum().item() < 0:
                 gt_boxes[:, :, -1] = -gt_boxes[:, :, -1]
-        gt_grasps = gt['grasps']
-        gt_grasp_inds = gt['grasp_inds']
-        num_boxes = gt['num_boxes']
-        num_grasps = gt['num_grasps']
-        im_info = gt['im_info']
 
         for i in range(batch_size):
             if torch.sum(gt_grasp_inds[i]).item() == 0:

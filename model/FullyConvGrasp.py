@@ -60,7 +60,17 @@ class _FCGN(nn.Module):
             self._anchors[:, 4:5]
         ], dim=1)
 
-    def forward(self, x, im_info, gt_boxes, num_boxes):
+        self.iter_counter = 0
+
+    def forward(self, data_batch):
+        x = data_batch[0]
+        im_info = data_batch[1]
+        gt_boxes = data_batch[2]
+        num_boxes = data_batch[3]
+
+        if self.training:
+            self.iter_counter += 1
+
         # features
         x = self.base(x)
         pred = self.classifier(x)
