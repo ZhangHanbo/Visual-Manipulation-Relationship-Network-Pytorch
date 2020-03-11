@@ -538,7 +538,7 @@ class roigdetMulInSizeRoibatchLoader(graspMulInSizeRoibatchLoader, objdetMulInSi
             num_grasps = 0
             return data, im_info, gt_boxes, gt_grasps, num_boxes, num_grasps, gt_grasp_inds
 
-class allInOneMulInSizeRoibatchLoader(vmrdetMulInSizeRoibatchLoader, roignMulInSizeRoibatchLoader):
+class allInOneMulInSizeRoibatchLoader(vmrdetMulInSizeRoibatchLoader, roigdetMulInSizeRoibatchLoader):
     def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True,
                  cls_list=None):
         super(allInOneMulInSizeRoibatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes, training,

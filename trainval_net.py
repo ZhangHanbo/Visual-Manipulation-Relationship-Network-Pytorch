@@ -409,7 +409,33 @@ def evalute_model(Network, namedb, args):
 
     # load test dataset
     imdb, roidb, ratio_list, ratio_index = combined_roidb(namedb, False)
-    dataset = roibatchLoader(roidb, ratio_list, ratio_index, 1, imdb.num_classes, training=False)
+    if args.dataset[:4] == 'vmrd' or args.dataset[:7] == 'cornell' or args.dataset == 'jacquard':
+        if args.frame != 'faster_rcnn' and args.frame !='ssd':
+            if cfg.TRAIN.COMMON.AUGMENTATION:
+                warnings.warn('########Grasps may be not rectangles due to augmentation!!!########')
+    if args.frame in {"fpn", "faster_rcnn"}:
+        dataset = objdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+                           imdb.num_classes, training=True, cls_list=imdb.classes)
+    elif args.frame in {"ssd"}:
+        dataset = objdetRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+                           imdb.num_classes, training=True, cls_list=imdb.classes)
+    elif args.frame in {"ssd_vmrn", "vam"}:
+        dataset = vmrdetRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+                           imdb.num_classes, training=True, cls_list=imdb.classes)
+    elif args.frame in {"faster_rcnn_vmrn"}:
+        dataset = vmrdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+                           imdb.num_classes, training=True, cls_list=imdb.classes)
+    elif args.frame in {"fcgn"}:
+        dataset = graspdetRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+                           imdb.num_classes, training=True, cls_list=imdb.classes)
+    elif args.frame in {"all_in_one"}:
+        dataset = allInOneMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+                           imdb.num_classes, training=True, cls_list=imdb.classes)
+    elif args.frame in {"roign", "mgn"}:
+        dataset = roigdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+                           imdb.num_classes, training=True, cls_list=imdb.classes)
+    else:
+        raise RuntimeError
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False, num_workers=0, pin_memory=True)
     data_iter = iter(dataloader)
     num_images = len(imdb.image_index)
@@ -568,27 +594,27 @@ def evalute_model(Network, namedb, args):
                                          + torch.FloatTensor(cfg.TRAIN.COMMON.BBOX_NORMALIZE_MEANS).cuda()
                             box_deltas = box_deltas.view(1, -1, 4)
                             pred_boxes = bbox_transform_inv(boxes, box_deltas, 1)
-                            pred_boxes = clip_boxes(pred_boxes, im_info.data, 1)
+                            pred_boxes = clip_boxes(pred_boxes, data_batch[1].data, 1)
                         else:
                             box_deltas = box_deltas.view(-1, 4) * torch.FloatTensor(
                                 cfg.TRAIN.COMMON.BBOX_NORMALIZE_STDS).cuda() \
                                          + torch.FloatTensor(cfg.TRAIN.COMMON.BBOX_NORMALIZE_MEANS).cuda()
                             box_deltas = box_deltas.view(1, -1, 4 * len(imdb.classes))
                             pred_boxes = bbox_transform_inv(boxes, box_deltas, 1)
-                            pred_boxes = clip_boxes(pred_boxes, im_info.data, 1)
+                            pred_boxes = clip_boxes(pred_boxes, data_batch[1].data, 1)
 
                 elif args.class_agnostic:
                     box_deltas = box_deltas.view(-1, 4) * torch.FloatTensor(cfg.TRAIN.COMMON.BBOX_NORMALIZE_STDS).cuda() \
                                  + torch.FloatTensor(cfg.TRAIN.COMMON.BBOX_NORMALIZE_MEANS).cuda()
                     box_deltas = box_deltas.view(1, -1, 4)
                     pred_boxes = bbox_transform_inv(boxes, box_deltas, 1)
-                    pred_boxes = clip_boxes(pred_boxes, im_info.data, 1)
+                    pred_boxes = clip_boxes(pred_boxes, data_batch[1].data, 1)
                 else:
                     box_deltas = box_deltas.view(-1, 4) * torch.FloatTensor(cfg.TRAIN.COMMON.BBOX_NORMALIZE_STDS).cuda() \
                                  + torch.FloatTensor(cfg.TRAIN.COMMON.BBOX_NORMALIZE_MEANS).cuda()
                     box_deltas = box_deltas.view(1, -1, 4 * len(imdb.classes))
                     pred_boxes = bbox_transform_inv(boxes, box_deltas, 1)
-                    pred_boxes = clip_boxes(pred_boxes, im_info.data, 1)
+                    pred_boxes = clip_boxes(pred_boxes, data_batch[1].data, 1)
         else:
             if args.frame != 'roign':
                 # Simply repeat the boxes, once for each class
@@ -597,28 +623,28 @@ def evalute_model(Network, namedb, args):
         if args.frame != 'roign':
             scores = scores.squeeze()
             pred_boxes = pred_boxes.squeeze()
-            pred_boxes[:, 0::4] /= data[1][0][3].item()
-            pred_boxes[:, 1::4] /= data[1][0][2].item()
-            pred_boxes[:, 2::4] /= data[1][0][3].item()
-            pred_boxes[:, 3::4] /= data[1][0][2].item()
+            pred_boxes[:, 0::4] /= data_batch[1][0][3].item()
+            pred_boxes[:, 1::4] /= data_batch[1][0][2].item()
+            pred_boxes[:, 2::4] /= data_batch[1][0][3].item()
+            pred_boxes[:, 3::4] /= data_batch[1][0][2].item()
         if args.frame == 'mgn' or args.frame == 'all_in_one' or args.frame == 'roign':
             grasp_pred_boxes = grasp_pred_boxes.squeeze()
             grasp_scores = grasp_scores.squeeze()
             if grasp_pred_boxes.dim() == 2:
-                grasp_pred_boxes[:, 0::4] /= data[1][0][3].item()
-                grasp_pred_boxes[:, 1::4] /= data[1][0][2].item()
-                grasp_pred_boxes[:, 2::4] /= data[1][0][3].item()
-                grasp_pred_boxes[:, 3::4] /= data[1][0][2].item()
+                grasp_pred_boxes[:, 0::4] /= data_batch[1][0][3].item()
+                grasp_pred_boxes[:, 1::4] /= data_batch[1][0][2].item()
+                grasp_pred_boxes[:, 2::4] /= data_batch[1][0][3].item()
+                grasp_pred_boxes[:, 3::4] /= data_batch[1][0][2].item()
             elif grasp_pred_boxes.dim() == 3:
-                grasp_pred_boxes[:, :, 0::4] /= data[1][0][3].item()
-                grasp_pred_boxes[:, :, 1::4] /= data[1][0][2].item()
-                grasp_pred_boxes[:, :, 2::4] /= data[1][0][3].item()
-                grasp_pred_boxes[:, :, 3::4] /= data[1][0][2].item()
+                grasp_pred_boxes[:, :, 0::4] /= data_batch[1][0][3].item()
+                grasp_pred_boxes[:, :, 1::4] /= data_batch[1][0][2].item()
+                grasp_pred_boxes[:, :, 2::4] /= data_batch[1][0][3].item()
+                grasp_pred_boxes[:, :, 3::4] /= data_batch[1][0][2].item()
             elif grasp_pred_boxes.dim() == 4:
-                grasp_pred_boxes[:, :, :, 0::4] /= data[1][0][3].item()
-                grasp_pred_boxes[:, :, :, 1::4] /= data[1][0][2].item()
-                grasp_pred_boxes[:, :, :, 2::4] /= data[1][0][3].item()
-                grasp_pred_boxes[:, :, :, 3::4] /= data[1][0][2].item()
+                grasp_pred_boxes[:, :, :, 0::4] /= data_batch[1][0][3].item()
+                grasp_pred_boxes[:, :, :, 1::4] /= data_batch[1][0][2].item()
+                grasp_pred_boxes[:, :, :, 2::4] /= data_batch[1][0][3].item()
+                grasp_pred_boxes[:, :, :, 3::4] /= data_batch[1][0][2].item()
 
         det_toc = time.time()
         detect_time = det_toc - det_tic
@@ -727,8 +753,10 @@ if __name__ == '__main__':
     assert args.frame in LEGAL_FRAMES, "Illegal algorithm name."
 
     # check cuda devices
+    if not torch.cuda.is_available():
+        assert RuntimeError("Training can only be done by GPU. Please use --cuda to enable training.")
     if torch.cuda.is_available() and not args.cuda:
-        print("WARNING: You have a CUDA device, so you should probably run with --cuda")
+        assert RuntimeError("You have a CUDA device, so you should probably run with --cuda")
 
     # init random seed
     np.random.seed(cfg.RNG_SEED)
@@ -794,7 +822,8 @@ if __name__ == '__main__':
     current_result, best_result, loss_temp, loss_rpn_cls, loss_rpn_box, loss_rcnn_cls, loss_rcnn_box, loss_rel_pred, \
         loss_grasp_box, loss_grasp_cls, fg_cnt, bg_cnt, fg_grasp_cnt, bg_grasp_cnt = 0,0,0,0,0,0,0,0,0,0,0,0,0,0
     save_flag, rois, rpn_loss_cls, rpn_loss_box, rel_loss_cls, cls_prob, bbox_pred, rel_cls_prob, loss_bbox, loss_cls, \
-        rois_label, grasp_cls_loss, grasp_conf_label = False, None,None,None,None,None,None,None,None,None,None,None,None
+        rois_label, grasp_cls_loss, grasp_bbox_loss, grasp_conf_label = \
+            False, None,None,None,None,None,None,None,None,None,None,None,None,None
 
     for epoch in range(args.start_epoch, args.max_epochs + 1):
         # setting to train mode
