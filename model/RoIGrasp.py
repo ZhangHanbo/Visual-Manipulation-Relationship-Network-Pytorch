@@ -45,7 +45,6 @@ class _ROIGN(nn.Module):
     def __init__(self, classes):
         super(_ROIGN, self).__init__()
         self.n_classes = len(classes)
-        self.size = cfg.TRAIN.COMMON.INPUT_SIZE
         self._ROIGN_as = cfg.FCGN.ANCHOR_SCALES
         self._ROIGN_ar = cfg.FCGN.ANCHOR_RATIOS
         self._ROIGN_aa = cfg.FCGN.ANCHOR_ANGLES

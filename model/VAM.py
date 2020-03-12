@@ -78,7 +78,7 @@ class SSD(nn.Module):
 
     def __init__(self, classes):
         super(SSD, self).__init__()
-        self.size = cfg.TRAIN.COMMON.INPUT_SIZE
+        self.size = cfg.SCALES[0]
         self.classes = classes
         self.num_classes = len(self.classes)
         self.priors_cfg = self._init_prior_cfg()

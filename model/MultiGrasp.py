@@ -45,7 +45,6 @@ class _MGN(nn.Module):
     def __init__(self, classes, class_agnostic):
         super(_MGN, self).__init__()
         self.n_classes = len(classes)
-        self.size = cfg.TRAIN.COMMON.INPUT_SIZE
         self._MGN_as = cfg.FCGN.ANCHOR_SCALES
         self._MGN_ar = cfg.FCGN.ANCHOR_RATIOS
         self._MGN_aa = cfg.FCGN.ANCHOR_ANGLES

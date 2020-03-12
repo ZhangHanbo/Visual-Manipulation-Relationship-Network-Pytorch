@@ -8,9 +8,6 @@ import numpy as np
 # `pip install easydict` if you don't have it
 from easydict import EasyDict as edict
 
-from model.utils.augmentations import Augmentation, Augmentation_Grasp, \
-  Augmentation_Grasp_Test, Augmentation_VMRD, Augmentation_Grasp_Roign_Cornell
-
 __C = edict()
 # Consumers can get config by:
 #   from fast_rcnn_config import cfg
@@ -48,7 +45,6 @@ __C.TRAIN.COMMON.SUMMARY_INTERVAL = 180 # The time interval for saving tensorflo
 __C.TRAIN.COMMON.IMS_PER_BATCH = 1
 # Use horizontally-flipped images during training?
 __C.TRAIN.COMMON.USE_FLIPPED = True
-__C.TRAIN.COMMON.USE_VERTICAL_ROTATED = False
 __C.TRAIN.COMMON.MAX_SIZE = 1000 # Max pixel size of the longest side of a scaled input image
 # Overlap required between a ROI and ground-truth box in order for that ROI to
 # be used as a bounding-box regression training example
@@ -70,12 +66,8 @@ __C.TRAIN.COMMON.BBOX_NORMALIZE_TARGETS_PRECOMPUTED = True
 __C.TRAIN.COMMON.USE_ALL_GT = True
 # Whether to tune the batch normalization parameters during training
 __C.TRAIN.COMMON.BN_TRAIN = False
-# Fix input size. SSD must be True
-__C.TRAIN.COMMON.FIXED_INPUT_SIZE = False
-__C.TRAIN.COMMON.INPUT_SIZE = 300
 # Whether to use augmentation
 __C.TRAIN.COMMON.AUGMENTATION = False
-__C.TRAIN.COMMON.AUGMENTER = Augmentation()
 # Train using these proposals
 __C.TRAIN.COMMON.PROPOSAL_METHOD = 'gt'
 # FOCAL LOSS
@@ -89,7 +81,6 @@ __C.TRAIN.RCNN_COMMON.USE_GT = False # Whether to add ground truth boxes to the 
 __C.TRAIN.RCNN_COMMON.ASPECT_GROUPING = False # Whether to use aspect-ratio grouping of training images, introduced merely for saving GPU memory
 # Scale to use during training (can list multiple scales)
 # The scale is the pixel size of an image's shortest side
-__C.TRAIN.RCNN_COMMON.SCALES = (600,) # random scale.
 # Trim size for input images to create minibatch
 __C.TRAIN.RCNN_COMMON.TRIM_HEIGHT = 600
 __C.TRAIN.RCNN_COMMON.TRIM_WIDTH = 600
@@ -178,17 +169,8 @@ __C.TEST.COMMON.MODE = 'nms'
 __C.TEST.COMMON.OBJ_DET_THRESHOLD = 0.3
 # Test using these proposals
 __C.TEST.COMMON.PROPOSAL_METHOD = 'gt'
-__C.TEST.COMMON.FIXED_INPUT_SIZE = False
-__C.TEST.COMMON.INPUT_SIZE = 300
-__C.TEST.COMMON.AUGMENTATION = False
-__C.TEST.COMMON.AUGMENTER = Augmentation_Grasp_Test()
 # Test using bounding-box regressors
 __C.TEST.COMMON.BBOX_REG = True
-
-
-# Scale to use during testing (can NOT list multiple scales)
-# The scale is the pixel size of an image's shortest side
-__C.TEST.RCNN_COMMON.SCALES = (600,)
 # Experimental: treat the (K+1) units in the cls_score layer as linear
 # predictors (trained, eg, with one-vs-rest SVMs).
 __C.TEST.RCNN_COMMON.SVM = False
@@ -271,6 +253,10 @@ __C.GPU_ID = 0
 __C.MAX_NUM_GT_BOXES = 20
 __C.MAX_NUM_GT_GRASPS = 100
 __C.CUDA = False
+
+__C.SCALES = (600,)
+# For SSD, the FIXED_INPUT_SIZE need to be true
+__C.FIXED_INPUT_SIZE = False
 
 __C.RCNN_COMMON = edict()
 __C.RCNN_COMMON.POOLING_MODE = 'crop'
@@ -374,16 +360,6 @@ def _merge_a_into_b(a, b):
     if old_type is not type(v):
       if isinstance(b[k], np.ndarray):
         v = np.array(v, dtype=b[k].dtype)
-      if k == 'AUGMENTER':
-        augmenter_list = ("Augmentation()",
-                          "Augmentation_Grasp()",
-                          "Augmentation_Grasp_Roign_Cornell()",
-                          "Augmentation_Grasp_Test()",
-                          "Augmentation_VMRD()")
-        if v in augmenter_list:
-          v = eval(v)
-        else:
-          raise ValueError("Augmenter not defined.")
       else:
         raise ValueError(('Type mismatch ({} vs. {}) '
                           'for config key: {}').format(type(b[k]),

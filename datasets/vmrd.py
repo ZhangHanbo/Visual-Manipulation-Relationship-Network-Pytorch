@@ -144,7 +144,7 @@ class vmrd(pascal_voc):
         num_objs = len(objs)
 
         nodeinds = np.zeros(num_objs, dtype=np.uint16)
-        father_list = []
+        parent_list = []
         child_list = []
         boxes = np.zeros((num_objs, 4), dtype=np.int32)
         gt_classes = np.zeros((num_objs), dtype=np.int32)
@@ -163,8 +163,8 @@ class vmrd(pascal_voc):
             x2 = float(bbox.find('xmax').text) - 1
             y2 = float(bbox.find('ymax').text) - 1
             nodeind = int(obj.find('index').text)
-            fathernodes = obj.find('father').findall('num')
-            fathers = [int(f.text) for f in fathernodes]
+            parentnodes = obj.find('father').findall('num')
+            parents = [int(f.text) for f in parentnodes]
             childnodes = obj.find('children').findall('num')
             children = [int(f.text) for f in childnodes]
             diffc = obj.find('difficult')
@@ -179,7 +179,7 @@ class vmrd(pascal_voc):
             overlaps[ix, cls] = 1.0
             seg_areas[ix] = (x2 - x1 + 1) * (y2 - y1 + 1)
             nodeinds[ix] = nodeind
-            father_list.append(np.array(fathers, dtype=np.uint16))
+            parent_list.append(np.array(parents, dtype=np.uint16))
             child_list.append(np.array(children, dtype=np.uint16))
 
         overlaps = scipy.sparse.csr_matrix(overlaps)
@@ -190,9 +190,9 @@ class vmrd(pascal_voc):
                 'gt_overlaps': overlaps,
                 'flipped': False,
                 'seg_areas': seg_areas,
-                'nodeinds': nodeinds,
-                'fathers': father_list,
-                'children': child_list,
+                'node_inds': nodeinds,
+                'parent_lists': parent_list,
+                'child_lists': child_list,
                 'rotated': 0}
 
     def _write_voc_results_file(self, all_boxes):
@@ -299,16 +299,16 @@ class vmrd(pascal_voc):
         rel_mat_gt = np.zeros([num_gt, num_gt])
         for o1 in range(num_gt):
             for o2 in range(num_gt):
-                ind_o1 = anno['nodeinds'][o1]
-                ind_o2 = anno['nodeinds'][o2]
+                ind_o1 = anno['node_inds'][o1]
+                ind_o2 = anno['node_inds'][o2]
                 if ind_o2 == ind_o1 or rel_mat_gt[o1, o2].item() != 0:
                     continue
-                o1_children = anno['children'][o1]
-                o1_fathers = anno['fathers'][o1]
+                o1_children = anno['child_lists'][o1]
+                o1_parents = anno['parent_lists'][o1]
                 if ind_o2 in o1_children:
-                    # o1 is o2's father
+                    # o1 is o2's parent
                     rel_mat_gt[o1, o2] = cfg.VMRN.FATHER
-                elif ind_o2 in o1_fathers:
+                elif ind_o2 in o1_parents:
                     # o1 is o2's child
                     rel_mat_gt[o1, o2] = cfg.VMRN.CHILD
                 else:
@@ -438,7 +438,7 @@ class vmrd(pascal_voc):
                         continue
                     else:
                         # NUM_IMG += 1
-                        boxannoindex = boxanno['nodeinds'][boxanno['gt_classes'] == cls]
+                        boxannoindex = boxanno['node_inds'][boxanno['gt_classes'] == cls]
                         boxanno = boxanno['boxes'][boxanno['gt_classes'] == cls]
                         GT += boxanno.shape[0]
 

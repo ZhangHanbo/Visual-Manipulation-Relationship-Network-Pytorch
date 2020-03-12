@@ -13,18 +13,22 @@ import torch
 import torch.utils.data as data
 
 from model.utils.config import cfg
-from roi_data_layer.minibatch import get_minibatch
+from roi_data_layer.minibatch import *
 from model.utils.net_utils import draw_grasp, vis_detections, draw_single_bbox, draw_single_grasp
+from model.utils.blob import prep_im_for_blob
 import abc
 
 import cv2
 import os
 
+from model.utils.augmentations import *
+
 import pdb
 
 class roibatchLoader(data.Dataset):
     __metaclass__ = abc.ABCMeta
-    def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True, cls_list=None):
+    def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True, cls_list=None,
+                 augmentation = False):
         self._roidb = roidb
         self._num_classes = num_classes
         # we make the height of image consistent to trim_height, trim_width
@@ -36,6 +40,12 @@ class roibatchLoader(data.Dataset):
         self.batch_size = batch_size
         self.data_size = len(self.ratio_list)
         self.cls_list = cls_list
+
+        self.augmentation = augmentation
+
+    @abc.abstractmethod
+    def _imagePreprocess(self, blob, fix_size):
+        raise NotImplementedError
 
     @abc.abstractmethod
     def __getitem__(self, index):
@@ -50,6 +60,34 @@ class objdetRoibatchLoader(roibatchLoader):
 
         super(objdetRoibatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes, training,
                  cls_list)
+        if self.augmentation:
+            self.augImageOnly = ComposeImageOnly([
+                ConvertToFloats(),
+                PhotometricDistort(),
+            ])
+            self.augObjdet = Compose([
+                RandomVerticalRotate(),
+                RandomMirror(),
+                Expand(mean = cfg.PIXEL_MEANS),
+                RandomSampleCrop(),
+            ])
+
+    def _imagePreprocess(self, blob, fix_size = True):
+        keep = np.arange(blob['gt_boxes'].shape[0])
+        if self.augmentation:
+            blob['data'] = self.augImageOnly(blob['data'])
+            blob['data'], boxes, _, _, _ = self.augObjdet(img=blob['data'], boxes=blob['gt_boxes'], boxes_keep=keep)
+        # choose one predefined size, TODO: support multi-instance batch
+        random_scale_ind = np.random.randint(0, high=len(cfg.TRAIN.COMMON.SCALES))
+        blob['data'], im_scale = prep_im_for_blob(blob['data'], random_scale_ind, cfg.TRAIN.COMMON.MAX_SIZE, fix_size)
+        # modify bounding boxes according to resize parameters
+        blob['im_info'][-2:] = (im_scale['y'], im_scale['x'])
+        blob['gt_boxes'][:, :-1][:, 0::2] *= im_scale['x']
+        blob['gt_boxes'][:, :-1][:, 1::2] *= im_scale['y']
+        # substract means and swap channels
+        blob['data'] -= cfg.PIXEL_MEANS
+        blob['data'] = blob['data'][:, :, ::-1]
+        return blob
 
     def _boxPostProcess(self, gt_boxes):
         gt_boxes_padding = torch.FloatTensor(self.max_num_box, 5).zero_()
@@ -71,12 +109,14 @@ class objdetRoibatchLoader(roibatchLoader):
         # get the anchor index for current sample index
         # here we set the anchor index to the last one
         # sample in this group
-        minibatch_db = [self._roidb[index_ratio]]
-        blobs = get_minibatch(minibatch_db, self._num_classes, self.training)
+        minibatch_db = self._roidb[index_ratio]
+        blobs = get_minibatch_objdet(minibatch_db)
+        # preprocess images
+        blobs = self._imagePreprocess(blobs)
+
         data = torch.from_numpy(blobs['data'])
-        data = data.squeeze(0).permute(2, 0, 1).contiguous()
+        data = data.permute(2, 0, 1).contiguous()
         im_info = torch.from_numpy(blobs['im_info'])
-        im_info = im_info.view(4)
         if self.training:
             # object detection data
             # 4 coordinates (xmin, ymin, xmax, ymax) and 1 label
@@ -94,6 +134,35 @@ class graspdetRoibatchLoader(roibatchLoader):
                  cls_list=None):
         super(graspdetRoibatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes, training,
                  cls_list)
+        if self.augmentation:
+            self.augImageOnly = ComposeImageOnly([
+                ConvertToFloats(),
+                PhotometricDistort(),
+            ])
+            self.augmGraspdet = Compose([
+                RandomMirror(),
+                # TODO: this is cornell's parameters, need to modify to support more datasets
+                FixedSizeCrop(100, 50, 200, 150, 320, 320),
+                RandomRotate(),
+            ])
+
+    def _imagePreprocess(self, blob, fix_size = True):
+        keep = np.arange(blob['gt_grasps'].shape[0])
+        if self.augmentation:
+            blob['data'] = self.augImageOnly(blob['data'])
+            cv2_img, _, grasps, _, _ = self.augmGraspdet(img=blob['data'], grasps=blob['gt_grasps'], grasps_keep=keep)
+        # choose one predefined size, TODO: support multi-instance batch
+        random_scale_ind = np.random.randint(0, high=len(cfg.TRAIN.COMMON.SCALES))
+        blob['data'], im_scale = prep_im_for_blob(blob['data'], random_scale_ind, cfg.TRAIN.COMMON.MAX_SIZE, fix_size)
+        # modify bounding boxes according to resize parameters
+        assert im_scale['x'] == im_scale['y']
+        blob['im_info'][-2:] = (im_scale['y'], im_scale['x'])
+        blob['gt_grasps'][:, 0::2] *= im_scale['x']
+        blob['gt_grasps'][:, 1::2] *= im_scale['y']
+        # substract means and swap channels
+        blob['data'] -= cfg.PIXEL_MEANS
+        blob['data'] = blob['data'][:, :, ::-1]
+        return blob
 
     def _graspPostProcess(self, gt_grasps, gt_grasp_inds = None):
         gt_grasps_padding = torch.FloatTensor(self.max_num_grasp, 8).zero_()
@@ -111,12 +180,13 @@ class graspdetRoibatchLoader(roibatchLoader):
         else:
             index_ratio = index
 
-        minibatch_db = [self._roidb[index_ratio]]
-        blobs = get_minibatch(minibatch_db, self._num_classes, self.training)
+        minibatch_db = self._roidb[index_ratio]
+        blobs = get_minibatch_graspdet(minibatch_db)
+        blobs = self._imagePreprocess(blobs)
+
         data = torch.from_numpy(blobs['data'])
-        data = data.squeeze(0).permute(2, 0, 1).contiguous()
+        data = data.permute(2, 0, 1).contiguous()
         im_info = torch.from_numpy(blobs['im_info'])
-        im_info = im_info.view(4)
 
         if self.training:
             np.random.shuffle(blobs['gt_grasps'])
@@ -134,6 +204,35 @@ class vmrdetRoibatchLoader(objdetRoibatchLoader):
 
         super(vmrdetRoibatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes, training,
                  cls_list)
+
+        if self.augmentation:
+            self.augObjdet = Compose([
+                RandomVerticalRotate(),
+                RandomMirror(),
+                Expand(mean = cfg.PIXEL_MEANS),
+                # TODO: allow to damage bounding boxes while prevent deleting them when doing random crop
+                RandomCropKeepBoxes(),
+            ])
+
+    def _imagePreprocess(self, blob, fix_size=True):
+        keep = np.arange(blob['gt_boxes'].shape[0])
+        if self.augmentation:
+            blob['data'] = self.augImageOnly(blob['data'])
+            blob['data'], boxes, _, keep, _ = self.augObjdet(img=blob['data'], boxes=blob['gt_boxes'], boxes_keep=keep)
+        # choose one predefined size, TODO: support multi-instance batch
+        random_scale_ind = np.random.randint(0, high=len(cfg.TRAIN.COMMON.SCALES))
+        blob['data'], im_scale = prep_im_for_blob(blob['data'], random_scale_ind, cfg.TRAIN.COMMON.MAX_SIZE, fix_size)
+        # modify bounding boxes according to resize parameters
+        blob['im_info'][-2:] = (im_scale['y'], im_scale['x'])
+        blob['gt_boxes'][:, :-1][:, 0::2] *= im_scale['x']
+        blob['gt_boxes'][:, :-1][:, 1::2] *= im_scale['y']
+        # substract means and swap channels
+        blob['data'] -= cfg.PIXEL_MEANS
+        blob['data'] = blob['data'][:, :, ::-1]
+        blob['node_inds'] = blob['node_inds'][keep]
+        blob['parent_lists'] = [blob['parent_lists'][p_ind] for p_ind in list(keep)]
+        blob['child_lists'] = [blob['child_lists'][c_ind] for c_ind in list(keep)]
+        return blob
 
     def _genRelMat(self, obj_list, node_inds, child_lists, parent_lists):
         num_boxes = obj_list.size(0)
@@ -167,12 +266,14 @@ class vmrdetRoibatchLoader(objdetRoibatchLoader):
         # get the anchor index for current sample index
         # here we set the anchor index to the last one
         # sample in this group
-        minibatch_db = [self._roidb[index_ratio]]
-        blobs = get_minibatch(minibatch_db, self._num_classes, self.training)
+        minibatch_db = self._roidb[index_ratio]
+        blobs = get_minibatch_objdet(minibatch_db)
+        # preprocess images
+        blobs = self._imagePreprocess(blobs)
+
         data = torch.from_numpy(blobs['data'])
-        data = data.squeeze(0).permute(2, 0, 1).contiguous()
+        data = data.permute(2, 0, 1).contiguous()
         im_info = torch.from_numpy(blobs['im_info'])
-        im_info = im_info.view(4)
         if self.training:
             # object detection data
             # 4 coordinates (xmin, ymin, xmax, ymax) and 1 label
@@ -183,7 +284,7 @@ class vmrdetRoibatchLoader(objdetRoibatchLoader):
             gt_boxes = gt_boxes[shuffle_inds]
             gt_boxes, keep = self._boxPostProcess(gt_boxes)
             shuffle_inds = shuffle_inds[keep]
-            rel_mat = self._genRelMat(shuffle_inds, blobs['nodeinds'], blobs['children'], blobs['fathers'])
+            rel_mat = self._genRelMat(shuffle_inds, blobs['node_inds'], blobs['child_lists'], blobs['parent_lists'])
             return data, im_info, gt_boxes, keep.size(0), rel_mat
         else:
             gt_boxes = torch.FloatTensor([1, 1, 1, 1, 1])
@@ -216,7 +317,7 @@ class mulInSizeRoibatchLoader(roibatchLoader):
             self.ratio_list_batch[left_idx:(right_idx + 1)] = target_ratio
 
     def _cropImage(self, data, gt_boxes, target_ratio):
-        data_height, data_width = data.size(1), data.size(2)
+        data_height, data_width = data.size(0), data.size(1)
         x_s, y_s = 0, 0
         if target_ratio < 1:
             # this means that data_width << data_height, we need to crop the
@@ -244,7 +345,7 @@ class mulInSizeRoibatchLoader(roibatchLoader):
             elif min_y < 0:
                 raise RuntimeError
             # crop the image
-            data = data[:, y_s:(y_s + trim_size), :, :]
+            data = data[y_s:(y_s + trim_size), :, :]
         else:
             # this means that data_width >> data_height, we need to crop the
             # data_width
@@ -271,28 +372,28 @@ class mulInSizeRoibatchLoader(roibatchLoader):
             elif min_x < 0:
                 raise RuntimeError
             # crop the image
-            data = data[:, :, x_s:(x_s + trim_size), :]
+            data = data[:, x_s:(x_s + trim_size), :]
         return data, (x_s, y_s)
 
     def _paddingImage(self, data, im_info, target_ratio):
-        data_height, data_width = data.size(1), data.size(2)
+        data_height, data_width = data.size(0), data.size(1)
         if target_ratio < 1:
             # this means that data_width < data_height
             padding_data = torch.FloatTensor(int(np.ceil(data_width / target_ratio)), \
                                              data_width, 3).zero_()
-            padding_data[:data_height, :, :] = data[0]
-            im_info[0, 0] = padding_data.size(0)
+            padding_data[:data_height, :, :] = data
+            im_info[0] = padding_data.size(0)
         elif target_ratio > 1:
             # this means that data_width > data_height
             padding_data = torch.FloatTensor(data_height, \
                                              int(np.ceil(data_height * target_ratio)), 3).zero_()
-            padding_data[:, :data_width, :] = data[0]
-            im_info[0, 1] = padding_data.size(1)
+            padding_data[:, :data_width, :] = data
+            im_info[1] = padding_data.size(1)
         else:
             trim_size = min(data_height, data_width)
-            padding_data = data[0][:trim_size, :trim_size, :]
-            im_info[0, 0] = trim_size
-            im_info[0, 1] = trim_size
+            padding_data = data[:trim_size, :trim_size, :]
+            im_info[0] = trim_size
+            im_info[1] = trim_size
 
         return padding_data, im_info
 
@@ -300,7 +401,7 @@ class mulInSizeRoibatchLoader(roibatchLoader):
     def __getitem__(self, index):
         raise NotImplementedError
 
-class objdetMulInSizeRoibatchLoader(mulInSizeRoibatchLoader, objdetRoibatchLoader):
+class objdetMulInSizeRoibatchLoader(objdetRoibatchLoader, mulInSizeRoibatchLoader):
     def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True,
                  cls_list=None):
         super(objdetMulInSizeRoibatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes, training,
@@ -326,12 +427,16 @@ class objdetMulInSizeRoibatchLoader(mulInSizeRoibatchLoader, objdetRoibatchLoade
         # get the anchor index for current sample index
         # here we set the anchor index to the last one
         # sample in this group
-        minibatch_db = [self._roidb[index_ratio]]
-        blobs = get_minibatch(minibatch_db, self._num_classes, self.training)
+        minibatch_db = self._roidb[index_ratio]
+        blobs = get_minibatch_objdet(minibatch_db)
+
+        # preprocess images
+        blobs = self._imagePreprocess(blobs, False)
+
         data = torch.from_numpy(blobs['data'])
         im_info = torch.from_numpy(blobs['im_info'])
         # we need to random shuffle the bounding box.
-        data_height, data_width = data.size(1), data.size(2)
+        data_height, data_width = data.size(0), data.size(1)
         if self.training:
             np.random.shuffle(blobs['gt_boxes'])
             gt_boxes = torch.from_numpy(blobs['gt_boxes'])
@@ -349,17 +454,15 @@ class objdetMulInSizeRoibatchLoader(mulInSizeRoibatchLoader, objdetRoibatchLoade
             gt_boxes, keep = self._boxPostProcess(gt_boxes)
             # permute trim_data to adapt to downstream processing
             data = data.permute(2, 0, 1).contiguous()
-            im_info = im_info.view(4)
             return data, im_info, gt_boxes, keep.size(0)
 
         else:
-            data = data.permute(0, 3, 1, 2).contiguous().view(3, data_height, data_width)
-            im_info = im_info.view(4)
+            data = data.permute(2, 0, 1).contiguous()
             gt_boxes = torch.FloatTensor([1, 1, 1, 1, 1])
             num_boxes = 0
             return data, im_info, gt_boxes, num_boxes
 
-class graspMulInSizeRoibatchLoader(mulInSizeRoibatchLoader, graspdetRoibatchLoader):
+class graspMulInSizeRoibatchLoader(graspdetRoibatchLoader, mulInSizeRoibatchLoader):
     def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True,
                  cls_list=None):
         super(graspMulInSizeRoibatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes, training,
@@ -388,12 +491,14 @@ class graspMulInSizeRoibatchLoader(mulInSizeRoibatchLoader, graspdetRoibatchLoad
         # get the anchor index for current sample index
         # here we set the anchor index to the last one
         # sample in this group
-        minibatch_db = [self._roidb[index_ratio]]
-        blobs = get_minibatch(minibatch_db, self._num_classes, self.training)
+        minibatch_db = self._roidb[index_ratio]
+        blobs = get_minibatch_graspdet(minibatch_db)
+        blobs = self._imagePreprocess(blobs, False)
+
         data = torch.from_numpy(blobs['data'])
         im_info = torch.from_numpy(blobs['im_info'])
         # we need to random shuffle the bounding box.
-        data_height, data_width = data.size(1), data.size(2)
+        data_height, data_width = data.size(0), data.size(1)
         if self.training:
             np.random.shuffle(blobs['gt_grasps'])
             gt_grasps = torch.from_numpy(blobs['gt_grasps'])
@@ -409,16 +514,14 @@ class graspMulInSizeRoibatchLoader(mulInSizeRoibatchLoader, graspdetRoibatchLoad
             gt_grasps, num_grasps = self._graspPostProcess(gt_grasps)
             # permute trim_data to adapt to downstream processing
             data = data.permute(2, 0, 1).contiguous()
-            im_info = im_info.view(4)
             return data, im_info, gt_grasps, num_grasps
         else:
-            data = data.permute(0, 3, 1, 2).contiguous().view(3, data_height, data_width)
-            im_info = im_info.view(4)
+            data = data.permute(2, 0, 1).contiguous()
             gt_grasps = torch.FloatTensor([1, 1, 1, 1, 1, 1, 1, 1])
             num_grasps = 0
             return data, im_info, gt_grasps, num_grasps
 
-class vmrdetMulInSizeRoibatchLoader(objdetMulInSizeRoibatchLoader, vmrdetRoibatchLoader):
+class vmrdetMulInSizeRoibatchLoader(vmrdetRoibatchLoader, objdetMulInSizeRoibatchLoader):
     def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True,
                  cls_list=None):
         super(vmrdetMulInSizeRoibatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes, training,
@@ -433,12 +536,15 @@ class vmrdetMulInSizeRoibatchLoader(objdetMulInSizeRoibatchLoader, vmrdetRoibatc
         # get the anchor index for current sample index
         # here we set the anchor index to the last one
         # sample in this group
-        minibatch_db = [self._roidb[index_ratio]]
-        blobs = get_minibatch(minibatch_db, self._num_classes, self.training)
+        minibatch_db = self._roidb[index_ratio]
+        blobs = get_minibatch_objdet(minibatch_db)
+        # preprocess images
+        blobs = self._imagePreprocess(blobs, False)
+
         data = torch.from_numpy(blobs['data'])
         im_info = torch.from_numpy(blobs['im_info'])
         # we need to random shuffle the bounding box.
-        data_height, data_width = data.size(1), data.size(2)
+        data_height, data_width = data.size(0), data.size(1)
         if self.training:
             shuffle_inds = range(blobs['gt_boxes'].shape[0])
             np.random.shuffle(shuffle_inds)
@@ -460,16 +566,14 @@ class vmrdetMulInSizeRoibatchLoader(objdetMulInSizeRoibatchLoader, vmrdetRoibatc
             gt_boxes, keep = self._boxPostProcess(gt_boxes)
 
             shuffle_inds = shuffle_inds[keep]
-            rel_mat = self._genRelMat(shuffle_inds, blobs['nodeinds'], blobs['children'], blobs['fathers'])
+            rel_mat = self._genRelMat(shuffle_inds, blobs['node_inds'], blobs['child_lists'], blobs['parent_lists'])
 
             # permute trim_data to adapt to downstream processing
             data = data.permute(2, 0, 1).contiguous()
-            im_info = im_info.view(4)
             return data, im_info, gt_boxes, keep.size(0), rel_mat
 
         else:
-            data = data.permute(0, 3, 1, 2).contiguous().view(3, data_height, data_width)
-            im_info = im_info.view(4)
+            data = data.permute(2, 0, 1).contiguous()
             gt_boxes = torch.FloatTensor([1, 1, 1, 1, 1])
             num_boxes = 0
             rel_mat = torch.FloatTensor([0])
@@ -481,6 +585,37 @@ class roigdetMulInSizeRoibatchLoader(graspMulInSizeRoibatchLoader, objdetMulInSi
         super(roigdetMulInSizeRoibatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes, training,
                  cls_list)
 
+        if self.augmentation:
+            self.augObjdet = Compose([
+                RandomVerticalRotate(),
+                RandomMirror(),
+                # Expand(mean = cfg.PIXEL_MEANS),
+                # TODO: allow to damage bounding boxes while prevent deleting them when doing random crop
+                RandomCropKeepBoxes(),
+            ])
+
+    def _imagePreprocess(self, blob, fix_size = False):
+        keep_b = np.arange(blob['gt_boxes'].shape[0])
+        keep_g = np.arange(blob['gt_grasps'].shape[0])
+        if self.augmentation:
+            blob['data'] = self.augImageOnly(blob['data'])
+            blob['data'], blob['gt_boxes'], blob['gt_grasps'], keep_b, keep_g = \
+                self.augObjdet(img=blob['data'], boxes=blob['gt_boxes'], grasps=blob['gt_grasps'], boxes_keep=keep_b, grasps_keep=keep_g)
+        # choose one predefined size, TODO: support multi-instance batch
+        random_scale_ind = np.random.randint(0, high=len(cfg.TRAIN.COMMON.SCALES))
+        blob['data'], im_scale = prep_im_for_blob(blob['data'], random_scale_ind, cfg.TRAIN.COMMON.MAX_SIZE, fix_size)
+        blob['im_info'][:,-2:] = (im_scale['y'], im_scale['x'])
+        # modify bounding boxes according to resize parameters
+        blob['gt_boxes'][:, :-1][:, 0::2] *= im_scale['x']
+        blob['gt_boxes'][:, :-1][:, 1::2] *= im_scale['y']
+        blob['gt_grasps'][:, 0::2] *= im_scale['x']
+        blob['gt_grasps'][:, 1::2] *= im_scale['y']
+        blob['gt_grasp_inds'] = blob['gt_grasp_inds'][keep_g]
+        # substract means and swap channels
+        blob['data'] -= cfg.PIXEL_MEANS
+        blob['data'] = blob['data'][:, :, ::-1]
+        return blob
+
     def __getitem__(self, index):
         if self.training:
             index_ratio = int(self.ratio_index[index])
@@ -490,12 +625,14 @@ class roigdetMulInSizeRoibatchLoader(graspMulInSizeRoibatchLoader, objdetMulInSi
         # get the anchor index for current sample index
         # here we set the anchor index to the last one
         # sample in this group
-        minibatch_db = [self._roidb[index_ratio]]
-        blobs = get_minibatch(minibatch_db, self._num_classes, self.training)
+        minibatch_db = self._roidb[index_ratio]
+        blobs = get_minibatch_roigdet(minibatch_db)
+        blobs = self._imagePreprocess(blobs)
+
         data = torch.from_numpy(blobs['data'])
         im_info = torch.from_numpy(blobs['im_info'])
         # we need to random shuffle the bounding box.
-        data_height, data_width = data.size(1), data.size(2)
+        data_height, data_width = data.size(0), data.size(1)
         if self.training:
             np.random.shuffle(blobs['gt_boxes'])
             gt_boxes = torch.from_numpy(blobs['gt_boxes'])
@@ -526,11 +663,9 @@ class roigdetMulInSizeRoibatchLoader(graspMulInSizeRoibatchLoader, objdetMulInSi
 
             # permute trim_data to adapt to downstream processing
             data = data.permute(2, 0, 1).contiguous()
-            im_info = im_info.view(4)
             return data, im_info, gt_boxes, gt_grasps, keep.size(0), num_grasps, gt_grasp_inds
         else:
-            data = data.permute(0, 3, 1, 2).contiguous().view(3, data_height, data_width)
-            im_info = im_info.view(4)
+            data = data.permute(2, 0, 1).contiguous()
             gt_boxes = torch.FloatTensor([1, 1, 1, 1, 1])
             gt_grasps = torch.FloatTensor([1, 1, 1, 1, 1, 1, 1, 1])
             gt_grasp_inds = torch.FloatTensor([0])
@@ -544,6 +679,31 @@ class allInOneMulInSizeRoibatchLoader(vmrdetMulInSizeRoibatchLoader, roigdetMulI
         super(allInOneMulInSizeRoibatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes, training,
                  cls_list)
 
+    def _imagePreprocess(self, blob, fix_size = False):
+        keep_b = np.arange(blob['gt_boxes'].shape[0])
+        keep_g = np.arange(blob['gt_grasps'].shape[0])
+        if self.augmentation:
+            blob['data'] = self.augImageOnly(blob['data'])
+            blob['data'], blob['gt_boxes'], blob['gt_grasps'], keep_b, keep_g = \
+                self.augObjdet(img=blob['data'], boxes=blob['gt_boxes'], grasps=blob['gt_grasps'], boxes_keep=keep_b, grasps_keep=keep_g)
+        # choose one predefined size, TODO: support multi-instance batch
+        random_scale_ind = np.random.randint(0, high=len(cfg.TRAIN.COMMON.SCALES))
+        blob['data'], im_scale = prep_im_for_blob(blob['data'], random_scale_ind, cfg.TRAIN.COMMON.MAX_SIZE, fix_size)
+        blob['im_info'][:,-2:] = (im_scale['y'], im_scale['x'])
+        # modify bounding boxes according to resize parameters
+        blob['gt_boxes'][:, :-1][:, 0::2] *= im_scale['x']
+        blob['gt_boxes'][:, :-1][:, 1::2] *= im_scale['y']
+        blob['gt_grasps'][:, 0::2] *= im_scale['x']
+        blob['gt_grasps'][:, 1::2] *= im_scale['y']
+        blob['gt_grasp_inds'] = blob['gt_grasp_inds'][keep_g]
+        # substract means and swap channels
+        blob['data'] -= cfg.PIXEL_MEANS
+        blob['data'] = blob['data'][:, :, ::-1]
+        blob['node_inds'] = blob['node_inds'][keep_b]
+        blob['parent_lists'] = [blob['parent_lists'][p_ind] for p_ind in list(keep_b)]
+        blob['child_lists'] = [blob['child_lists'][c_ind] for c_ind in list(keep_b)]
+        return blob
+
     def __getitem__(self, index):
         if self.training:
             index_ratio = int(self.ratio_index[index])
@@ -553,12 +713,12 @@ class allInOneMulInSizeRoibatchLoader(vmrdetMulInSizeRoibatchLoader, roigdetMulI
         # get the anchor index for current sample index
         # here we set the anchor index to the last one
         # sample in this group
-        minibatch_db = [self._roidb[index_ratio]]
-        blobs = get_minibatch(minibatch_db, self._num_classes, self.training)
+        minibatch_db = self._roidb[index_ratio]
+        blobs = get_minibatch_allinone(minibatch_db)
         data = torch.from_numpy(blobs['data'])
         im_info = torch.from_numpy(blobs['im_info'])
         # we need to random shuffle the bounding box.
-        data_height, data_width = data.size(1), data.size(2)
+        data_height, data_width = data.size(0), data.size(1)
         if self.training:
             shuffle_inds_b = range(blobs['gt_boxes'].shape[0])
             np.random.shuffle(shuffle_inds_b)
@@ -593,15 +753,13 @@ class allInOneMulInSizeRoibatchLoader(vmrdetMulInSizeRoibatchLoader, roigdetMulI
             gt_grasps, num_grasps, gt_grasp_inds = self._graspPostProcess(gt_grasps, gt_grasp_inds)
 
             shuffle_inds_b = shuffle_inds_b[keep]
-            rel_mat = self._genRelMat(shuffle_inds_b, blobs['nodeinds'], blobs['children'], blobs['fathers'])
+            rel_mat = self._genRelMat(shuffle_inds_b, blobs['node_inds'], blobs['child_lists'], blobs['parent_lists'])
 
             # permute trim_data to adapt to downstream processing
             data = data.permute(2, 0, 1).contiguous()
-            im_info = im_info.view(4)
             return data, im_info, gt_boxes, gt_grasps, keep.size(0), num_grasps, rel_mat, gt_grasp_inds
         else:
-            data = data.permute(0, 3, 1, 2).contiguous().view(3, data_height, data_width)
-            im_info = im_info.view(4)
+            data = data.permute(2, 0, 1).contiguous()
             gt_boxes = torch.FloatTensor([1, 1, 1, 1, 1])
             gt_grasps = torch.FloatTensor([1, 1, 1, 1, 1, 1, 1, 1])
             gt_grasp_inds = torch.FloatTensor([0])

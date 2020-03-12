@@ -1,4 +1,6 @@
 EXP_DIR: res101
+SCALES: [320,]
+FIXED_INPUT_SIZE: True
 TRAIN:
   COMMON:
     LEARNING_RATE : 0.001
@@ -9,18 +11,11 @@ TRAIN:
     IMS_PER_BATCH : 4
     DISPLAY : 20
     BBOX_NORMALIZE_TARGETS_PRECOMPUTED: True
-    FIXED_INPUT_SIZE : False
-    USE_VERTICAL_ROTATED : True
     AUGMENTATION : True # When this is True, remember to go to utils/augmantation.py to config augmentation.
-    AUGMENTER : Augmentation_VMRD()
     SNAPSHOT_ITERS: 10000
   FCGN:
     BBOX_POSITIVE_WEIGHTS: 2.0
     ANGLE_THRESH: 15.
-TEST:
-  COMMON:
-    FIXED_INPUT_SIZE: False
-    AUGMENTATION : False # When this is True, remember to go to utils/augmantation.py to config augmentation.
 FCGN:
   FEAT_STRIDE : [32]
   ANCHOR_ANGLES : [-75., -45., -15., 15., 45., 75.]

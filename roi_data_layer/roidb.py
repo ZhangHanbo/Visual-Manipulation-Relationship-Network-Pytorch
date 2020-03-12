@@ -57,9 +57,6 @@ def prepare_roidb(imdb):
       nonzero_inds = np.where(max_overlaps > 0)[0]
       assert all(max_classes[nonzero_inds] != 0)
 
-  #print(xmax,ymax,xmin,ymin)
-
-
 def rank_roidb_ratio(roidb):
     # rank roidb based on the ratio between width and height.
     ratio_large = 2 # largest ratio to preserve.
@@ -114,16 +111,6 @@ def combined_roidb(imdb_names, training=True):
 
   def get_training_roidb(imdb):
     """Returns a roidb (Region of Interest database) for use in training."""
-    if cfg.TRAIN.COMMON.USE_VERTICAL_ROTATED:
-      print('Appending vertically-rotated training examples...')
-      imdb.append_rotated_images()
-      print('done')
-
-    if cfg.TRAIN.COMMON.USE_FLIPPED:
-      print('Appending horizontally-flipped training examples...')
-      imdb.append_flipped_images()
-      print('done')
-
     print('Preparing training data...')
 
     prepare_roidb(imdb)
