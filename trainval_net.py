@@ -773,32 +773,27 @@ if __name__ == '__main__':
     print('{:d} roidb entries'.format(len(roidb)))
     sampler_batch = sampler(train_size, args.batch_size)
     iters_per_epoch = int(train_size / args.batch_size)
-    # check augmentation setting
-    if args.dataset[:4] == 'vmrd' or args.dataset[:7] == 'cornell' or args.dataset == 'jacquard':
-        if args.frame != 'faster_rcnn' and args.frame !='ssd':
-            if cfg.TRAIN.COMMON.AUGMENTATION:
-                warnings.warn('########Grasps may be not rectangles due to augmentation!!!########')
     if args.frame in {"fpn", "faster_rcnn"}:
         dataset = objdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           imdb.num_classes, training=True, cls_list=imdb.classes)
+                           imdb.num_classes, training=True, cls_list=imdb.classes, augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
     elif args.frame in {"ssd"}:
         dataset = objdetRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           imdb.num_classes, training=True, cls_list=imdb.classes)
+                           imdb.num_classes, training=True, cls_list=imdb.classes, augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
     elif args.frame in {"ssd_vmrn", "vam"}:
         dataset = vmrdetRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           imdb.num_classes, training=True, cls_list=imdb.classes)
+                           imdb.num_classes, training=True, cls_list=imdb.classes, augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
     elif args.frame in {"faster_rcnn_vmrn"}:
         dataset = vmrdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           imdb.num_classes, training=True, cls_list=imdb.classes)
+                           imdb.num_classes, training=True, cls_list=imdb.classes, augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
     elif args.frame in {"fcgn"}:
         dataset = graspdetRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           imdb.num_classes, training=True, cls_list=imdb.classes)
+                           imdb.num_classes, training=True, cls_list=imdb.classes, augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
     elif args.frame in {"all_in_one"}:
         dataset = allInOneMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           imdb.num_classes, training=True, cls_list=imdb.classes)
+                           imdb.num_classes, training=True, cls_list=imdb.classes, augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
     elif args.frame in {"roign", "mgn"}:
         dataset = roigdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           imdb.num_classes, training=True, cls_list=imdb.classes)
+                           imdb.num_classes, training=True, cls_list=imdb.classes, augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
     else:
         raise RuntimeError
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size,

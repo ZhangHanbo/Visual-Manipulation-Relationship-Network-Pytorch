@@ -10,7 +10,6 @@
 import numpy as np
 # from scipy.misc import imread, imresize
 import cv2
-from model.utils.augmentations import Augmentation
 from model.utils.net_utils import draw_grasp
 
 from model.utils.config import cfg

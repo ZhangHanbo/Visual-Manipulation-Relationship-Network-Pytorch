@@ -64,8 +64,6 @@ def get_minibatch_vmrdet(roidb):
 
 def get_minibatch_graspdet(roidb):
     num_images = len(roidb)
-    gt_grasps = None
-
     assert (cfg.TRAIN.RCNN_COMMON.BATCH_SIZE % num_images == 0), \
         'num_images ({}) must divide BATCH_SIZE ({})'.format(num_images, cfg.TRAIN.RCNN_COMMON.BATCH_SIZE)
 
@@ -87,14 +85,13 @@ def get_minibatch_roigdet(roidb):
     # TODO: deal with the situation that some objects are filtered out (like in COCO, the ones that are ''iscrowd'')
     blobs['gt_grasps'] = roidb['grasps'].astype(np.float32)
     blobs['gt_grasp_inds'] = roidb['grasp_inds']
-    assert (blobs['gt_boxes'].shape[0] == blobs['gt_grasp_inds'].shape[0])
+    blobs['node_inds'] = roidb['node_inds']
     return blobs
 
 def get_minibatch_allinone(roidb):
     blobs = get_minibatch_vmrdet(roidb)
     blobs['gt_grasps'] = roidb['grasps'].astype(np.float32)
     blobs['gt_grasp_inds'] = roidb['grasp_inds']
-    assert (blobs['gt_boxes'].shape[0] == blobs['gt_grasp_inds'].shape[0])
     return blobs
 
 def _get_image_blob(roidb):

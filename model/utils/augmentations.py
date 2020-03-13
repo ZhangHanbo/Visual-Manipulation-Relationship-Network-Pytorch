@@ -18,7 +18,6 @@ def intersect(box_a, box_b):
     inter = np.clip((max_xy - min_xy), a_min=0, a_max=np.inf)
     return inter[:, 0] * inter[:, 1]
 
-
 def jaccard_numpy(box_a, box_b):
     """Compute the jaccard overlap of two sets of boxes.  The jaccard overlap
     is simply the intersection over union of two boxes.
@@ -38,16 +37,10 @@ def jaccard_numpy(box_a, box_b):
     union = area_a + area_b - inter
     return inter / union  # [A,B]
 
-
 class Compose(object):
     """Composes several augmentations together.
     Args:
         transforms (List[Transform]): list of transforms to compose.
-    Example:
-        >>> augmentations.Compose([
-        >>>     transforms.CenterCrop(10),
-        >>>     transforms.ToTensor(),
-        >>> ])
     """
 
     def __init__(self, transforms):
@@ -184,7 +177,7 @@ class ToCV2Image(object):
 
 class ToTensor(object):
     def __call__(self, cvimage):
-        return torch.from_numpy(cvimage.astype(np.float32)).permute(2, 0, 1),
+        return torch.from_numpy(cvimage.astype(np.float32)).permute(2, 0, 1)
 
 class SwapChannels(object):
     """Transforms a tensorized image by swapping the channels in the order
@@ -228,9 +221,9 @@ class PhotometricDistort(object):
         im = image.copy()
         im = self.rand_brightness(im)
         if random.randint(2):
-            distort = Compose(self.pd[:-1])
+            distort = ComposeImageOnly(self.pd[:-1])
         else:
-            distort = Compose(self.pd[1:])
+            distort = ComposeImageOnly(self.pd[1:])
         im = distort(im)
         return self.rand_light_noise(im)
 
@@ -376,34 +369,62 @@ class RandomSampleCrop(object):
 # WARNING: When using this crop method, the image's height-width ratio will change and may cause some problems for
 #          training grasp detector.
 class RandomCropKeepBoxes(object):
+    def __init__(self, need_square = False):
+        # whether the cropped image need to be square
+        self.need_square = need_square
+
     def __call__(self, im, bs=None, gr=None, bk=None, gk=None):
         height, width, _ = im.shape
         # Get the minimum boundary of all bboxes in dim x and y
-        xmin = np.min(bs[:, 0])
-        ymin = np.min(bs[:, 1])
-        # Get the maximum boundary of all bboxes in dim x and y
-        xmax = np.max(bs[:, 2])
-        ymax = np.max(bs[:, 3])
+        xmax, ymax = 0, 0
+        xmin, ymin = width, height
+        if bs is not None:
+            xmin = min(np.min(bs[:, 0]), xmin)
+            ymin = min(np.min(bs[:, 1]), ymin)
+            # Get the maximum boundary of all bboxes in dim x and y
+            xmax = max(np.max(bs[:, 2]), xmax)
+            ymax = max(np.max(bs[:, 3]), ymax)
+        elif gr is not None:
+            xmin = min(np.min(gr[:, 0::2]), xmin)
+            xmax = max(np.max(gr[:, 0::2]), xmax)
+            ymin = min(np.min(gr[:, 1::2]), ymin)
+            ymax = max(np.max(gr[:, 1::2]), ymax)
+        else:
+            raise RuntimeError
 
-        # Get top left corner's coordinate of the crop box
-        x_start = int(random.uniform(0, xmin))
-        y_start = int(random.uniform(0, ymin))
-        # Get lower right corner corner's coordinate of the crop box
-        x_end = int(random.uniform(xmax, width))
-        y_end = int(random.uniform(ymax, height))
+        for i in range(100):
+            # Get top left corner's coordinate of the crop box
+            x_start = int(random.uniform(0, xmin))
+            y_start = int(random.uniform(0, ymin))
+            # Get lower right corner corner's coordinate of the crop box
+            if not self.need_square:
+                x_end = int(random.uniform(xmax, width))
+                y_end = int(random.uniform(ymax, height))
+            else:
+                # check if there is legal end point.
+                p_end_upper_right = (width, ymax)
+                p_end_down_left = (xmax, height)
+                r1_wh_ratio = (p_end_down_left[0] - x_start) / (p_end_down_left[1] - y_start)
+                r2_wh_ratio = (p_end_upper_right[0] - x_start) / (p_end_upper_right[1] - y_start)
+                if not (r1_wh_ratio < 1 & r2_wh_ratio > 1):
+                    continue
+                else:
+                    x_end_max = min(height - y_start + x_start, width)
+                    x_end = int(random.uniform(xmax, x_end_max))
+                    y_end = x_end - x_start + y_start
 
-        # Crop the image
-        im = im[y_start:y_end, x_start:x_end]
+            # Crop the image
+            im = im[y_start:y_end, x_start:x_end]
 
-        # Adjust the bboxes to fit the cropped image
-        bs[:,:-1][:, 0::2] -= x_start
-        bs[:,:-1][:, 1::2] -= y_start
+            # Adjust the bboxes to fit the cropped image
+            bs[:, :-1][:, 0::2] -= x_start
+            bs[:, :-1][:, 1::2] -= y_start
 
-        # Adjust the grasp boxes to fit the cropped image
-        gr[:, 0::2] -= x_start
-        gr[:, 1::2] -= y_start
+            # Adjust the grasp boxes to fit the cropped image
+            gr[:, 0::2] -= x_start
+            gr[:, 1::2] -= y_start
 
-        return im, bs, gr, bk, gk
+            return im, bs, gr, bk, gk
 
 class FixedSizeCrop(object):
     def __init__(self, min_x, min_y, max_x, max_y, cropsize_x, cropsize_y):

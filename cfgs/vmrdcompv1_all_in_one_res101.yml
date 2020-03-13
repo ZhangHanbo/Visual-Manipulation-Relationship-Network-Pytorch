@@ -6,11 +6,10 @@ TRAIN:
     BBOX_NORMALIZE_TARGETS_PRECOMPUTED: True
     LR_DECAY_STEPSIZE: [200000]
     GAMMA : 0.1
-    IMS_PER_BATCH : 2
+    IMS_PER_BATCH : 1
     MAX_EPOCH: 30
     WEIGHT_DECAY: 0.0005
     PROPOSAL_METHOD: gt
-    USE_VERTICAL_ROTATED : True
     AUGMENTATION : True # When this is True, remember to go to utils/augmantation.py to config augmentation.
     DISPLAY: 20
     DOUBLE_BIAS: True

@@ -65,7 +65,7 @@ class vmrd(pascal_voc):
         self._use07metric = use07metric
 
         assert os.path.exists(self._devkit_path), \
-            'VOCdevkit path does not exist: {}'.format(self._devkit_path)
+            'VMRD path does not exist: {}'.format(self._devkit_path)
         assert os.path.exists(self._data_path), \
             'Path does not exist: {}'.format(self._data_path)
 
