@@ -104,4 +104,5 @@ def _get_image_blob(roidb):
         im = im[:,:,np.newaxis]
         im = np.concatenate((im,im,im), axis=2)
 
+    im = im.astype(np.float32, copy=False)
     return im

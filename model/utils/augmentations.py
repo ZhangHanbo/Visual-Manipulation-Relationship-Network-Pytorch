@@ -46,25 +46,25 @@ class Compose(object):
     def __init__(self, transforms):
         self.transforms = transforms
 
-    def __call__(self, img, boxes=None, grasps=None, boxes_keep=None, grasps_keep=None):
+    def __call__(self, image, boxes=None, grasps=None, boxes_keep=None, grasps_keep=None):
 
         for t in self.transforms:
             data = None
             while (data is None):
-                data = t(img, boxes, grasps, boxes_keep, grasps_keep)
-            img, boxes, grasps, boxes_keep, grasps_keep = data
+                data = t(image, boxes, grasps, boxes_keep, grasps_keep)
+            image, boxes, grasps, boxes_keep, grasps_keep = data
 
-        return img, boxes, grasps, boxes_keep, grasps_keep
+        return image, boxes, grasps, boxes_keep, grasps_keep
 
 
 class ComposeImageOnly(object):
     def __init__(self, transforms):
         self.transforms = transforms
 
-    def __call__(self, img):
+    def __call__(self, image):
         for t in self.transforms:
-            img = t(img)
-        return img
+            image = t(image)
+        return image
 
 class Lambda(object):
     """Applies a lambda as a transform."""
@@ -73,8 +73,8 @@ class Lambda(object):
         assert isinstance(lambd, types.LambdaType)
         self.lambd = lambd
 
-    def __call__(self, img, boxes=None, grasps=None, boxes_keep=None, grasps_keep=None):
-        return self.lambd(img, boxes, grasps, boxes_keep, grasps_keep)
+    def __call__(self, image, boxes=None, grasps=None, boxes_keep=None, grasps_keep=None):
+        return self.lambd(image, boxes, grasps, boxes_keep, grasps_keep)
 
 ###################################################################################
 #           image augmentor that does not change the size or scale                #

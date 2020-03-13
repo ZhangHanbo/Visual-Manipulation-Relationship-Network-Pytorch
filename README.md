@@ -24,6 +24,15 @@ python test_net.py --dataset (DatasetName) --frame (AlgName) --net (BackboneName
 python test_net.py --dataset vmrdcompv1 --frame all_in_one --net res101 --cuda --checkpoint 1000 --checkepoch 1 --GPU 0
 ```
 
+## Performance
+
+We want to re-implement the SOTA performance of the related algorithms. Some performance is shown below and it will be updated continuously.
+
+### Object Detection Performance
+Algorithm | Training| Testing | mAP
+- | - | - | mAP
+FPN | VOC2007trainval| VOC2007test|73.4
+
 ## Noteable Things
 1. To train the network, you have to pre-download the pretrained models and put them in "data/pretrained_model" and name them the same as the usage in codes.
 2. The training data should be placed or linked in "data".
@@ -39,3 +48,7 @@ python test_net.py --dataset vmrdcompv1 --frame all_in_one --net res101 --cuda -
 6. Ren, Shaoqing, et al. "Faster r-cnn: Towards real-time object detection with region proposal networks." Advances in neural information processing systems. 2015.
 7. Liu, Wei, et al. "Ssd: Single shot multibox detector." European conference on computer vision. Springer, Cham, 2016.
 8. Lin, Tsung-Yi, et al. "Focal loss for dense object detection." Proceedings of the IEEE international conference on computer vision. 2017.
+
+## Problem Shooting
+
+1. When setting batch_size of Faster RCNN to 1 and augmentation to True, we want to use SSD-like augmentation to generate more training data. However, it will cause NaN error.

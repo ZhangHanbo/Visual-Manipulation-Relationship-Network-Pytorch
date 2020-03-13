@@ -765,7 +765,7 @@ if __name__ == '__main__':
         from model.utils.logger import Logger
         # Set the logger
         current_t = time.time()
-        logger = Logger(os.path.join('.', 'current_t'))
+        logger = Logger(os.path.join('.', 'logs', str(current_t)))
 
     # init dataset
     imdb, roidb, ratio_list, ratio_index = combined_roidb(args.imdb_name)
