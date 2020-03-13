@@ -1,14 +1,10 @@
 # --------------------------------------------------------
-# Fast R-CNN
-# Copyright (c) 2015 Microsoft
+# Visual Detection: State-of-the-Art
+# Copyright: Hanbo Zhang
 # Licensed under The MIT License [see LICENSE for details]
-# Written by Ross Girshick and Xinlei Chen
+# Written by Hanbo Zhang
 # --------------------------------------------------------
 
-"""Compute minibatch blobs for training a Fast R-CNN network.
-   Modified by Hanbo Zhang to support Visual Manipulation Relationship Network
-   and Visual Manipulation Relationship Dataset
-"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -20,7 +16,6 @@ from model.utils.config import cfg
 from model.utils.blob import prep_im_for_blob, im_list_to_blob
 import pdb
 import cv2
-from model.utils.net_utils import draw_grasp
 
 def get_minibatch_objdet(roidb):
     box_dim = roidb['boxes'].shape[1]

@@ -1,8 +1,10 @@
 # --------------------------------------------------------
-# Pytorch multi-GPU Faster R-CNN
+# Visual Detection: State-of-the-Art
+# Copyright: Hanbo Zhang
 # Licensed under The MIT License [see LICENSE for details]
-# Written by Jiasen Lu, Jianwei Yang, based on code from Ross Girshick
+# Written by Hanbo Zhang
 # --------------------------------------------------------
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -29,6 +31,7 @@ from roi_data_layer.roibatchLoader import *
 from model.utils.config import cfg, cfg_from_file, cfg_from_list, get_output_dir
 from model.utils.net_utils import weights_normal_init, save_net, load_net, \
       adjust_learning_rate, save_checkpoint, clip_gradient
+from model.utils.data_viewer import dataViewer
 
 import model.FasterRCNN as FasterRCNN
 import model.FPN as FPN
@@ -137,6 +140,9 @@ def parse_args():
 # log and diaplay
   parser.add_argument('--use_tfboard', dest='use_tfboard',
                       help='whether use tensorflow tensorboard',
+                      default=False, type=bool)
+  parser.add_argument('--vis', dest='vis',
+                      help='whether to visualize training data',
                       default=False, type=bool)
 
   args = parser.parse_args()
@@ -800,9 +806,15 @@ if __name__ == '__main__':
                             sampler=sampler_batch, num_workers=args.num_workers)
 
     # init output directory for model saving
-    output_dir = args.save_dir + "/" + args.net + "/" + args.dataset
+    output_dir = args.save_dir + "/" + args.dataset + "/" + args.net
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
+
+    if args.vis:
+        visualizer = dataViewer(imdb.classes)
+        data_vis_dir = os.path.join(args.save_dir, args.dataset, 'data_vis')
+        if not os.path.exists(data_vis_dir):
+            os.makedirs(data_vis_dir)
 
     # init network
     resume = None
@@ -830,6 +842,11 @@ if __name__ == '__main__':
 
             # get data batch
             data_batch = next(data_iter)
+            if args.vis:
+                for i in range(data_batch[0].size(0)):
+                    im_vis = visualizer.draw_graspdet_with_owner(data_batch[0][i].permute(1,2,0).numpy() + cfg.PIXEL_MEANS,
+                        data_batch[2][i].numpy(),data_batch[3][i].numpy(),data_batch[7][i].numpy())
+                    cv2.imwrite(os.path.join(data_vis_dir, "vis_batch" + str(step) + "_img" + str(i) + ".png"), im_vis)
             # ship to cuda
             if args.cuda:
                 data_batch = makeCudaData(data_batch)

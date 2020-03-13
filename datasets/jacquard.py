@@ -1,10 +1,12 @@
 from __future__ import print_function
 from __future__ import absolute_import
 # --------------------------------------------------------
-# Copyright (c) 2018 Xi'an Jiaotong University
+# Visual Detection: State-of-the-Art
+# Copyright: Hanbo Zhang
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Hanbo Zhang
 # --------------------------------------------------------
+
 
 import xml.dom.minidom as minidom
 
@@ -22,8 +24,6 @@ from .imdb import imdb
 import cv2
 
 import pdb
-
-from model.utils.net_utils import draw_grasp
 
 # TODO: make fast_rcnn irrelevant
 # >>>> obsolete, because it depends on sth outside of this project
@@ -173,15 +173,6 @@ class jacquard(imdb):
         vec2y = -w / 2 * np.sin(a) - h / 2 * np.cos(a)
         return np.concatenate([x + vec1x, y + vec1y, x - vec2x, y - vec2y,
                           x - vec1x, y - vec1y, x + vec2x, y + vec2y], 1)
-
-    def _show_label(self, index, grasps):
-        imagename = index + '_RGB.png'
-        labels = grasps[::10]
-        points = self._labels_to_points(labels)
-        img = cv2.imread(imagename)
-        img = draw_grasp(img, points)
-        cv2.imwrite('test.png', img)
-        pdb.set_trace()
 
     def _load_annotation(self, index):
         """

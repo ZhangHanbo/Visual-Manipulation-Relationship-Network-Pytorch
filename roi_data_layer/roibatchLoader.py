@@ -1,8 +1,9 @@
-"""
-The data layer used during training to train a Fast R-CNN network.
-Modified by Hanbo Zhang to support Visual Manipulation Relationship Network
-and Visual Manipulation Relationship Dataset
-"""
+# --------------------------------------------------------
+# Visual Detection: State-of-the-Art
+# Copyright: Hanbo Zhang
+# Licensed under The MIT License [see LICENSE for details]
+# Written by Hanbo Zhang
+# --------------------------------------------------------
 
 from __future__ import absolute_import
 from __future__ import division
@@ -14,7 +15,6 @@ import torch.utils.data as data
 
 from model.utils.config import cfg
 from roi_data_layer.minibatch import *
-from model.utils.net_utils import draw_grasp, vis_detections, draw_single_bbox, draw_single_grasp
 from model.utils.blob import prep_im_for_blob
 import abc
 

@@ -1,5 +1,6 @@
 # --------------------------------------------------------
-# Copyright (c) 2018 Xi'an Jiaotong University
+# Visual Detection: State-of-the-Art
+# Copyright: Hanbo Zhang
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Hanbo Zhang
 # --------------------------------------------------------
