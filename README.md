@@ -31,7 +31,7 @@ We want to re-implement the SOTA performance of the related algorithms. Some per
 ### Object Detection Performance
 Algorithm | Training| Testing | mAP
 - | - | - | mAP
-FPN | VOC2007trainval| VOC2007test|73.4
+FPN | VOC2007trainval| VOC2007test|73.4|
 
 ## Noteable Things
 1. To train the network, you have to pre-download the pretrained models and put them in "data/pretrained_model" and name them the same as the usage in codes.
