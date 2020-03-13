@@ -53,3 +53,4 @@ FPN | VOC2007trainval | VOC2007test | 73.4 |
 ## Problem Shooting
 
 1. When setting batch_size of Faster RCNN to 1 and augmentation to True, we want to use SSD-like augmentation to generate more training data. However, it will cause NaN error.
+2. There are some grasp label errors in VMRD. However, we find that they do not affect the grasp detection performance much. We will fix this problem as soon as possible.

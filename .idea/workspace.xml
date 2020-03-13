@@ -2,34 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c9b880e4-a6e3-414a-b387-4aa4ff30b986" name="Default" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/deployment.xml" afterPath="$PROJECT_DIR$/.idea/deployment.xml" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change beforePath="$PROJECT_DIR$/datasets/cornell.py" afterPath="$PROJECT_DIR$/datasets/cornell.py" />
-      <change beforePath="$PROJECT_DIR$/datasets/jacquard.py" afterPath="$PROJECT_DIR$/datasets/jacquard.py" />
-      <change beforePath="$PROJECT_DIR$/datasets/vmrd.py" afterPath="$PROJECT_DIR$/datasets/vmrd.py" />
-      <change beforePath="$PROJECT_DIR$/model/AllinOne.py" afterPath="$PROJECT_DIR$/model/AllinOne.py" />
-      <change beforePath="$PROJECT_DIR$/model/FPN.py" afterPath="$PROJECT_DIR$/model/FPN.py" />
-      <change beforePath="$PROJECT_DIR$/model/FasterRCNN.py" afterPath="$PROJECT_DIR$/model/FasterRCNN.py" />
-      <change beforePath="$PROJECT_DIR$/model/FullyConvGrasp.py" afterPath="$PROJECT_DIR$/model/FullyConvGrasp.py" />
-      <change beforePath="$PROJECT_DIR$/model/MultiGrasp.py" afterPath="$PROJECT_DIR$/model/MultiGrasp.py" />
-      <change beforePath="$PROJECT_DIR$/model/RoIGrasp.py" afterPath="$PROJECT_DIR$/model/RoIGrasp.py" />
-      <change beforePath="$PROJECT_DIR$/model/SSD.py" afterPath="$PROJECT_DIR$/model/SSD.py" />
-      <change beforePath="$PROJECT_DIR$/model/SSD_VMRN.py" afterPath="$PROJECT_DIR$/model/SSD_VMRN.py" />
-      <change beforePath="$PROJECT_DIR$/model/VAM.py" afterPath="$PROJECT_DIR$/model/VAM.py" />
-      <change beforePath="$PROJECT_DIR$/model/VMRN.py" afterPath="$PROJECT_DIR$/model/VMRN.py" />
-      <change beforePath="$PROJECT_DIR$/model/fully_conv_grasp/bbox_transform_grasp.py" afterPath="$PROJECT_DIR$/model/fully_conv_grasp/bbox_transform_grasp.py" />
-      <change beforePath="$PROJECT_DIR$/model/fully_conv_grasp/classifier.py" afterPath="$PROJECT_DIR$/model/fully_conv_grasp/classifier.py" />
-      <change beforePath="$PROJECT_DIR$/model/fully_conv_grasp/generate_grasp_anchors.py" afterPath="$PROJECT_DIR$/model/fully_conv_grasp/generate_grasp_anchors.py" />
-      <change beforePath="$PROJECT_DIR$/model/fully_conv_grasp/grasp_proposal_target.py" afterPath="$PROJECT_DIR$/model/fully_conv_grasp/grasp_proposal_target.py" />
-      <change beforePath="$PROJECT_DIR$/model/op2l/object_pairing_layer.py" afterPath="$PROJECT_DIR$/model/op2l/object_pairing_layer.py" />
-      <change beforePath="$PROJECT_DIR$/model/op2l/op2l.py" afterPath="$PROJECT_DIR$/model/op2l/op2l.py" />
-      <change beforePath="$PROJECT_DIR$/model/op2l/rois_pair_expanding_layer.py" afterPath="$PROJECT_DIR$/model/op2l/rois_pair_expanding_layer.py" />
-      <change beforePath="$PROJECT_DIR$/model/utils/blob.py" afterPath="$PROJECT_DIR$/model/utils/blob.py" />
-      <change beforePath="$PROJECT_DIR$/model/utils/data_viewer.py" afterPath="$PROJECT_DIR$/model/utils/data_viewer.py" />
-      <change beforePath="$PROJECT_DIR$/model/utils/net_utils.py" afterPath="$PROJECT_DIR$/model/utils/net_utils.py" />
-      <change beforePath="$PROJECT_DIR$/roi_data_layer/minibatch.py" afterPath="$PROJECT_DIR$/roi_data_layer/minibatch.py" />
-      <change beforePath="$PROJECT_DIR$/roi_data_layer/roibatchLoader.py" afterPath="$PROJECT_DIR$/roi_data_layer/roibatchLoader.py" />
-      <change beforePath="$PROJECT_DIR$/trainval_net.py" afterPath="$PROJECT_DIR$/trainval_net.py" />
+      <change beforePath="$PROJECT_DIR$/README.md" afterPath="$PROJECT_DIR$/README.md" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -62,7 +35,7 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="pascal_voc_faster_rcnn_res101.yml" pinned="false" current-in-tab="true">
+      <file leaf-file-name="pascal_voc_faster_rcnn_res101.yml" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/cfgs/pascal_voc_faster_rcnn_res101.yml">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="90">
@@ -104,11 +77,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="README.md" pinned="false" current-in-tab="false">
+      <file leaf-file-name="README.md" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/README.md">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="195">
-              <caret line="34" column="0" lean-forward="true" selection-start-line="34" selection-start-column="0" selection-end-line="34" selection-end-column="0" />
+            <state relative-caret-position="525">
+              <caret line="56" column="0" lean-forward="true" selection-start-line="56" selection-start-column="0" selection-end-line="56" selection-end-column="0" />
               <folding />
             </state>
           </provider>
@@ -197,7 +170,6 @@
         <option value="$PROJECT_DIR$/model/utils/config.py" />
         <option value="$PROJECT_DIR$/cfgs/vmrdcompv1_faster_rcnn_res101.yml" />
         <option value="$PROJECT_DIR$/cfgs/pascal_voc_faster_rcnn_res101.yml" />
-        <option value="$PROJECT_DIR$/README.md" />
         <option value="$PROJECT_DIR$/model/utils/augmentations.py" />
         <option value="$PROJECT_DIR$/model/VMRN.py" />
         <option value="$PROJECT_DIR$/model/VAM.py" />
@@ -225,6 +197,7 @@
         <option value="$PROJECT_DIR$/roi_data_layer/roibatchLoader.py" />
         <option value="$PROJECT_DIR$/model/utils/data_viewer.py" />
         <option value="$PROJECT_DIR$/trainval_net.py" />
+        <option value="$PROJECT_DIR$/README.md" />
       </list>
     </option>
   </component>
@@ -890,14 +863,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/README.md">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="195">
-          <caret line="34" column="0" lean-forward="true" selection-start-line="34" selection-start-column="0" selection-end-line="34" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/model/utils/data_viewer.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="295">
@@ -930,6 +895,14 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="90">
           <caret line="6" column="21" lean-forward="false" selection-start-line="6" selection-start-column="21" selection-end-line="6" selection-end-column="21" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/README.md">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="525">
+          <caret line="56" column="0" lean-forward="true" selection-start-line="56" selection-start-column="0" selection-end-line="56" selection-end-column="0" />
           <folding />
         </state>
       </provider>
