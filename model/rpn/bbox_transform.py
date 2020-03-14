@@ -127,12 +127,17 @@ def clip_boxes_batch(boxes, im_shape, batch_size):
 
 def clip_boxes(boxes, im_shape, batch_size):
 
-    for i in range(batch_size):
-        boxes[i,:,0::4].clamp_(0, im_shape[i, 1]-1)
-        boxes[i,:,1::4].clamp_(0, im_shape[i, 0]-1)
-        boxes[i,:,2::4].clamp_(0, im_shape[i, 1]-1)
-        boxes[i,:,3::4].clamp_(0, im_shape[i, 0]-1)
-
+    if boxes.dim() == 2:
+        boxes[:, 0::4].clamp_(0, im_shape[1] - 1)
+        boxes[:, 1::4].clamp_(0, im_shape[0] - 1)
+        boxes[:, 2::4].clamp_(0, im_shape[1] - 1)
+        boxes[:, 3::4].clamp_(0, im_shape[0] - 1)
+    else:
+        for i in range(batch_size):
+            boxes[i,:,0::4].clamp_(0, im_shape[i, 1]-1)
+            boxes[i,:,1::4].clamp_(0, im_shape[i, 0]-1)
+            boxes[i,:,2::4].clamp_(0, im_shape[i, 1]-1)
+            boxes[i,:,3::4].clamp_(0, im_shape[i, 0]-1)
     return boxes
 
 

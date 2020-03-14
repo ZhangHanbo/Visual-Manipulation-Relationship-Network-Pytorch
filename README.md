@@ -29,9 +29,10 @@ python test_net.py --dataset vmrdcompv1 --frame all_in_one --net res101 --cuda -
 We want to re-implement the SOTA performance of the related algorithms. Some performance is shown below and it will be updated continuously.
 
 ### Object Detection Performance
-Algorithm | Training| Testing | mAP
+Algorithm | Backbone | Training | Testing | mAP
 -|-|-|-
-FPN | VOC2007trainval | VOC2007test | 73.4 |
+Faster R-CNN | ResNet-101 | VOC2007trainval | VOC2007test | 71.5 |
+FPN | ResNet-101 | VOC2007trainval | VOC2007test | 73.4 |
 
 
 ## Noteable Things
@@ -53,4 +54,4 @@ FPN | VOC2007trainval | VOC2007test | 73.4 |
 ## Problem Shooting
 
 1. When setting batch_size of Faster RCNN to 1 and augmentation to True, we want to use SSD-like augmentation to generate more training data. However, it will cause NaN error.
-2. There are some grasp label errors in VMRD. However, we find that they do not affect the grasp detection performance much. We will fix this problem as soon as possible.
+2. There are some grasp and relation label errors in VMRD. However, we find that they do not affect the detection performance much. We will fix this problem as soon as possible.

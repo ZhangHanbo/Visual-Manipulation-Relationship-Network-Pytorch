@@ -82,11 +82,11 @@ class objdetRoibatchLoader(roibatchLoader):
                 # when the input size is not fixed, only RandomMirror is supported
                 blob['data'], boxes, _, _, _ = \
                     self.augObjdet.transforms[1](image=blob['data'], boxes=blob['gt_boxes'], boxes_keep=keep)
-        blob['im_info'][:2] = (blob['data'].shape[0], blob['data'].shape[1])
         # choose one predefined size, TODO: support multi-instance batch
         random_scale_ind = np.random.randint(0, high=len(cfg.SCALES))
         blob['data'], im_scale = prep_im_for_blob(blob['data'], cfg.SCALES[random_scale_ind], cfg.TRAIN.COMMON.MAX_SIZE, fix_size)
         # modify bounding boxes according to resize parameters
+        blob['im_info'][:2] = (blob['data'].shape[0], blob['data'].shape[1])
         blob['im_info'][-2:] = (im_scale['y'], im_scale['x'])
         blob['gt_boxes'][:, :-1][:, 0::2] *= im_scale['x']
         blob['gt_boxes'][:, :-1][:, 1::2] *= im_scale['y']
@@ -129,6 +129,7 @@ class objdetRoibatchLoader(roibatchLoader):
             np.random.shuffle(blobs['gt_boxes'])
             gt_boxes = torch.from_numpy(blobs['gt_boxes'])
             gt_boxes, keep = self._boxPostProcess(gt_boxes)
+            assert data.size(1) == im_info[0] and data.size(2) == im_info[1]
             return data, im_info, gt_boxes, keep.size(0)
         else:
             gt_boxes = torch.FloatTensor([1, 1, 1, 1, 1])
@@ -161,12 +162,12 @@ class graspdetRoibatchLoader(roibatchLoader):
                 # when the input size is not fixed, only RandomMirror is supported
                 blob['data'], _, grasps, _, _ = \
                     self.augmGraspdet.transforms[1](image=blob['data'], grasps=blob['gt_grasps'], grasps_keep=keep)
-        blob['im_info'][:2] = (blob['data'].shape[0], blob['data'].shape[1])
         # choose one predefined size, TODO: support multi-instance batch
         random_scale_ind = np.random.randint(0, high=len(cfg.SCALES))
         blob['data'], im_scale = prep_im_for_blob(blob['data'], cfg.SCALES[random_scale_ind], cfg.TRAIN.COMMON.MAX_SIZE, fix_size)
         # modify bounding boxes according to resize parameters
         assert im_scale['x'] == im_scale['y']
+        blob['im_info'][:2] = (blob['data'].shape[0], blob['data'].shape[1])
         blob['im_info'][-2:] = (im_scale['y'], im_scale['x'])
         blob['gt_grasps'][:, 0::2] *= im_scale['x']
         blob['gt_grasps'][:, 1::2] *= im_scale['y']
@@ -203,6 +204,7 @@ class graspdetRoibatchLoader(roibatchLoader):
             np.random.shuffle(blobs['gt_grasps'])
             gt_grasps = torch.from_numpy(blobs['gt_grasps'])
             gt_grasps, num_grasps = self._graspPostProcess(gt_grasps)
+            assert data.size(1) == im_info[0] and data.size(2) == im_info[1]
             return data, im_info, gt_grasps, num_grasps
         else:
             gt_grasps = torch.FloatTensor([1, 1, 1, 1, 1, 1, 1, 1])
@@ -235,11 +237,11 @@ class vmrdetRoibatchLoader(objdetRoibatchLoader):
                 # when the input size is not fixed, only RandomMirror is supported
                 blob['data'], boxes, _, keep, _ = \
                     self.augObjdet.transforms[1](image=blob['data'], boxes=blob['gt_boxes'], boxes_keep=keep)
-        blob['im_info'][:2] = (blob['data'].shape[0], blob['data'].shape[1])
         # choose one predefined size, TODO: support multi-instance batch
         random_scale_ind = np.random.randint(0, high=len(cfg.SCALES))
         blob['data'], im_scale = prep_im_for_blob(blob['data'], cfg.SCALES[random_scale_ind], cfg.TRAIN.COMMON.MAX_SIZE, fix_size)
         # modify bounding boxes according to resize parameters
+        blob['im_info'][:2] = (blob['data'].shape[0], blob['data'].shape[1])
         blob['im_info'][-2:] = (im_scale['y'], im_scale['x'])
         blob['gt_boxes'][:, :-1][:, 0::2] *= im_scale['x']
         blob['gt_boxes'][:, :-1][:, 1::2] *= im_scale['y']
@@ -302,6 +304,7 @@ class vmrdetRoibatchLoader(objdetRoibatchLoader):
             gt_boxes, keep = self._boxPostProcess(gt_boxes)
             shuffle_inds = shuffle_inds[keep]
             rel_mat = self._genRelMat(shuffle_inds, blobs['node_inds'], blobs['child_lists'], blobs['parent_lists'])
+            assert data.size(1) == im_info[0] and data.size(2) == im_info[1]
             return data, im_info, gt_boxes, keep.size(0), rel_mat
         else:
             gt_boxes = torch.FloatTensor([1, 1, 1, 1, 1])
@@ -463,6 +466,7 @@ class objdetMulInSizeRoibatchLoader(objdetRoibatchLoader, mulInSizeRoibatchLoade
                 ratio = self.ratio_list_batch[index]
                 # if the image need to crop, crop to the target size.
                 coord_s = (0, 0)
+                # TODO: currently no crop is applied since the target ratio is equal to the original ratio.
                 if self._roidb[index_ratio]['need_crop']:
                     data, coord_s = self._cropImage(data, gt_boxes, ratio)
                 # based on the ratio, padding the image.
@@ -473,6 +477,7 @@ class objdetMulInSizeRoibatchLoader(objdetRoibatchLoader, mulInSizeRoibatchLoade
             gt_boxes, keep = self._boxPostProcess(gt_boxes)
             # permute trim_data to adapt to downstream processing
             data = data.permute(2, 0, 1).contiguous()
+            assert data.size(1) == im_info[0] and data.size(2) == im_info[1]
             return data, im_info, gt_boxes, keep.size(0)
 
         else:
@@ -537,6 +542,7 @@ class graspMulInSizeRoibatchLoader(graspdetRoibatchLoader, mulInSizeRoibatchLoad
             gt_grasps, num_grasps = self._graspPostProcess(gt_grasps)
             # permute trim_data to adapt to downstream processing
             data = data.permute(2, 0, 1).contiguous()
+            assert data.size(1) == im_info[0] and data.size(2) == im_info[1]
             return data, im_info, gt_grasps, num_grasps
         else:
             data = data.permute(2, 0, 1).contiguous()
@@ -595,6 +601,7 @@ class vmrdetMulInSizeRoibatchLoader(vmrdetRoibatchLoader, objdetMulInSizeRoibatc
 
             # permute trim_data to adapt to downstream processing
             data = data.permute(2, 0, 1).contiguous()
+            assert data.size(1) == im_info[0] and data.size(2) == im_info[1]
             return data, im_info, gt_boxes, keep.size(0), rel_mat
 
         else:
@@ -633,10 +640,10 @@ class roigdetMulInSizeRoibatchLoader(graspMulInSizeRoibatchLoader, objdetMulInSi
                 blob['data'], blob['gt_boxes'], blob['gt_grasps'], keep_b, keep_g = \
                     self.augObjdet.transforms[1](image=blob['data'], boxes=blob['gt_boxes'],
                                                  grasps=blob['gt_grasps'], boxes_keep=keep_b, grasps_keep=keep_g)
-        blob['im_info'][:2] = (blob['data'].shape[0], blob['data'].shape[1])
         # choose one predefined size, TODO: support multi-instance batch
         random_scale_ind = np.random.randint(0, high=len(cfg.SCALES))
         blob['data'], im_scale = prep_im_for_blob(blob['data'], cfg.SCALES[random_scale_ind], cfg.TRAIN.COMMON.MAX_SIZE, fix_size)
+        blob['im_info'][:2] = (blob['data'].shape[0], blob['data'].shape[1])
         blob['im_info'][-2:] = (im_scale['y'], im_scale['x'])
         # modify bounding boxes according to resize parameters
         blob['gt_boxes'][:, :-1][:, 0::2] *= im_scale['x']
@@ -718,6 +725,7 @@ class roigdetMulInSizeRoibatchLoader(graspMulInSizeRoibatchLoader, objdetMulInSi
 
             # permute trim_data to adapt to downstream processing
             data = data.permute(2, 0, 1).contiguous()
+            assert data.size(1) == im_info[0] and data.size(2) == im_info[1]
             return data, im_info, gt_boxes, gt_grasps, keep.size(0), num_grasps, gt_grasp_inds
         else:
             data = data.permute(2, 0, 1).contiguous()
@@ -750,10 +758,10 @@ class allInOneMulInSizeRoibatchLoader(vmrdetMulInSizeRoibatchLoader, roigdetMulI
                     self.augObjdet.transforms[1](image=blob['data'], boxes=blob['gt_boxes'], grasps=blob['gt_grasps'],
                                    boxes_keep=keep_b, grasps_keep=keep_g)
 
-        blob['im_info'][:2] = (blob['data'].shape[0], blob['data'].shape[1])
         # choose one predefined size, TODO: support multi-instance batch
         random_scale_ind = np.random.randint(0, high=len(cfg.SCALES))
         blob['data'], im_scale = prep_im_for_blob(blob['data'], cfg.SCALES[random_scale_ind], cfg.TRAIN.COMMON.MAX_SIZE, fix_size)
+        blob['im_info'][:2] = (blob['data'].shape[0], blob['data'].shape[1])
         blob['im_info'][-2:] = (im_scale['y'], im_scale['x'])
         # modify bounding boxes according to resize parameters
         blob['gt_boxes'][:, :-1][:, 0::2] *= im_scale['x']
@@ -827,6 +835,7 @@ class allInOneMulInSizeRoibatchLoader(vmrdetMulInSizeRoibatchLoader, roigdetMulI
 
             # permute trim_data to adapt to downstream processing
             data = data.permute(2, 0, 1).contiguous()
+            assert data.size(1) == im_info[0] and data.size(2) == im_info[1]
             return data, im_info, gt_boxes, gt_grasps, keep.size(0), num_grasps, rel_mat, gt_grasp_inds
         else:
             data = data.permute(2, 0, 1).contiguous()

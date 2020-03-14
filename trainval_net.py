@@ -44,9 +44,7 @@ import model.AllinOne as ALL_IN_ONE
 import model.RoIGrasp as ROIGN
 import model.VAM as VAM
 
-from model.rpn.bbox_transform import bbox_transform_inv, clip_boxes
-from model.nms.nms_wrapper import nms
-from model.fully_conv_grasp.bbox_transform_grasp import labels2points, grasp_decode
+from model.utils.net_utils import objdet_inference, grasp_inference, objgrasp_inference
 
 import warnings
 
@@ -414,31 +412,27 @@ def evalute_model(Network, namedb, args):
 
     # load test dataset
     imdb, roidb, ratio_list, ratio_index = combined_roidb(namedb, False)
-    if args.dataset[:4] == 'vmrd' or args.dataset[:7] == 'cornell' or args.dataset == 'jacquard':
-        if args.frame != 'faster_rcnn' and args.frame !='ssd':
-            if cfg.TRAIN.COMMON.AUGMENTATION:
-                warnings.warn('########Grasps may be not rectangles due to augmentation!!!########')
     if args.frame in {"fpn", "faster_rcnn"}:
         dataset = objdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           imdb.num_classes, training=True, cls_list=imdb.classes)
+                           imdb.num_classes, training=False, cls_list=imdb.classes)
     elif args.frame in {"ssd"}:
         dataset = objdetRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           imdb.num_classes, training=True, cls_list=imdb.classes)
+                           imdb.num_classes, training=False, cls_list=imdb.classes)
     elif args.frame in {"ssd_vmrn", "vam"}:
         dataset = vmrdetRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           imdb.num_classes, training=True, cls_list=imdb.classes)
+                           imdb.num_classes, training=False, cls_list=imdb.classes)
     elif args.frame in {"faster_rcnn_vmrn"}:
         dataset = vmrdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           imdb.num_classes, training=True, cls_list=imdb.classes)
+                           imdb.num_classes, training=False, cls_list=imdb.classes)
     elif args.frame in {"fcgn"}:
         dataset = graspdetRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           imdb.num_classes, training=True, cls_list=imdb.classes)
+                           imdb.num_classes, training=False, cls_list=imdb.classes)
     elif args.frame in {"all_in_one"}:
         dataset = allInOneMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           imdb.num_classes, training=True, cls_list=imdb.classes)
+                           imdb.num_classes, training=False, cls_list=imdb.classes)
     elif args.frame in {"roign", "mgn"}:
         dataset = roigdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           imdb.num_classes, training=True, cls_list=imdb.classes)
+                           imdb.num_classes, training=False, cls_list=imdb.classes)
     else:
         raise RuntimeError
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False, num_workers=0, pin_memory=True)
@@ -465,246 +459,62 @@ def evalute_model(Network, namedb, args):
             data_batch = makeCudaData(data_batch)
 
         det_tic = time.time()
+        # forward process
         if args.frame == 'faster_rcnn' or args.frame == 'fpn':
-            rois, cls_prob, bbox_pred, \
-            rpn_loss_cls, rpn_loss_box, \
-            net_loss_cls, net_loss_bbox, \
-            rois_label = Network(data_batch)
-
+            rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_box, net_loss_cls, net_loss_bbox, rois_label = Network(data_batch)
             boxes = rois.data[:, :, 1:5]
         elif args.frame == 'ssd':
-            bbox_pred, cls_prob, \
-            net_loss_bbox, net_loss_cls = Network(data_batch)
-
+            bbox_pred, cls_prob, net_loss_bbox, net_loss_cls = Network(data_batch)
             boxes = Network.priors.type_as(bbox_pred)
-
         elif args.frame == 'faster_rcnn_vmrn':
-            rois, cls_prob, bbox_pred, rel_result, \
-            rpn_loss_cls, rpn_loss_box, \
-            RCNN_loss_cls, RCNN_loss_bbox, RCNN_rel_loss_cls, \
-            rois_label = Network(data_batch)
-
-            boxes = rois.data[:, :, 1:5]
-
-            all_rel.append(rel_result)
-
-        elif args.frame == 'ssd_vmrn' or args.frame == 'vam':
-            bbox_pred, cls_prob, rel_result, \
-            loss_bbox, loss_cls, rel_loss_cls = Network(data_batch)
-
-            boxes = Network.priors.type_as(bbox_pred)
-
-            all_rel.append(rel_result)
-
-        elif args.frame == 'fcgn':
-            bbox_pred, cls_prob, loss_bbox, \
-            loss_cls, rois_label, boxes = \
-                Network(data_batch)
-
-        elif args.frame == 'roign':
-            rois, rpn_loss_cls, rpn_loss_box, rois_label, \
-            grasp_loc, grasp_prob, grasp_bbox_loss, grasp_cls_loss, \
-            grasp_conf_label, grasp_all_anchors = Network(data_batch)
-
-            boxes = rois.data[:, :, 1:5]
-
-        elif args.frame == 'mgn':
-            rois, cls_prob, bbox_pred, rpn_loss_cls, \
-            rpn_loss_box, loss_cls, loss_bbox, rois_label, \
-            grasp_loc, grasp_prob, grasp_bbox_loss, \
-            grasp_cls_loss, grasp_conf_label, grasp_all_anchors \
-                = Network(data_batch)
-
-            boxes = rois.data[:, :, 1:5]
-
-        elif args.frame == 'all_in_one':
             rois, cls_prob, bbox_pred, rel_result, rpn_loss_cls, rpn_loss_box, \
-            loss_cls, loss_bbox, rel_loss_cls, rois_label, \
-            grasp_loc, grasp_prob, grasp_bbox_loss, \
-            grasp_cls_loss, grasp_conf_label, grasp_all_anchors \
-                = Network(data_batch)
-
+                RCNN_loss_cls, RCNN_loss_bbox, RCNN_rel_loss_cls, rois_label = Network(data_batch)
             boxes = rois.data[:, :, 1:5]
-
             all_rel.append(rel_result)
-
-        # bs x N x N_class
-        if args.frame != 'roign':
-            scores = cls_prob.data
-        if args.frame == 'mgn' or args.frame == 'all_in_one' or args.frame == 'roign':
-            # bs*N x K*A x 2
-            grasp_scores = grasp_prob.data
-
-        if cfg.TEST.COMMON.BBOX_REG:
-            # Apply bounding-box regression deltas
-            if args.frame != 'roign':
-                box_deltas = bbox_pred.data
-            if args.frame == 'mgn' or args.frame == 'all_in_one' or args.frame == 'roign':
-                grasp_box_deltas = grasp_loc.data
-            if cfg.TRAIN.COMMON.BBOX_NORMALIZE_TARGETS_PRECOMPUTED:
-                # Optionally normalize targets by a precomputed mean and stdev
-                if args.frame == 'fcgn':
-                    box_deltas = box_deltas.view(-1, 5) * torch.FloatTensor(cfg.FCGN.BBOX_NORMALIZE_STDS).cuda() \
-                                 + torch.FloatTensor(cfg.FCGN.BBOX_NORMALIZE_STDS).cuda()
-                    box_deltas = box_deltas.view(1, -1, 5)
-                    pred_label = grasp_decode(box_deltas, boxes)
-                    pred_boxes = labels2points(pred_label)
-                    imshape = np.tile(np.array([cfg.TRAIN.COMMON.INPUT_SIZE,cfg.TRAIN.COMMON.INPUT_SIZE])
-                                      ,(int(pred_boxes.size(1)),int(pred_boxes.size(2) / 2)))
-                    imshape = torch.from_numpy(imshape).type_as(pred_boxes)
-                    keep = (((pred_boxes > imshape) | (pred_boxes < 0)).sum(2) == 0)
-                    pred_boxes = pred_boxes[keep]
-                    scores = scores[keep]
-                elif args.frame == 'mgn' or args.frame == 'all_in_one' or args.frame == 'roign':
-                    grasp_box_deltas = grasp_box_deltas.view(-1, 5) * torch.FloatTensor(cfg.FCGN.BBOX_NORMALIZE_STDS).cuda() \
-                                 + torch.FloatTensor(cfg.FCGN.BBOX_NORMALIZE_STDS).cuda()
-                    grasp_box_deltas = grasp_box_deltas.view(grasp_all_anchors.size())
-                    # bs*N x K*A x 5
-                    grasp_pred = grasp_decode(grasp_box_deltas, grasp_all_anchors)
-                    # bs*N x K*A x 1
-                    rois_w = (rois[:, :, 3] - rois[:, :, 1]).data.view(-1). \
-                        unsqueeze(1).unsqueeze(2).expand_as(grasp_pred[:, :, 0:1])
-                    rois_h = (rois[:, :, 4] - rois[:, :, 2]).data.view(-1). \
-                        unsqueeze(1).unsqueeze(2).expand_as(grasp_pred[:, :, 1:2])
-                    keep_mask = (grasp_pred[:, :, 0:1] > 0) & (grasp_pred[:, :, 1:2] > 0) &\
-                                (grasp_pred[:, :, 0:1] < rois_w) & (grasp_pred[:, :, 1:2] < rois_h)
-                    grasp_scores = (grasp_scores).contiguous().\
-                        view(rois.size(0),rois.size(1), -1, 2)
-                    # bs*N x 1 x 1
-                    xleft = rois[:, :, 1].data.view(-1).unsqueeze(1).unsqueeze(2)
-                    ytop = rois[:, :, 2].data.view(-1).unsqueeze(1).unsqueeze(2)
-                    # rois offset
-                    grasp_pred[:, :, 0:1] = grasp_pred[:, :, 0:1] + xleft
-                    grasp_pred[:, :, 1:2] = grasp_pred[:, :, 1:2] + ytop
-                    # bs x N x K*A x 8
-                    grasp_pred_boxes = labels2points(grasp_pred).contiguous().view(rois.size(0), rois.size(1), -1, 8)
-                    # bs x N x K*A
-                    grasp_pos_scores = grasp_scores[:, :, :, 1]
-                    # bs x N x K*A
-                    _, grasp_score_idx = torch.sort(grasp_pos_scores, dim = 2, descending=True)
-                    _, grasp_idx_rank = torch.sort(grasp_score_idx)
-                    # bs x N x K*A mask
-                    topn_grasp = 1
-                    grasp_maxscore_mask = (grasp_idx_rank < topn_grasp)
-                    # bs x N x topN
-                    grasp_maxscores = grasp_scores[:, :, :, 1][grasp_maxscore_mask].contiguous().\
-                        view(rois.size()[:2] + (topn_grasp,))
-                    # scores = scores * grasp_maxscores[:, :, 0:1]
-                    # bs x N x topN x 8
-                    grasp_pred_boxes = grasp_pred_boxes[grasp_maxscore_mask].view(rois.size()[:2] + (topn_grasp, 8))
-                    if args.frame != 'roign':
-                        if args.class_agnostic:
-                            box_deltas = box_deltas.view(-1, 4) * torch.FloatTensor(
-                                cfg.TRAIN.COMMON.BBOX_NORMALIZE_STDS).cuda() \
-                                         + torch.FloatTensor(cfg.TRAIN.COMMON.BBOX_NORMALIZE_MEANS).cuda()
-                            box_deltas = box_deltas.view(1, -1, 4)
-                            pred_boxes = bbox_transform_inv(boxes, box_deltas, 1)
-                            pred_boxes = clip_boxes(pred_boxes, data_batch[1].data, 1)
-                        else:
-                            box_deltas = box_deltas.view(-1, 4) * torch.FloatTensor(
-                                cfg.TRAIN.COMMON.BBOX_NORMALIZE_STDS).cuda() \
-                                         + torch.FloatTensor(cfg.TRAIN.COMMON.BBOX_NORMALIZE_MEANS).cuda()
-                            box_deltas = box_deltas.view(1, -1, 4 * len(imdb.classes))
-                            pred_boxes = bbox_transform_inv(boxes, box_deltas, 1)
-                            pred_boxes = clip_boxes(pred_boxes, data_batch[1].data, 1)
-
-                elif args.class_agnostic:
-                    box_deltas = box_deltas.view(-1, 4) * torch.FloatTensor(cfg.TRAIN.COMMON.BBOX_NORMALIZE_STDS).cuda() \
-                                 + torch.FloatTensor(cfg.TRAIN.COMMON.BBOX_NORMALIZE_MEANS).cuda()
-                    box_deltas = box_deltas.view(1, -1, 4)
-                    pred_boxes = bbox_transform_inv(boxes, box_deltas, 1)
-                    pred_boxes = clip_boxes(pred_boxes, data_batch[1].data, 1)
-                else:
-                    box_deltas = box_deltas.view(-1, 4) * torch.FloatTensor(cfg.TRAIN.COMMON.BBOX_NORMALIZE_STDS).cuda() \
-                                 + torch.FloatTensor(cfg.TRAIN.COMMON.BBOX_NORMALIZE_MEANS).cuda()
-                    box_deltas = box_deltas.view(1, -1, 4 * len(imdb.classes))
-                    pred_boxes = bbox_transform_inv(boxes, box_deltas, 1)
-                    pred_boxes = clip_boxes(pred_boxes, data_batch[1].data, 1)
-        else:
-            if args.frame != 'roign':
-                # Simply repeat the boxes, once for each class
-                pred_boxes = np.tile(boxes, (1, scores.shape[1]))
-
-        if args.frame != 'roign':
-            scores = scores.squeeze()
-            pred_boxes = pred_boxes.squeeze()
-            pred_boxes[:, 0::4] /= data_batch[1][0][3].item()
-            pred_boxes[:, 1::4] /= data_batch[1][0][2].item()
-            pred_boxes[:, 2::4] /= data_batch[1][0][3].item()
-            pred_boxes[:, 3::4] /= data_batch[1][0][2].item()
-        if args.frame == 'mgn' or args.frame == 'all_in_one' or args.frame == 'roign':
-            grasp_pred_boxes = grasp_pred_boxes.squeeze()
-            grasp_scores = grasp_scores.squeeze()
-            if grasp_pred_boxes.dim() == 2:
-                grasp_pred_boxes[:, 0::4] /= data_batch[1][0][3].item()
-                grasp_pred_boxes[:, 1::4] /= data_batch[1][0][2].item()
-                grasp_pred_boxes[:, 2::4] /= data_batch[1][0][3].item()
-                grasp_pred_boxes[:, 3::4] /= data_batch[1][0][2].item()
-            elif grasp_pred_boxes.dim() == 3:
-                grasp_pred_boxes[:, :, 0::4] /= data_batch[1][0][3].item()
-                grasp_pred_boxes[:, :, 1::4] /= data_batch[1][0][2].item()
-                grasp_pred_boxes[:, :, 2::4] /= data_batch[1][0][3].item()
-                grasp_pred_boxes[:, :, 3::4] /= data_batch[1][0][2].item()
-            elif grasp_pred_boxes.dim() == 4:
-                grasp_pred_boxes[:, :, :, 0::4] /= data_batch[1][0][3].item()
-                grasp_pred_boxes[:, :, :, 1::4] /= data_batch[1][0][2].item()
-                grasp_pred_boxes[:, :, :, 2::4] /= data_batch[1][0][3].item()
-                grasp_pred_boxes[:, :, :, 3::4] /= data_batch[1][0][2].item()
+        elif args.frame == 'ssd_vmrn' or args.frame == 'vam':
+            bbox_pred, cls_prob, rel_result, loss_bbox, loss_cls, rel_loss_cls = Network(data_batch)
+            boxes = Network.priors.type_as(bbox_pred)
+            all_rel.append(rel_result)
+        elif args.frame == 'fcgn':
+            bbox_pred, cls_prob, loss_bbox, loss_cls, rois_label, boxes = Network(data_batch)
+        elif args.frame == 'roign':
+            rois, rpn_loss_cls, rpn_loss_box, rois_label, grasp_loc, grasp_prob, grasp_bbox_loss, grasp_cls_loss, \
+                grasp_conf_label, grasp_all_anchors = Network(data_batch)
+            cls_prob = None
+            bbox_pred = None
+            boxes = rois.data[:, :, 1:5]
+        elif args.frame == 'mgn':
+            rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_box, loss_cls, loss_bbox, rois_label, grasp_loc, grasp_prob, \
+                grasp_bbox_loss, grasp_cls_loss, grasp_conf_label, grasp_all_anchors = Network(data_batch)
+            boxes = rois.data[:, :, 1:5]
+        elif args.frame == 'all_in_one':
+            rois, cls_prob, bbox_pred, rel_result, rpn_loss_cls, rpn_loss_box, loss_cls, loss_bbox, rel_loss_cls, rois_label, \
+            grasp_loc, grasp_prob, grasp_bbox_loss, grasp_cls_loss, grasp_conf_label, grasp_all_anchors = Network(data_batch)
+            boxes = rois.data[:, :, 1:5]
+            all_rel.append(rel_result)
 
         det_toc = time.time()
         detect_time = det_toc - det_tic
         misc_tic = time.time()
-        if args.frame != 'roign':
+        # collect results
+        if args.frame in {'ssd', 'fpn', 'faster_rcnn', 'faster_rcnn_vmrn', 'ssd_vmrn', 'vam'}:
+            # detected_box is a list of boxes. len(list) = num_classes
+            det_box = objdet_inference(cls_prob[0], bbox_pred[0], data_batch[1][0],
+                        box_prior=boxes[0], class_agnostic=args.class_agnostic, n_classes=imdb.num_classes, for_vis=False)
             for j in xrange(1, imdb.num_classes):
-                inds = torch.nonzero(scores[:, j] > thresh).view(-1)
-                # if there is det
-                if inds.numel() > 0:
-                    cls_scores = scores[:, j][inds]
-                    _, order = torch.sort(cls_scores, 0, True)
-                    if args.class_agnostic or args.frame == 'fcgn':
-                        cls_boxes = pred_boxes[inds, :]
-                    else:
-                        cls_boxes = pred_boxes[inds][:, j * 4:(j + 1) * 4]
-                    cls_dets = torch.cat((cls_boxes, cls_scores.unsqueeze(1)), 1)
-                    # cls_dets = torch.cat((cls_boxes, cls_scores), 1)
-                    cls_dets = cls_dets[order]
-                    if args.frame == 'mgn' or args.frame == 'all_in_one':
-                        cur_grasp = grasp_pred_boxes[inds, :]
-                        cur_grasp = cur_grasp[order]
-
-                    if args.frame != 'fcgn':
-                        keep = nms(cls_dets, cfg.TEST.COMMON.NMS)
-                        cls_dets = cls_dets[keep.view(-1).long()]
-
-                        if args.frame == 'mgn' or args.frame == 'all_in_one':
-                            cur_grasp = cur_grasp[keep.view(-1).long()]
-
-                        cls_dets = cls_dets.cpu().numpy()
-
-                    else:
-                        cls_dets = cls_dets[0:1]
-                        cls_dets = cls_dets.cpu().numpy()
-                        # for cornell grasp dataset, when testing, the input image is cropped from (100, 100), therefore,
-                        # the coordinates of grasp rectangles should be added to this offset.
-                        if args.dataset[:7] == 'cornell':
-                            cls_dets[:, :8] += np.tile(np.array([[100, 100]]), 4)
-
-                    all_boxes[j][i] = cls_dets
-                    if args.frame == 'mgn' or args.frame == 'all_in_one':
-                        all_grasp[j][i] = [cls_dets.copy(), cur_grasp]
-                else:
-                    all_boxes[j][i] = empty_array
+                all_boxes[j][i] = det_box[j]
+        elif args.frame in {'mgn', 'roign', 'all_in_one'}:
+            det_box, det_grasps = objgrasp_inference(cls_prob[0], bbox_pred[0], grasp_prob, grasp_loc, data_batch[1][0],
+                        rois, class_agnostic=args.class_agnostic, n_classes=imdb.num_classes,
+                        g_box_prior=grasp_all_anchors, for_vis=False, topN_g = 1)
+            for j in xrange(1, imdb.num_classes):
+                all_boxes[j][i] = det_box[j]
+                all_grasp[j][i] = [det_box[j].copy(), det_grasps[j]]
+        elif args.frame in {'fcgn'}:
+            det_grasps = grasp_inference(cls_prob[0], bbox_pred[0], data_batch[1][0], box_prior = boxes, topN = 1)
+            all_grasp[1][i] = det_grasps
         else:
-            # N x 8
-            if grasp_pred_boxes.dim() != 2:
-                raise NotImplementedError
-            cls_dets = grasp_pred_boxes[0:1]
-            cls_dets = cls_dets.cpu().numpy()
-            # for cornell grasp dataset, when testing, the input image is cropped from (100, 100), therefore,
-            # the coordinates of grasp rectangles should be added to this offset.
-            if args.dataset[:7] == 'cornell':
-                cls_dets[:, :8] += np.tile(np.array([[100, 100]]), 4)
-            all_boxes[1][i] = cls_dets
+            raise RuntimeError("Illegal algorithm.")
 
         # Limit to max_per_image detections *over all classes*
         if max_per_image > 0:
@@ -715,7 +525,7 @@ def evalute_model(Network, namedb, args):
                 for j in xrange(1, imdb.num_classes):
                     keep = np.where(all_boxes[j][i][:, -1] >= image_thresh)[0]
                     all_boxes[j][i] = all_boxes[j][i][keep, :]
-                    if args.frame == 'mgn' or args.frame == 'all_in_one':
+                    if args.frame in {'mgn', 'all_in_one'}:
                         all_grasp[j][i][0] = all_grasp[j][i][0][keep, :]
                         all_grasp[j][i][1] = all_grasp[j][i][1][keep, :]
 
@@ -727,7 +537,10 @@ def evalute_model(Network, namedb, args):
         sys.stdout.flush()
 
     print('Evaluating detections')
-    result = imdb.evaluate_detections(all_boxes, output_dir)
+    if args.frame in {'fcgn'}:
+        result = imdb.evaluate_detections(all_grasp, output_dir)
+    else:
+        result = imdb.evaluate_detections(all_boxes, output_dir)
 
     if args.frame[-4:] == 'vmrn':
         print('Evaluating relationships')
@@ -744,6 +557,8 @@ def evalute_model(Network, namedb, args):
         grasp_MRFPPI, mean_MRFPPI = imdb.evaluate_multigrasp_detections(all_grasp)
         print('Mean Log-Average Miss Rate: %.4f' % np.mean(np.array(mean_MRFPPI)))
         result = mean_MRFPPI
+
+    # TODO: implement all_in_one's metric for evaluation
 
     end = time.time()
     print("test time: %0.4fs" % (end - start))
@@ -770,8 +585,8 @@ if __name__ == '__main__':
     if args.use_tfboard:
         from model.utils.logger import Logger
         # Set the logger
-        current_t = time.time()
-        logger = Logger(os.path.join('.', 'logs', str(current_t)))
+        current_t = time.strftime("%Y/%m/%d") + "_" + time.strftime("%H:%M:%S")
+        logger = Logger(os.path.join('.', 'logs', current_t + "_" + args.frame + "_" + args.dataset + "_" + args.net))
 
     # init dataset
     imdb, roidb, ratio_list, ratio_index = combined_roidb(args.imdb_name)
@@ -823,6 +638,9 @@ if __name__ == '__main__':
         resume['load_dir'] = output_dir
         resume['iters_per_epoch'] = iters_per_epoch
     Network, optimizer = init_network(args, imdb.classes, resume=resume)
+
+    Network.eval()
+    current_result = evalute_model(Network, args.imdbval_name, args)
 
     # init variables
     current_result, best_result, loss_temp, loss_rpn_cls, loss_rpn_box, loss_rcnn_cls, loss_rcnn_box, loss_rel_pred, \
@@ -950,17 +768,16 @@ if __name__ == '__main__':
                     fg_grasp_cnt += tempfg
                     bg_grasp_cnt += (grasp_conf_label.data.numel() - tempfg)
 
-            if step % args.disp_interval == 0:
+            if Network.iter_counter % args.disp_interval == 0:
                 end = time.time()
-                if step > 0:
-                    loss_temp /= args.disp_interval
-                    loss_rpn_cls /= args.disp_interval
-                    loss_rpn_box /= args.disp_interval
-                    loss_rcnn_cls /= args.disp_interval
-                    loss_rcnn_box /= args.disp_interval
-                    loss_rel_pred /= args.disp_interval
-                    loss_grasp_cls /= args.disp_interval
-                    loss_grasp_box /= args.disp_interval
+                loss_temp /= args.disp_interval
+                loss_rpn_cls /= args.disp_interval
+                loss_rpn_box /= args.disp_interval
+                loss_rcnn_cls /= args.disp_interval
+                loss_rcnn_box /= args.disp_interval
+                loss_rel_pred /= args.disp_interval
+                loss_grasp_cls /= args.disp_interval
+                loss_grasp_box /= args.disp_interval
 
                 print("[session %d][epoch %2d][iter %4d/%4d] \n\t\t\tloss: %.4f, lr: %.2e" \
                       % (args.session, epoch, step, iters_per_epoch, loss_temp, optimizer.param_groups[0]['lr']))
@@ -1015,11 +832,11 @@ if __name__ == '__main__':
                 # clr = lr / (1 + decay * n) -> lr_n / lr_n+1 = (1 + decay * (n+1)) / (1 + decay * n)
                 decay = (1 + args.lr_decay_gamma * Network.iter_counter) / (1 + args.lr_decay_gamma * (Network.iter_counter + 1))
                 adjust_learning_rate(optimizer, decay)
-            elif Network.iter_counter % (args.lr_decay_step + 1) == 0:
+            elif Network.iter_counter % (args.lr_decay_step) == 0:
                 adjust_learning_rate(optimizer, args.lr_decay_gamma)
 
             # test and save
-            if Network.iter_counter % cfg.TRAIN.COMMON.SNAPSHOT_ITERS == 0:
+            if (Network.iter_counter - 1)% cfg.TRAIN.COMMON.SNAPSHOT_ITERS == 0:
                 # test network and record results
                 Network.eval()
                 current_result = evalute_model(Network, args.imdbval_name, args)

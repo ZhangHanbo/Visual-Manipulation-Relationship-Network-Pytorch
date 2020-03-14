@@ -9,6 +9,12 @@ from model.roi_crop.functions.roi_crop import RoICropFunction
 import cv2
 import pdb
 import random
+import time
+
+from model.rpn.bbox_transform import bbox_transform_inv, clip_boxes
+from model.fully_conv_grasp.bbox_transform_grasp import labels2points, grasp_decode
+from model.nms.nms_wrapper import nms
+
 def save_net(fname, net):
     import h5py
     h5f = h5py.File(fname, mode='w')
@@ -52,7 +58,6 @@ def adjust_learning_rate(optimizer, decay=0.1):
     """Sets the learning rate to the initial LR decayed by 0.5 every 20 epochs"""
     for param_group in optimizer.param_groups:
         param_group['lr'] = decay * param_group['lr']
-
 
 def save_checkpoint(state, filename):
     torch.save(state, filename)
@@ -209,3 +214,258 @@ def compare_grid_sample():
     pdb.set_trace()
 
     delta = (grad_input_off.data - grad_input_stn).sum()
+
+def box_unnorm_torch(box, normalizer, d_box = 4, class_agnostic=True, n_cls = None):
+    mean = normalizer['mean']
+    std = normalizer['std']
+    assert mean.size == std.size == d_box
+    if box.dim == 2:
+        if class_agnostic:
+            box = box * torch.FloatTensor(std).type_as(box) + torch.FloatTensor(mean).type_as(box)
+        else:
+            box = box.view(-1, d_box) * torch.FloatTensor(std).type_as(box) + torch.FloatTensor(mean).type_as(box)
+            box = box.view(-1, d_box * n_cls)
+    elif box.dim() == 3:
+        batch_size = box.size(0)
+        if class_agnostic:
+            box = box.view(-1, d_box) * torch.FloatTensor(std).type_as(box) + torch.FloatTensor(mean).type_as(box)
+            box = box.view(batch_size, -1, d_box)
+        else:
+            box = box.view(-1, d_box) * torch.FloatTensor(std).type_as(box) + torch.FloatTensor(mean).type_as(box)
+            box = box.view(batch_size, -1, d_box * n_cls)
+    return box
+
+def box_recover_scale_torch(box, x_scaler, y_scaler):
+    if box.dim() == 2:
+        box[:, 0::2] /= x_scaler
+        box[:, 1::2] /= y_scaler
+    elif box.dim() == 3:
+        box[:, :, 0::2] /= x_scaler
+        box[:, :, 1::2] /= y_scaler
+    elif box.dim() == 4:
+        box[:, :, :, 0::2] /= x_scaler
+        box[:, :, :, 1::2] /= y_scaler
+    return box
+
+def box_filter(box, box_scores, thresh, use_nms = True):
+    """
+    :param box: N x d_box
+    :param box_scores: N scores
+    :param thresh:
+    :param use_nms:
+    :return:
+    """
+    d_box = box.size(-1)
+    inds = torch.nonzero(box_scores > thresh).view(-1)
+    if inds.numel() > 0:
+        cls_scores = box_scores[inds]
+        _, order = torch.sort(cls_scores, 0, True)
+        cls_boxes = box[inds, :]
+        if use_nms:
+            cls_dets = torch.cat((cls_boxes, cls_scores.unsqueeze(1)), 1)
+            cls_dets = cls_dets[order]
+            keep = nms(cls_dets, cfg.TEST.COMMON.NMS)
+            cls_scores = cls_dets[keep.view(-1).long()][:, :-1]
+            cls_dets = cls_dets[keep.view(-1).long()][:, :-1]
+            order = order[keep.view(-1).long()]
+        else:
+            cls_scores = cls_scores[order]
+            cls_dets = cls_boxes[order]
+        cls_dets = cls_dets.cpu().numpy()
+        cls_scores = cls_scores.cpu().numpy()
+        order = order.cpu().numpy()
+    else:
+        cls_scores = np.zeros(shape=(0,), dtype=np.float32)
+        cls_dets = np.zeros(shape=(0, d_box), dtype=np.float32)
+        order = np.array([], dtype=np.int32)
+    return cls_dets, cls_scores, (inds.cpu().numpy())[order]
+
+def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agnostic = True, n_classes = None, for_vis = False):
+    assert box_output.dim() == 2, "Multi-instance batch inference has not been implemented."
+    if for_vis:
+        thresh = 0.5
+    else:
+        thresh = 0.01
+    scores = cls_prob
+
+    # TODO: Inference for anchor free algorithms has not been implemented.
+    if box_prior is None:
+        raise NotImplementedError("Inference for anchor free algorithms has not been implemented.")
+    
+    if cfg.TRAIN.COMMON.BBOX_NORMALIZE_TARGETS_PRECOMPUTED:
+        normalizer = {'mean': cfg.TRAIN.COMMON.BBOX_NORMALIZE_MEANS, 'std': cfg.TRAIN.COMMON.BBOX_NORMALIZE_STDS}
+        box_output = box_unnorm_torch(box_output, normalizer, 4, class_agnostic, n_classes)
+    else:
+        raise RuntimeError("BBOX_NORMALIZE_TARGETS_PRECOMPUTED is forced to be True in our version.")
+
+    pred_boxes = bbox_transform_inv(box_prior, box_output, 1)
+    pred_boxes = clip_boxes(pred_boxes, im_info, 1)
+
+    scores = scores.squeeze()
+    pred_boxes = pred_boxes.squeeze()
+    pred_boxes = box_recover_scale_torch(pred_boxes, im_info[3], im_info[2])
+
+    all_box = [[]]
+    for j in xrange(1, n_classes):
+        if class_agnostic:
+            cls_boxes = pred_boxes
+        else:
+            cls_boxes = pred_boxes[:, j * 4:(j + 1) * 4]
+        cls_dets, cls_scores, _ = box_filter(cls_boxes, scores[:, j], thresh, use_nms = True)
+        cls_dets = np.concatenate((cls_dets, np.expand_dims(cls_scores, -1)), axis = -1)
+        if for_vis:
+            cls_dets[:, -1] = j
+        all_box.append(cls_dets)
+    if for_vis:
+        return np.concatenate(all_box, axis = 0)
+    return all_box
+
+def grasp_inference(cls_prob, box_output, im_info, box_prior = None, topN = False):
+    assert box_output.dim() == 2, "Multi-instance batch inference has not been implemented."
+    if not topN:
+        thresh = 0.5
+    else:
+        thresh = 0
+
+    # TODO: Inference for anchor free algorithms has not been implemented.
+    if box_prior is None:
+        raise NotImplementedError("Inference for anchor free algorithms has not been implemented.")
+
+    scores = cls_prob
+    normalizer = {'mean': cfg.FCGN.BBOX_NORMALIZE_MEANS, 'std': cfg.FCGN.BBOX_NORMALIZE_STDS}
+    box_output = box_unnorm_torch(box_output, normalizer, d_box=5, class_agnostic=True, n_cls=None)
+
+    pred_label = grasp_decode(box_output, box_prior)
+    pred_boxes = labels2points(pred_label)
+
+    imshape = np.tile(np.array([im_info[1], im_info[0]]),
+                      (pred_boxes.shape[:-2], int(pred_boxes.size(-2)), int(pred_boxes.size(-1) / 2)))
+    imshape = torch.from_numpy(imshape).type_as(pred_boxes)
+    keep = (((pred_boxes > imshape) | (pred_boxes < 0)).sum(-1) == 0)
+    pred_boxes = pred_boxes[keep]
+    scores = scores[keep]
+
+    scores = scores.squeeze()
+    pred_boxes = pred_boxes.squeeze()
+    pred_boxes = box_recover_scale_torch(pred_boxes, im_info[3], im_info[2])
+
+    grasps, scores, _ = box_filter(pred_boxes, scores[:, 1], thresh, use_nms = False)
+    grasps = np.concatenate((grasps, np.expand_dims(scores, -1)), axis=-1)
+    if topN:
+        grasps = grasps[:topN]
+    return grasps
+
+def objgrasp_inference(o_cls_prob, o_box_output, g_cls_prob, g_box_output, im_info, rois = None,
+                       class_agnostic = True, n_classes = None, g_box_prior = None, for_vis = False, topN_g = False):
+    """
+    :param o_cls_prob: N x N_cls tensor
+    :param o_box_output: N x 4 tensor
+    :param g_cls_prob: N x K*A x 2 tensor
+    :param g_box_output: N x K*A x 5 tensor
+    :param im_info: size 4 tensor
+    :param rois: N x 4 tensor
+    :param g_box_prior: N x K*A * 5 tensor
+    :return:
+
+    Note:
+    1 This function simultaneously supports ROI-GN with or without object branch. If no object branch, o_cls_prob
+    and o_box_output will be none, and object detection results are shown in the form of ROIs.
+    2 This function can only detect one image per invoking.
+    """
+    if o_box_output is not None:
+        o_scores = o_cls_prob
+        rois = rois[:, 1:5]
+    else:
+        rois_score = rois[:, 0:1]
+        o_scores = torch.cat((1-rois_score, rois_score), dim = -1)
+
+    g_scores = g_cls_prob
+
+    if for_vis:
+        o_thresh = 0.5
+    else:
+        o_thresh = 0
+        topN_g = 1
+
+    if not topN_g:
+        g_thresh = 0.5
+    else:
+        g_thresh = 0
+
+    if rois is None:
+        raise RuntimeError("You must specify rois for ROI-GN.")
+
+    if g_box_prior is None:
+        raise NotImplementedError("Inference for anchor free algorithms has not been implemented.")
+
+    # infer grasp boxes
+    normalizer = {'mean': cfg.FCGN.BBOX_NORMALIZE_MEANS, 'std': cfg.FCGN.BBOX_NORMALIZE_STDS}
+    g_box_output = box_unnorm_torch(g_box_output, normalizer, d_box=5, class_agnostic=True, n_cls=None)
+    g_box_output = g_box_output.view(g_box_prior.size())
+    # N x K*A x 5
+    grasp_pred = grasp_decode(g_box_output, g_box_prior)
+
+    # N x K*A x 1
+    rois_w = (rois[:, 2] - rois[:, 0]).view(-1).unsqueeze(1).unsqueeze(2).expand_as(grasp_pred[:, :, 0:1])
+    rois_h = (rois[:, 3] - rois[:, 1]).view(-1).unsqueeze(1).unsqueeze(2).expand_as(grasp_pred[:, :, 1:2])
+    keep_mask = (grasp_pred[:, :, 0:1] > 0) & (grasp_pred[:, :, 1:2] > 0) & \
+                (grasp_pred[:, :, 0:1] < rois_w) & (grasp_pred[:, :, 1:2] < rois_h)
+    grasp_scores = g_scores.contiguous().view(rois.size(0), -1, 2)
+    # N x 1 x 1
+    xleft = rois[:, 0].view(-1).unsqueeze(1).unsqueeze(2)
+    ytop = rois[:, 1].view(-1).unsqueeze(1).unsqueeze(2)
+    # rois offset
+    grasp_pred[:, :, 0:1] = grasp_pred[:, :, 0:1] + xleft
+    grasp_pred[:, :, 1:2] = grasp_pred[:, :, 1:2] + ytop
+    # N x K*A x 8
+    grasp_pred_boxes = labels2points(grasp_pred).contiguous().view(rois.size(0), -1, 8)
+    # N x K*A
+    grasp_pos_scores = grasp_scores[:, :, 1]
+    if topN_g:
+        # N x K*A
+        _, grasp_score_idx = torch.sort(grasp_pos_scores, dim=-1, descending=True)
+        _, grasp_idx_rank = torch.sort(grasp_score_idx, dim=-1)
+        # N x K*A mask
+        topn_grasp = topN_g
+        grasp_maxscore_mask = (grasp_idx_rank < topn_grasp)
+        # N x topN
+        grasp_maxscores = grasp_pos_scores[grasp_maxscore_mask].contiguous().view(rois.size()[:1] + (topn_grasp,))
+        # N x topN x 8
+        grasp_pred_boxes = grasp_pred_boxes[grasp_maxscore_mask].view(rois.size()[:1] + (topn_grasp, 8))
+    else:
+        raise NotImplementedError("Now ROI-GN only supports top-N grasp detection for each object.")
+
+    # infer object boxes
+    if cfg.TRAIN.COMMON.BBOX_NORMALIZE_TARGETS_PRECOMPUTED:
+        normalizer = {'mean': cfg.TRAIN.COMMON.BBOX_NORMALIZE_MEANS, 'std': cfg.TRAIN.COMMON.BBOX_NORMALIZE_STDS}
+        box_output = box_unnorm_torch(o_box_output, normalizer, 4, class_agnostic, n_classes)
+        pred_boxes = bbox_transform_inv(rois, box_output, 1)
+        pred_boxes = clip_boxes(pred_boxes, im_info, 1)
+    else:
+        pred_boxes = rois.clone()
+
+    pred_boxes = box_recover_scale_torch(pred_boxes, im_info[3], im_info[2])
+    grasp_pred_boxes = box_recover_scale_torch(grasp_pred_boxes, im_info[3], im_info[2])
+
+    all_box = []
+    all_grasp = []
+    for j in xrange(1, n_classes):
+        if class_agnostic:
+            cls_boxes = pred_boxes
+        else:
+            cls_boxes = pred_boxes[:, j * 4:(j + 1) * 4]
+        cls_dets, cls_scores, box_keep_inds = box_filter(cls_boxes, o_scores[:, j], o_thresh, use_nms=True)
+        cls_dets = np.concatenate((cls_dets, np.expand_dims(cls_scores, -1)), axis=-1)
+        grasps = (grasp_pred_boxes.cpu().numpy())[box_keep_inds]
+
+        if for_vis:
+            cls_dets[:, -1] = j
+        all_box.append(cls_dets)
+        all_grasp.append(grasps)
+
+    if for_vis:
+        all_box = np.concatenate(all_box, axis = 0)
+        all_grasp = np.concatenate(all_grasp, axis = 0)
+
+    return all_box, all_grasp
+
