@@ -30,7 +30,7 @@ We want to re-implement the SOTA performance of the related algorithms. Some per
 
 ### Object Detection Performance
 Algorithm | Backbone | Training | Testing | mAP
--|-|-|-
+-|-|-|-|-
 Faster R-CNN | ResNet-101 | VOC2007trainval | VOC2007test | 71.9 |
 FPN | ResNet-101 | VOC2007trainval | VOC2007test | 73.4 |
 

@@ -3,8 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="c9b880e4-a6e3-414a-b387-4aa4ff30b986" name="Default" comment="">
       <change beforePath="$PROJECT_DIR$/README.md" afterPath="$PROJECT_DIR$/README.md" />
-      <change beforePath="$PROJECT_DIR$/model/rpn/bbox_transform.py" afterPath="$PROJECT_DIR$/model/rpn/bbox_transform.py" />
-      <change beforePath="$PROJECT_DIR$/model/utils/net_utils.py" afterPath="$PROJECT_DIR$/model/utils/net_utils.py" />
       <change beforePath="$PROJECT_DIR$/trainval_net.py" afterPath="$PROJECT_DIR$/trainval_net.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -26,11 +24,11 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file leaf-file-name="trainval_net.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="trainval_net.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/trainval_net.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="129">
-              <caret line="587" column="41" lean-forward="false" selection-start-line="587" selection-start-column="41" selection-end-line="587" selection-end-column="41" />
+            <state relative-caret-position="-2107">
+              <caret line="145" column="19" lean-forward="true" selection-start-line="145" selection-start-column="19" selection-end-line="145" selection-end-column="19" />
               <folding>
                 <element signature="e#265#303#0" expanded="true" />
               </folding>
@@ -63,8 +61,8 @@
       <file leaf-file-name="config.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/model/utils/config.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="192">
-              <caret line="304" column="29" lean-forward="false" selection-start-line="304" selection-start-column="9" selection-end-line="304" selection-end-column="29" />
+            <state relative-caret-position="178">
+              <caret line="43" column="6" lean-forward="false" selection-start-line="43" selection-start-column="4" selection-end-line="43" selection-end-column="6" />
               <folding />
             </state>
           </provider>
@@ -100,11 +98,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="README.md" pinned="false" current-in-tab="false">
+      <file leaf-file-name="README.md" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/README.md">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="257">
-              <caret line="33" column="64" lean-forward="false" selection-start-line="33" selection-start-column="64" selection-end-line="33" selection-end-column="64" />
+              <caret line="33" column="41" lean-forward="true" selection-start-line="33" selection-start-column="41" selection-end-line="33" selection-end-column="41" />
               <folding />
             </state>
           </provider>
@@ -121,7 +119,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>img</find>
       <find>img=</find>
       <find>FIXED_INPUT_SIZE</find>
       <find>draw</find>
@@ -150,6 +147,7 @@
       <find>cls_prob</find>
       <find>misc_tic</find>
       <find>box_filter</find>
+      <find>AGNO</find>
       <find>class_agnostic</find>
     </findStrings>
     <replaceStrings>
@@ -221,8 +219,8 @@
         <option value="$PROJECT_DIR$/model/rpn/anchor_target_layer.py" />
         <option value="$PROJECT_DIR$/model/rpn/bbox_transform.py" />
         <option value="$PROJECT_DIR$/model/utils/net_utils.py" />
-        <option value="$PROJECT_DIR$/README.md" />
         <option value="$PROJECT_DIR$/trainval_net.py" />
+        <option value="$PROJECT_DIR$/README.md" />
       </list>
     </option>
   </component>
@@ -411,7 +409,7 @@
       <module name="Visual-Manipulation-Relationship-Network-Pytorch" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/trainval_net.py" />
-      <option name="PARAMETERS" value="--net res101 --frame faster_rcnn --dataset pascal_voc --cuda --use_tfboard True --r True --checkpoint 1223 --checkepoch 14" />
+      <option name="PARAMETERS" value="--net res101 --frame faster_rcnn --dataset pascal_voc --cuda --use_tfboard True --cag --r True --checkpoint 1223 --checkepoch 14" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -846,14 +844,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/model/utils/config.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="192">
-          <caret line="304" column="29" lean-forward="false" selection-start-line="304" selection-start-column="9" selection-end-line="304" selection-end-column="29" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/model/VMRN.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="2614">
@@ -878,14 +868,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/cfgs/pascal_voc_faster_rcnn_res101.yml">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="90">
-          <caret line="6" column="24" lean-forward="true" selection-start-line="6" selection-start-column="24" selection-end-line="6" selection-end-column="24" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/datasets/imdb.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="188">
@@ -904,14 +886,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/model/rpn/bbox_transform.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="353">
-          <caret line="157" column="0" lean-forward="false" selection-start-line="157" selection-start-column="0" selection-end-line="157" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/model/utils/net_utils.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="424">
@@ -922,21 +896,45 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/README.md">
+    <entry file="file://$PROJECT_DIR$/model/utils/config.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="257">
-          <caret line="33" column="64" lean-forward="false" selection-start-line="33" selection-start-column="64" selection-end-line="33" selection-end-column="64" />
+        <state relative-caret-position="178">
+          <caret line="43" column="6" lean-forward="false" selection-start-line="43" selection-start-column="4" selection-end-line="43" selection-end-column="6" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/model/rpn/bbox_transform.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="353">
+          <caret line="157" column="0" lean-forward="false" selection-start-line="157" selection-start-column="0" selection-end-line="157" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/cfgs/pascal_voc_faster_rcnn_res101.yml">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="90">
+          <caret line="6" column="24" lean-forward="true" selection-start-line="6" selection-start-column="24" selection-end-line="6" selection-end-column="24" />
           <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/trainval_net.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="129">
-          <caret line="587" column="41" lean-forward="false" selection-start-line="587" selection-start-column="41" selection-end-line="587" selection-end-column="41" />
+        <state relative-caret-position="-2107">
+          <caret line="145" column="19" lean-forward="true" selection-start-line="145" selection-start-column="19" selection-end-line="145" selection-end-column="19" />
           <folding>
             <element signature="e#265#303#0" expanded="true" />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/README.md">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="257">
+          <caret line="33" column="41" lean-forward="true" selection-start-line="33" selection-start-column="41" selection-end-line="33" selection-end-column="41" />
+          <folding />
         </state>
       </provider>
     </entry>

@@ -639,9 +639,6 @@ if __name__ == '__main__':
         resume['iters_per_epoch'] = iters_per_epoch
     Network, optimizer = init_network(args, imdb.classes, resume=resume)
 
-    Network.eval()
-    current_result = evalute_model(Network, args.imdbval_name, args)
-
     # init variables
     current_result, best_result, loss_temp, loss_rpn_cls, loss_rpn_box, loss_rcnn_cls, loss_rcnn_box, loss_rel_pred, \
         loss_grasp_box, loss_grasp_cls, fg_cnt, bg_cnt, fg_grasp_cnt, bg_grasp_cnt = 0,0,0,0,0,0,0,0,0,0,0,0,0,0
