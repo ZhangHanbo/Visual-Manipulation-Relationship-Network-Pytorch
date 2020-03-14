@@ -252,7 +252,8 @@ __C.GPU_ID = 0
 # Maximal number of gt rois in an image during Training
 __C.MAX_NUM_GT_BOXES = 20
 __C.MAX_NUM_GT_GRASPS = 100
-__C.CUDA = False
+__C.CUDA = True
+__C.CLASS_AGNOSTIC = True
 
 __C.SCALES = (600,)
 # For SSD, the FIXED_INPUT_SIZE need to be true

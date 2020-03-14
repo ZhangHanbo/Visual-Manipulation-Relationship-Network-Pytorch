@@ -45,11 +45,42 @@ import model.RoIGrasp as ROIGN
 import model.VAM as VAM
 
 from model.utils.net_utils import objdet_inference, grasp_inference, objgrasp_inference
+from datasets.factory import get_imdb
 
 import warnings
 
 # implemented-algorithm list
 LEGAL_FRAMES = {"faster_rcnn", "ssd", "fpn", "faster_rcnn_vmrn", "ssd_vmrn", "all_in_one", "fcgn", "roign", "vam"}
+
+class sampler(Sampler):
+    def __init__(self, train_size, batch_size):
+        self.num_data = train_size
+        self.num_per_batch = int(train_size / batch_size)
+        self.batch_size = batch_size
+        self.range = torch.arange(0,batch_size).view(1, batch_size).long()
+        self.leftover_flag = False
+        if train_size % batch_size:
+            self.leftover = torch.arange(self.num_per_batch*batch_size, train_size).long()
+            self.leftover_flag = True
+
+    def __iter__(self):
+        rand_num = torch.randperm(self.num_per_batch).view(-1,1) * self.batch_size
+        self.rand_num = rand_num.expand(self.num_per_batch, self.batch_size) + self.range
+
+        self.rand_num_view = self.rand_num.view(-1)
+
+        if self.leftover_flag:
+            self.rand_num_view = torch.cat((self.rand_num_view, self.leftover),0)
+
+        return iter(self.rand_num_view)
+
+    def __len__(self):
+        return self.num_data
+
+def makeCudaData(data_list):
+    for i, data in enumerate(data_list):
+        data_list[i] = data.cuda()
+    return data_list
 
 def parse_args():
   """
@@ -101,6 +132,9 @@ def parse_args():
                       default=0, type=int)
   parser.add_argument('--cag', dest='class_agnostic',
                       help='whether perform class_agnostic bbox regression',
+                      default=True, type=bool)
+  parser.add_argument('--test', dest='test',
+                      help='whether to perform test',
                       action='store_true')
 
 # config optimization
@@ -145,37 +179,6 @@ def parse_args():
 
   args = parser.parse_args()
   return args
-
-
-class sampler(Sampler):
-    def __init__(self, train_size, batch_size):
-        self.num_data = train_size
-        self.num_per_batch = int(train_size / batch_size)
-        self.batch_size = batch_size
-        self.range = torch.arange(0,batch_size).view(1, batch_size).long()
-        self.leftover_flag = False
-        if train_size % batch_size:
-            self.leftover = torch.arange(self.num_per_batch*batch_size, train_size).long()
-            self.leftover_flag = True
-
-    def __iter__(self):
-        rand_num = torch.randperm(self.num_per_batch).view(-1,1) * self.batch_size
-        self.rand_num = rand_num.expand(self.num_per_batch, self.batch_size) + self.range
-
-        self.rand_num_view = self.rand_num.view(-1)
-
-        if self.leftover_flag:
-            self.rand_num_view = torch.cat((self.rand_num_view, self.leftover),0)
-
-        return iter(self.rand_num_view)
-
-    def __len__(self):
-        return self.num_data
-
-def makeCudaData(data_list):
-    for i, data in enumerate(data_list):
-        data_list[i] = data.cuda()
-    return data_list
 
 def read_cfgs():
     args = parse_args()
@@ -258,7 +261,7 @@ def read_cfgs():
 
     return args
 
-def init_network(args, n_cls, resume = None):
+def init_network(args, n_cls):
     """
     :param args: define hyperparameters
     :param n_cls: number of object classes for initializing network output layers
@@ -364,9 +367,8 @@ def init_network(args, n_cls, resume = None):
     # tr_momentum = cfg.TRAIN.COMMON.MOMENTUM
     # tr_momentum = args.momentum
 
-    if resume is not None:
-        output_dir = resume['load_dir']
-        iters_per_epoch = resume['iters_per_epoch']
+    if args.resume:
+        output_dir = args.save_dir + "/" + args.dataset + "/" + args.net
         load_name = os.path.join(output_dir,
                                  args.frame + '_{}_{}_{}_{}.pth'.format(args.checksession, args.checkepoch,
                                                                         args.checkpoint, args.GPU))
@@ -378,8 +380,6 @@ def init_network(args, n_cls, resume = None):
         if 'pooling_mode' in checkpoint.keys():
             cfg.RCNN_COMMON.POOLING_MODE = checkpoint['pooling_mode']
         print("loaded checkpoint %s" % (load_name))
-
-        Network.iter_counter = (args.start_epoch - 1) * iters_per_epoch
         print("start iteration:", Network.iter_counter)
 
     if args.cuda:
@@ -402,7 +402,7 @@ def init_network(args, n_cls, resume = None):
         optimizer = torch.optim.Adam(params)
     elif args.optimizer == "sgd":
         optimizer = torch.optim.SGD(params, momentum=cfg.TRAIN.COMMON.MOMENTUM)
-    if resume is not None:
+    if args.resume:
         optimizer.load_state_dict(checkpoint['optimizer'])
 
     return Network, optimizer
@@ -564,14 +564,7 @@ def evalute_model(Network, namedb, args):
     print("test time: %0.4fs" % (end - start))
     return result
 
-if __name__ == '__main__':
-
-    # init arguments
-    args = read_cfgs()
-
-    # check algorithm
-    assert args.frame in LEGAL_FRAMES, "Illegal algorithm name."
-
+def train():
     # check cuda devices
     if not torch.cuda.is_available():
         assert RuntimeError("Training can only be done by GPU. Please use --cuda to enable training.")
@@ -632,12 +625,7 @@ if __name__ == '__main__':
             os.makedirs(data_vis_dir)
 
     # init network
-    resume = None
-    if args.resume:
-        resume = {}
-        resume['load_dir'] = output_dir
-        resume['iters_per_epoch'] = iters_per_epoch
-    Network, optimizer = init_network(args, imdb.classes, resume=resume)
+    Network, optimizer = init_network(args, imdb.classes)
 
     # init variables
     current_result, best_result, loss_temp, loss_rpn_cls, loss_rpn_box, loss_rcnn_cls, loss_rcnn_box, loss_rel_pred, \
@@ -877,3 +865,39 @@ if __name__ == '__main__':
 
         end = time.time()
         print(end - start)
+
+def test():
+
+    # check cuda devices
+    if not torch.cuda.is_available():
+        assert RuntimeError("Training can only be done by GPU. Please use --cuda to enable training.")
+    if torch.cuda.is_available() and not args.cuda:
+        assert RuntimeError("You have a CUDA device, so you should probably run with --cuda")
+
+    # init output directory for model saving
+    output_dir = args.save_dir + "/" + args.dataset + "/" + args.net
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    imdb = get_imdb(args.imdb_name)
+
+    if args.vis:
+        visualizer = dataViewer(imdb.classes)
+        data_vis_dir = os.path.join(args.save_dir, args.dataset, 'data_vis')
+        if not os.path.exists(data_vis_dir):
+            os.makedirs(data_vis_dir)
+
+    # init network
+    Network, optimizer = init_network(args, imdb.classes)
+    Network.eval()
+    evalute_model(Network, args.imdbval_name, args)
+
+if __name__ == '__main__':
+    # init arguments
+    args = read_cfgs()
+    assert args.frame in LEGAL_FRAMES, "Illegal algorithm name."
+
+    if args.test:
+        test()
+    else:
+        train()
