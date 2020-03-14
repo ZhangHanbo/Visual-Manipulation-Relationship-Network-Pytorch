@@ -132,7 +132,7 @@ def parse_args():
                       default=0, type=int)
   parser.add_argument('--cag', dest='class_agnostic',
                       help='whether perform class_agnostic bbox regression',
-                      default=True, type=bool)
+                      default=False, type=bool)
   parser.add_argument('--test', dest='test',
                       help='whether to perform test',
                       action='store_true')
@@ -542,7 +542,7 @@ def evalute_model(Network, namedb, args):
     else:
         result = imdb.evaluate_detections(all_boxes, output_dir)
 
-    if args.frame[-4:] == 'vmrn':
+    if args.frame in {"faster_rcnn_vmrn", "ssd_vmrn"}:
         print('Evaluating relationships')
         orec, oprec, imgprec, imgprec_difobjnum = imdb.evaluate_relationships(all_rel)
         print("object recall:   \t%.4f" % orec)
@@ -638,7 +638,7 @@ def train():
         # setting to train mode
         Network.train()
 
-        start = time.time()
+        start_epoch_time = time.time()
 
         data_iter = iter(dataloader)
         for step in range(iters_per_epoch):
@@ -863,8 +863,8 @@ def train():
                     print('save model: {}'.format(save_name))
                     save_flag = False
 
-        end = time.time()
-        print(end - start)
+        end_epoch_time = time.time()
+        print("Epoch finished. Time costing: ", end_epoch_time - start_epoch_time, "s")
 
 def test():
 
