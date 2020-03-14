@@ -439,6 +439,8 @@ def evalute_model(Network, namedb, args):
     data_iter = iter(dataloader)
     num_images = len(imdb.image_index)
 
+    output_dir = args.save_dir + "/" + args.net + "/" + args.dataset
+
     start = time.time()
     thresh = 0.01
 
