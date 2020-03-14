@@ -12,16 +12,16 @@ Users for other GPUs: you have to follow the installation steps from https://git
 
 ## Training Example
 ```bash
-python trainval_net.py --dataset (DatasetName) --frame (AlgName) --net (BackboneName) --cuda
+python main.py --dataset (DatasetName) --frame (AlgName) --net (BackboneName) --cuda
 # like:
-python trainval_net.py --dataset vmrdcompv1 --frame all_in_one --net res101 --cuda
+python main.py --dataset vmrdcompv1 --frame all_in_one --net res101 --cuda
 ```
 
 ## Testing
 ```bash
-python test_net.py --dataset (DatasetName) --frame (AlgName) --net (BackboneName) --cuda --checkpoint (PointNum) --checkepoch (EpochNum) --GPU (GpuNum, Default:0)
+python main.py --test --dataset (DatasetName) --frame (AlgName) --net (BackboneName) --cuda --checkpoint (PointNum) --checkepoch (EpochNum) --GPU (GpuNum, Default:0)
 #like:
-python test_net.py --dataset vmrdcompv1 --frame all_in_one --net res101 --cuda --checkpoint 1000 --checkepoch 1 --GPU 0
+python main.py --test --dataset vmrdcompv1 --frame all_in_one --net res101 --cuda --checkpoint 1000 --checkepoch 1 --GPU 0
 ```
 
 ## Performance
