@@ -462,14 +462,14 @@ def evalute_model(Network, namedb, args):
         # forward process
         if args.frame == 'faster_rcnn' or args.frame == 'fpn':
             rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_box, net_loss_cls, net_loss_bbox, rois_label = Network(data_batch)
-            boxes = rois.data[:, :, 1:5]
+            boxes = rois[:, :, 1:5]
         elif args.frame == 'ssd':
             bbox_pred, cls_prob, net_loss_bbox, net_loss_cls = Network(data_batch)
             boxes = Network.priors.type_as(bbox_pred)
         elif args.frame == 'faster_rcnn_vmrn':
             rois, cls_prob, bbox_pred, rel_result, rpn_loss_cls, rpn_loss_box, \
                 RCNN_loss_cls, RCNN_loss_bbox, RCNN_rel_loss_cls, rois_label = Network(data_batch)
-            boxes = rois.data[:, :, 1:5]
+            boxes = rois[:, :, 1:5]
             all_rel.append(rel_result)
         elif args.frame == 'ssd_vmrn' or args.frame == 'vam':
             bbox_pred, cls_prob, rel_result, loss_bbox, loss_cls, rel_loss_cls = Network(data_batch)
@@ -482,15 +482,15 @@ def evalute_model(Network, namedb, args):
                 grasp_conf_label, grasp_all_anchors = Network(data_batch)
             cls_prob = None
             bbox_pred = None
-            boxes = rois.data[:, :, 1:5]
+            boxes = rois[:, :, 1:5]
         elif args.frame == 'mgn':
             rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_box, loss_cls, loss_bbox, rois_label, grasp_loc, grasp_prob, \
                 grasp_bbox_loss, grasp_cls_loss, grasp_conf_label, grasp_all_anchors = Network(data_batch)
-            boxes = rois.data[:, :, 1:5]
+            boxes = rois[:, :, 1:5]
         elif args.frame == 'all_in_one':
             rois, cls_prob, bbox_pred, rel_result, rpn_loss_cls, rpn_loss_box, loss_cls, loss_bbox, rel_loss_cls, rois_label, \
             grasp_loc, grasp_prob, grasp_bbox_loss, grasp_cls_loss, grasp_conf_label, grasp_all_anchors = Network(data_batch)
-            boxes = rois.data[:, :, 1:5]
+            boxes = rois[:, :, 1:5]
             all_rel.append(rel_result)
 
         det_toc = time.time()
@@ -499,19 +499,19 @@ def evalute_model(Network, namedb, args):
         # collect results
         if args.frame in {'ssd', 'fpn', 'faster_rcnn', 'faster_rcnn_vmrn', 'ssd_vmrn', 'vam'}:
             # detected_box is a list of boxes. len(list) = num_classes
-            det_box = objdet_inference(cls_prob[0], bbox_pred[0], data_batch[1][0],
-                        box_prior=boxes[0], class_agnostic=args.class_agnostic, n_classes=imdb.num_classes, for_vis=False)
+            det_box = objdet_inference(cls_prob[0].data, bbox_pred[0].data, data_batch[1][0].data,
+                        box_prior=boxes[0].data, class_agnostic=args.class_agnostic, n_classes=imdb.num_classes, for_vis=False)
             for j in xrange(1, imdb.num_classes):
                 all_boxes[j][i] = det_box[j]
         elif args.frame in {'mgn', 'roign', 'all_in_one'}:
-            det_box, det_grasps = objgrasp_inference(cls_prob[0], bbox_pred[0], grasp_prob, grasp_loc, data_batch[1][0],
-                        rois, class_agnostic=args.class_agnostic, n_classes=imdb.num_classes,
-                        g_box_prior=grasp_all_anchors, for_vis=False, topN_g = 1)
+            det_box, det_grasps = objgrasp_inference(cls_prob[0].data, bbox_pred[0].data, grasp_prob.data, grasp_loc.data, data_batch[1][0].data,
+                        rois.data, class_agnostic=args.class_agnostic, n_classes=imdb.num_classes,
+                        g_box_prior=grasp_all_anchors.data, for_vis=False, topN_g = 1)
             for j in xrange(1, imdb.num_classes):
                 all_boxes[j][i] = det_box[j]
                 all_grasp[j][i] = [det_box[j].copy(), det_grasps[j]]
         elif args.frame in {'fcgn'}:
-            det_grasps = grasp_inference(cls_prob[0], bbox_pred[0], data_batch[1][0], box_prior = boxes, topN = 1)
+            det_grasps = grasp_inference(cls_prob[0].data, bbox_pred[0].data, data_batch[1][0].data, box_prior = boxes.data, topN = 1)
             all_grasp[1][i] = det_grasps
         else:
             raise RuntimeError("Illegal algorithm.")
@@ -585,7 +585,7 @@ if __name__ == '__main__':
     if args.use_tfboard:
         from model.utils.logger import Logger
         # Set the logger
-        current_t = time.strftime("%Y/%m/%d") + "_" + time.strftime("%H:%M:%S")
+        current_t = time.strftime("%Y_%m_%d") + "_" + time.strftime("%H:%M:%S")
         logger = Logger(os.path.join('.', 'logs', current_t + "_" + args.frame + "_" + args.dataset + "_" + args.net))
 
     # init dataset

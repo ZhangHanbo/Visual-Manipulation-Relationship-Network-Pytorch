@@ -218,8 +218,8 @@ def compare_grid_sample():
 def box_unnorm_torch(box, normalizer, d_box = 4, class_agnostic=True, n_cls = None):
     mean = normalizer['mean']
     std = normalizer['std']
-    assert mean.size == std.size == d_box
-    if box.dim == 2:
+    assert len(mean) == len(std) == d_box
+    if box.dim() == 2:
         if class_agnostic:
             box = box * torch.FloatTensor(std).type_as(box) + torch.FloatTensor(mean).type_as(box)
         else:
@@ -265,7 +265,7 @@ def box_filter(box, box_scores, thresh, use_nms = True):
             cls_dets = torch.cat((cls_boxes, cls_scores.unsqueeze(1)), 1)
             cls_dets = cls_dets[order]
             keep = nms(cls_dets, cfg.TEST.COMMON.NMS)
-            cls_scores = cls_dets[keep.view(-1).long()][:, :-1]
+            cls_scores = cls_dets[keep.view(-1).long()][:, -1]
             cls_dets = cls_dets[keep.view(-1).long()][:, :-1]
             order = order[keep.view(-1).long()]
         else:
