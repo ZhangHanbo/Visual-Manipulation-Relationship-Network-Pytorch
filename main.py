@@ -50,7 +50,7 @@ from datasets.factory import get_imdb
 import warnings
 
 # implemented-algorithm list
-LEGAL_FRAMES = {"faster_rcnn", "ssd", "fpn", "faster_rcnn_vmrn", "ssd_vmrn", "all_in_one", "fcgn", "roign", "vam"}
+LEGAL_FRAMES = {"faster_rcnn", "ssd", "fpn", "faster_rcnn_vmrn", "ssd_vmrn", "all_in_one", "fcgn", "roign", "mgn", "vam"}
 
 class sampler(Sampler):
     def __init__(self, train_size, batch_size):
@@ -172,7 +172,7 @@ def parse_args():
 # log and diaplay
   parser.add_argument('--use_tfboard', dest='use_tfboard',
                       help='whether use tensorflow tensorboard',
-                      default=False, type=bool)
+                      action='store_true')
   parser.add_argument('--vis', dest='vis',
                       help='whether to visualize training data',
                       action='store_true')
@@ -417,8 +417,7 @@ def detection_filter(all_boxes, all_grasp = None, max_per_image = 100):
             keep = np.where(all_boxes[j][:, -1] >= image_thresh)[0]
             all_boxes[j] = all_boxes[j][keep, :]
             if all_grasp is not None:
-                all_grasp[j][0] = all_grasp[j][0][keep, :]
-                all_grasp[j][1] = all_grasp[j][1][keep, :]
+                all_grasp[j] = all_grasp[j][keep, :]
     if all_grasp is not None:
         return all_boxes, all_grasp
     else:
@@ -534,7 +533,7 @@ def evalute_model(Network, namedb, args):
                 det_box, det_grasps = detection_filter(det_box, det_grasps, max_per_image)
             for j in xrange(1, imdb.num_classes):
                 all_boxes[j][i] = det_box[j]
-                all_grasp[j][i] = [det_box[j].copy(), det_grasps[j]]
+                all_grasp[j][i] = det_grasps[j]
         elif args.frame in {'fcgn'}:
             det_grasps = grasp_inference(cls_prob[0].data, bbox_pred[0].data, data_batch[1][0].data, box_prior = boxes[0].data, topN = 1)
             all_grasp[1][i] = det_grasps
@@ -566,9 +565,9 @@ def evalute_model(Network, namedb, args):
 
     if args.frame == 'mgn':
         print('Evaluating grasp detection results')
-        grasp_MRFPPI, mean_MRFPPI = imdb.evaluate_multigrasp_detections(all_grasp)
+        grasp_MRFPPI, mean_MRFPPI, key_point_MRFPPI, mAPgrasp = imdb.evaluate_multigrasp_detections(all_boxes, all_grasp)
         print('Mean Log-Average Miss Rate: %.4f' % np.mean(np.array(mean_MRFPPI)))
-        result = mean_MRFPPI
+        result = mAPgrasp
 
     # TODO: implement all_in_one's metric for evaluation
 
@@ -660,10 +659,10 @@ def train():
             data_batch = next(data_iter)
             if args.vis:
                 for i in range(data_batch[0].size(0)):
-                    # im_vis = visualizer.draw_graspdet_with_owner(data_batch[0][i].permute(1,2,0).numpy() + cfg.PIXEL_MEANS,
-                    #     data_batch[2][i].numpy(),data_batch[3][i].numpy(),data_batch[7][i].numpy())
-                    im_vis = visualizer.draw_graspdet(data_batch[0][i].permute(1,2,0).numpy() + cfg.PIXEL_MEANS,
-                                                      data_batch[2][i].numpy())
+                    im_vis = visualizer.draw_graspdet_with_owner(data_batch[0][i].permute(1,2,0).numpy() + cfg.PIXEL_MEANS,
+                        data_batch[2][i].numpy(),data_batch[3][i].numpy(),data_batch[-1][i].numpy())
+                    # im_vis = visualizer.draw_graspdet(data_batch[0][i].permute(1,2,0).numpy() + cfg.PIXEL_MEANS,
+                    #                                   data_batch[2][i].numpy())
                     cv2.imwrite(os.path.join(data_vis_dir, "vis_batch" + str(step) + "_img" + str(i) + ".png"), im_vis)
             # ship to cuda
             if args.cuda:

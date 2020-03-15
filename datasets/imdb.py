@@ -71,11 +71,7 @@ class imdb(object):
 
   @property
   def roidb(self):
-    # A roidb is a list of dictionaries, each with the following keys:
-    #   boxes
-    #   gt_overlaps
-    #   gt_classes
-    #   flipped
+    # A roidb is a list of dictionaries for data loading.
     if self._roidb is not None:
       return self._roidb
     self._roidb = self.roidb_handler()
@@ -231,48 +227,6 @@ class imdb(object):
     ar = recalls.mean()
     return {'ar': ar, 'recalls': recalls, 'thresholds': thresholds,
             'gt_overlaps': gt_overlaps}
-
-  def create_roidb_from_box_list(self, box_list, gt_roidb):
-    assert len(box_list) == self.num_images, \
-      'Number of boxes must match number of ground-truth images'
-    roidb = []
-    for i in range(self.num_images):
-      boxes = box_list[i]
-      num_boxes = boxes.shape[0]
-      overlaps = np.zeros((num_boxes, self.num_classes), dtype=np.float32)
-
-      if gt_roidb is not None and gt_roidb[i]['boxes'].size > 0:
-        gt_boxes = gt_roidb[i]['boxes']
-        gt_classes = gt_roidb[i]['gt_classes']
-        gt_overlaps = bbox_overlaps(boxes.astype(np.float),
-                                    gt_boxes.astype(np.float))
-        argmaxes = gt_overlaps.argmax(axis=1)
-        maxes = gt_overlaps.max(axis=1)
-        I = np.where(maxes > 0)[0]
-        overlaps[I, gt_classes[argmaxes[I]]] = maxes[I]
-
-      overlaps = scipy.sparse.csr_matrix(overlaps)
-      roidb.append({
-        'boxes': boxes,
-        'gt_classes': np.zeros((num_boxes,), dtype=np.int32),
-        'gt_overlaps': overlaps,
-        'flipped': False,
-        'seg_areas': np.zeros((num_boxes,), dtype=np.float32),
-      })
-    return roidb
-
-  @staticmethod
-  def merge_roidbs(a, b):
-    assert len(a) == len(b)
-    for i in range(len(a)):
-      a[i]['boxes'] = np.vstack((a[i]['boxes'], b[i]['boxes']))
-      a[i]['gt_classes'] = np.hstack((a[i]['gt_classes'],
-                                      b[i]['gt_classes']))
-      a[i]['gt_overlaps'] = scipy.sparse.vstack([a[i]['gt_overlaps'],
-                                                 b[i]['gt_overlaps']])
-      a[i]['seg_areas'] = np.hstack((a[i]['seg_areas'],
-                                     b[i]['seg_areas']))
-    return a
 
   def competition_mode(self, on):
     """Turn competition mode on or off."""

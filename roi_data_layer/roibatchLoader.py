@@ -492,9 +492,9 @@ class graspMulInSizeRoibatchLoader(graspdetRoibatchLoader, mulInSizeRoibatchLoad
 
     def _cropGrasp(self, data, coord_s, gt_grasps, gt_grasp_inds = None):
         # shift y coordiante of gt_boxes
-        gt_grasps[:, :-1][:, 1::2] -= float(coord_s[1])
+        gt_grasps[:, 1::2] -= float(coord_s[1])
         # shift x coordiante of gt_boxes
-        gt_grasps[:, :-1][:, 0::2] -= float(coord_s[0])
+        gt_grasps[:, 0::2] -= float(coord_s[0])
         # filter out illegal grasps
         keep = (((gt_grasps[:, 0::2] > 0) & (gt_grasps[:, 0::2] < data.size(1))).sum(1) == 4) & \
                (((gt_grasps[:, 1::2] > 0) & (gt_grasps[:, 1::2] < data.size(0))).sum(1) == 4)

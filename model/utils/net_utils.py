@@ -447,8 +447,8 @@ def objgrasp_inference(o_cls_prob, o_box_output, g_cls_prob, g_box_output, im_in
     pred_boxes = box_recover_scale_torch(pred_boxes, im_info[3], im_info[2])
     grasp_pred_boxes = box_recover_scale_torch(grasp_pred_boxes, im_info[3], im_info[2])
 
-    all_box = []
-    all_grasp = []
+    all_box = [[]]
+    all_grasp = [[]]
     for j in xrange(1, n_classes):
         if class_agnostic:
             cls_boxes = pred_boxes
@@ -460,6 +460,8 @@ def objgrasp_inference(o_cls_prob, o_box_output, g_cls_prob, g_box_output, im_in
 
         if for_vis:
             cls_dets[:, -1] = j
+        else:
+            grasps = np.squeeze(grasps, axis = 1)
         all_box.append(cls_dets)
         all_grasp.append(grasps)
 

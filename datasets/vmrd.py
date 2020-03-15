@@ -54,15 +54,8 @@ class vmrd(pascal_voc):
         self._image_index = self._load_image_set_index()
         self._roidb_handler = self.gt_roidb
 
-        self._salt = str(uuid.uuid4())
-        self._comp_id = 'comp4'
-
         # PASCAL specific config options
-        self.config = {'cleanup': True,
-                       'use_salt': True,
-                       'matlab_eval': False,
-                       'rpn_file': None,
-                       'min_size': 2}
+        self.config = {'matlab_eval': False, 'rpn_file': None, 'min_size': 2, 'cleanup': False}
         self._use07metric = use07metric
 
         assert os.path.exists(self._devkit_path), \
@@ -76,14 +69,9 @@ class vmrd(pascal_voc):
         """
         return os.path.join(cfg.DATA_DIR, 'VMRD')
 
-    def _get_comp_id(self):
-        comp_id = (self._comp_id + '_' + self._salt if self.config['use_salt']
-                   else self._comp_id)
-        return comp_id
-
     def _get_voc_results_file_template(self):
-        # VMRD/results/vmrdcompv1/Main/<comp_id>_det_test_aeroplane.txt
-        filename = self._get_comp_id() + '_det_' + self._image_set + '_{:s}.txt'
+        # VMRD/results/vmrdcompv1/Main/test_aeroplane.txt
+        filename = self._image_set + '_{:s}.txt'
         filedir = os.path.join(self._devkit_path, 'results', 'vmrd' + self._version, 'Main')
         if not os.path.exists(filedir):
             os.makedirs(filedir)
@@ -213,6 +201,9 @@ class vmrd(pascal_voc):
                                 format(index, dets[k, -1],
                                        dets[k, 0] + 1, dets[k, 1] + 1,
                                        dets[k, 2] + 1, dets[k, 3] + 1))
+
+    def competition_mode(self, on):
+        raise RuntimeError("VMRD does not support competition mode.")
 
     def _do_python_eval(self, output_dir='output'):
         annopath = os.path.join(
@@ -378,13 +369,13 @@ class vmrd(pascal_voc):
                 rel_ind += 1
         return tp, fp, ngt_rel
 
-    def evaluate_multigrasp_detections(self, all_boxes):
+    def evaluate_multigrasp_detections(self, all_boxes, all_grasp):
         print('-----------------------------------------------------')
         print('Computing results of Multi-Grasp Detection.')
         print('-----------------------------------------------------')
         print('Evaluating MR-FPPI...')
         # 100 points MissRate-FPPI
-        grasp_MRFPPI, APs = self.evaluate_multigrasp_MRFPPI(all_boxes)
+        grasp_MRFPPI, APs = self.evaluate_multigrasp_MRFPPI(all_boxes, all_grasp)
         print('Evaluating Completed...')
         print('Log-Average Miss Rate Results...')
         mean_grasp_MRFPPI = []
@@ -415,9 +406,9 @@ class vmrd(pascal_voc):
         for i,a in enumerate(key_point_MRFPPI):
             print("Miss Rate for All Objects (FPPI = %.1f): %.4f" % (keypoints[i],a))
 
-        return grasp_MRFPPI, mean_grasp_MRFPPI, key_point_MRFPPI
+        return grasp_MRFPPI, mean_grasp_MRFPPI, key_point_MRFPPI, np.mean(APs[np.nonzero(1-np.isnan(APs))])
 
-    def evaluate_multigrasp_MRFPPI(self, all_boxes):
+    def evaluate_multigrasp_MRFPPI(self, all_boxes, all_grasp):
         MRFPPI = []
         AP = []
         boxthresh = 0.5
@@ -432,8 +423,8 @@ class vmrd(pascal_voc):
             for im_ind, index in enumerate(self.image_index):
                 if len(all_boxes[cls][im_ind]):
                     boxanno = self._load_vmrd_annotation(index)
-                    all_boxes[cls][im_ind][0] = np.concatenate([all_boxes[cls][im_ind][0],
-                                                                np.zeros((all_boxes[cls][im_ind][0].shape[0], 1))
+                    all_boxes[cls][im_ind] = np.concatenate([all_boxes[cls][im_ind],
+                                                                np.zeros((all_boxes[cls][im_ind].shape[0], 1))
                                                                 ],axis=1)
                     if cls not in boxanno['gt_classes']:
                         continue
@@ -446,11 +437,11 @@ class vmrd(pascal_voc):
                         graspanno = self._load_grasp_annotation(index)
                         gt_grasp = self.points2label(graspanno['grasps'])
                         gt_grasp_inds = graspanno['grasp_inds']
-                        boxdets = all_boxes[cls][im_ind][0]
+                        boxdets = all_boxes[cls][im_ind]
 
                         sort_inds = np.argsort(boxdets[:, 4])[::-1]
                         boxdets = boxdets[sort_inds]
-                        graspdets = self.points2label(all_boxes[cls][im_ind][1])
+                        graspdets = self.points2label(all_grasp[cls][im_ind])
                         graspdets = graspdets[sort_inds]
                         if len(graspdets.shape)!= 2:
                             assert 0, "only support top1 grasp evaluation."
@@ -475,8 +466,8 @@ class vmrd(pascal_voc):
                             gt_index = boxannoindex[i]
                             current_gtgrasp = gt_grasp[gt_grasp_inds == gt_index]
                             for j in range(boxdets.shape[0]):
-                                # this detected box os already assigned to a ground truth
-                                if all_boxes[cls][im_ind][0][j, -1] == 1:
+                                # this detected box has already been assigned to a ground truth
+                                if all_boxes[cls][im_ind][j, -1] == 1:
                                     continue
                                 if IoUs[i][j] > boxthresh:
                                     current_detgrasp = graspdets[j]
@@ -485,7 +476,7 @@ class vmrd(pascal_voc):
                                         angdiff = np.abs(current_detgrasp[4] - current_gtgrasp[gtgr][4]) % 180
 
                                         if gr_ov > gr_jacth and ((angdiff < gr_angth) or (angdiff > 180 - gr_angth) > 0):
-                                            all_boxes[cls][im_ind][0][j, -1] = 1
+                                            all_boxes[cls][im_ind][j, -1] = 1
                                             flag_assign = True
                                             break
                                     if flag_assign:
@@ -494,7 +485,7 @@ class vmrd(pascal_voc):
             cls_dets = []
             for i in range(len(all_boxes[cls])):
                 if len(all_boxes[cls][i]):
-                    cls_dets.append(all_boxes[cls][i][0])
+                    cls_dets.append(all_boxes[cls][i])
             cls_dets = np.concatenate(cls_dets, axis = 0)
             cls_dets_all.append(cls_dets)
             GTall += GT
@@ -559,8 +550,8 @@ class vmrd(pascal_voc):
 
     def points2label(self, points):
         """
-        :param points: bs x n x 8 point array. Each line represents a grasp
-        :return: label: bs x n x 5 label array: xc, yc, w, h, Theta
+        :param points: bs x 8 point array. Each line represents a grasp
+        :return: label: bs x 5 label array: xc, yc, w, h, Theta
         """
         if points.shape[1] < 8:
             pdb.set_trace()

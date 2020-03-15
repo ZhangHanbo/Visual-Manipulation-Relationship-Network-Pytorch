@@ -12,11 +12,15 @@ TRAIN:
     DISPLAY : 20
     BBOX_NORMALIZE_TARGETS_PRECOMPUTED: True
     AUGMENTATION : True # When this is True, remember to go to utils/augmantation.py to config augmentation.
+    SNAPSHOT_ITERS: 100
+    SNAPSHOT_AFTER_TEST: True
   FCGN:
     BBOX_POSITIVE_WEIGHTS: 2.0
-    ANGLE_THRESH: 15.
+    ANGLE_MATCH: True
+    ANGLE_THRESH: 22.5
+    JACCARD_THRESH: 0.5
 FCGN:
-  FEAT_STRIDE : [32]
-  ANCHOR_ANGLES : [-75., -45., -15., 15., 45., 75.]
+  FEAT_STRIDE : [16]
+  ANCHOR_ANGLES : [-67.5, -22.5, 22.5, 67.5]
   ANCHOR_RATIOS : [1.]
   ANCHOR_SCALES : [1.5]
