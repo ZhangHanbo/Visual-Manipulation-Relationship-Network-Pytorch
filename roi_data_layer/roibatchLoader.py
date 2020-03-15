@@ -77,10 +77,10 @@ class objdetRoibatchLoader(roibatchLoader):
         if self.augmentation:
             blob['data'] = self.augImageOnly(blob['data'])
             if fix_size or self.batch_size == 1:
-                blob['data'], boxes, _, _, _ = self.augObjdet(image=blob['data'], boxes=blob['gt_boxes'], boxes_keep=keep)
+                blob['data'], blob['gt_boxes'], _, _, _ = self.augObjdet(image=blob['data'], boxes=blob['gt_boxes'], boxes_keep=keep)
             else:
                 # when the input size is not fixed, only RandomMirror is supported
-                blob['data'], boxes, _, _, _ = \
+                blob['data'], blob['gt_boxes'], _, _, _ = \
                     self.augObjdet.transforms[1](image=blob['data'], boxes=blob['gt_boxes'], boxes_keep=keep)
         # choose one predefined size, TODO: support multi-instance batch
         random_scale_ind = np.random.randint(0, high=len(cfg.SCALES))
@@ -157,16 +157,14 @@ class graspdetRoibatchLoader(roibatchLoader):
         if self.augmentation:
             blob['data'] = self.augImageOnly(blob['data'])
             if fix_size or self.batch_size == 1:
-                blob['data'], _, grasps, _, _ = self.augmGraspdet(image=blob['data'], grasps=blob['gt_grasps'], grasps_keep=keep)
+                blob['data'], _, blob['gt_grasps'], _, _ = self.augmGraspdet(image=blob['data'], grasps=blob['gt_grasps'], grasps_keep=keep)
             else:
                 # when the input size is not fixed, only RandomMirror is supported
-                blob['data'], _, grasps, _, _ = \
+                blob['data'], _, blob['gt_grasps'], _, _ = \
                     self.augmGraspdet.transforms[1](image=blob['data'], grasps=blob['gt_grasps'], grasps_keep=keep)
         # choose one predefined size, TODO: support multi-instance batch
         random_scale_ind = np.random.randint(0, high=len(cfg.SCALES))
         blob['data'], im_scale = prep_im_for_blob(blob['data'], cfg.SCALES[random_scale_ind], cfg.TRAIN.COMMON.MAX_SIZE, fix_size)
-        # modify bounding boxes according to resize parameters
-        assert im_scale['x'] == im_scale['y']
         blob['im_info'][:2] = (blob['data'].shape[0], blob['data'].shape[1])
         blob['im_info'][-2:] = (im_scale['y'], im_scale['x'])
         blob['gt_grasps'][:, 0::2] *= im_scale['x']
@@ -232,10 +230,10 @@ class vmrdetRoibatchLoader(objdetRoibatchLoader):
         if self.augmentation:
             blob['data'] = self.augImageOnly(blob['data'])
             if fix_size or self.batch_size == 1:
-                blob['data'], boxes, _, keep, _ = self.augObjdet(image=blob['data'], boxes=blob['gt_boxes'], boxes_keep=keep)
+                blob['data'], blob['gt_boxes'], _, keep, _ = self.augObjdet(image=blob['data'], boxes=blob['gt_boxes'], boxes_keep=keep)
             else:
                 # when the input size is not fixed, only RandomMirror is supported
-                blob['data'], boxes, _, keep, _ = \
+                blob['data'], blob['gt_boxes'], _, keep, _ = \
                     self.augObjdet.transforms[1](image=blob['data'], boxes=blob['gt_boxes'], boxes_keep=keep)
         # choose one predefined size, TODO: support multi-instance batch
         random_scale_ind = np.random.randint(0, high=len(cfg.SCALES))

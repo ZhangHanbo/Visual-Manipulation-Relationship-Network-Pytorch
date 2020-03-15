@@ -1,8 +1,8 @@
 # --------------------------------------------------------
-# Visual Detection: State-of-the-Art
 # Copyright: Hanbo Zhang
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Hanbo Zhang
+# Modified from R. B. G.'s faster_rcnn.py
 # --------------------------------------------------------
 
 import random

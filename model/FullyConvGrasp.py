@@ -35,7 +35,7 @@ class _FCGN(nn.Module):
 
     def __init__(self):
         super(_FCGN, self).__init__()
-        self.size = cfg.TRAIN.COMMON.INPUT_SIZE
+        self.size = cfg.SCALES[0]
 
         self._as = cfg.FCGN.ANCHOR_SCALES
         self._ar = cfg.FCGN.ANCHOR_RATIOS

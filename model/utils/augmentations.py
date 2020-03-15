@@ -374,6 +374,10 @@ class RandomCropKeepBoxes(object):
         self.need_square = need_square
 
     def __call__(self, im, bs=None, gr=None, bk=None, gk=None):
+
+        if random.randint(2):
+            return im, bs, gr, bk, gk
+
         height, width, _ = im.shape
         # Get the minimum boundary of all bboxes in dim x and y
         xmax, ymax = 0, 0
@@ -384,13 +388,11 @@ class RandomCropKeepBoxes(object):
             # Get the maximum boundary of all bboxes in dim x and y
             xmax = max(np.max(bs[:, 2]), xmax)
             ymax = max(np.max(bs[:, 3]), ymax)
-        elif gr is not None:
+        if gr is not None:
             xmin = min(np.min(gr[:, 0::2]), xmin)
             xmax = max(np.max(gr[:, 0::2]), xmax)
             ymin = min(np.min(gr[:, 1::2]), ymin)
             ymax = max(np.max(gr[:, 1::2]), ymax)
-        else:
-            raise RuntimeError
 
         for i in range(100):
             # Get top left corner's coordinate of the crop box
@@ -406,25 +408,26 @@ class RandomCropKeepBoxes(object):
                 p_end_down_left = (xmax, height)
                 r1_wh_ratio = (p_end_down_left[0] - x_start) / (p_end_down_left[1] - y_start)
                 r2_wh_ratio = (p_end_upper_right[0] - x_start) / (p_end_upper_right[1] - y_start)
-                if not (r1_wh_ratio < 1 & r2_wh_ratio > 1):
+                if not (r1_wh_ratio < 1 and r2_wh_ratio > 1):
                     continue
                 else:
                     x_end_max = min(height - y_start + x_start, width)
                     x_end = int(random.uniform(xmax, x_end_max))
                     y_end = x_end - x_start + y_start
+                    break
 
-            # Crop the image
-            im = im[y_start:y_end, x_start:x_end]
-
+        # Crop the image
+        im = im[y_start:y_end, x_start:x_end]
+        if bs is not None:
             # Adjust the bboxes to fit the cropped image
             bs[:, :-1][:, 0::2] -= x_start
             bs[:, :-1][:, 1::2] -= y_start
-
+        if gr is not None:
             # Adjust the grasp boxes to fit the cropped image
             gr[:, 0::2] -= x_start
             gr[:, 1::2] -= y_start
 
-            return im, bs, gr, bk, gk
+        return im, bs, gr, bk, gk
 
 class FixedSizeCrop(object):
     def __init__(self, min_x, min_y, max_x, max_y, cropsize_x, cropsize_y):
@@ -534,7 +537,7 @@ class RandomRotate(object):
                 grasps = np.hstack((grasps, np.ones((grasps.shape[0], 1))))
                 grasps = M.dot(grasps.T)
 
-                grasps = np.round(np.reshape(grasps.T, ori_shape)).astype(int)
+                grasps = np.reshape(grasps.T, ori_shape)
 
                 # check rotation results
                 img_bound = np.tile((width, height), (ori_shape[0], ori_shape[1] / 2))
@@ -548,7 +551,7 @@ class RandomRotate(object):
             else:
                 break
 
-        return image, bs, ls, grasps, bk, grasps_keep
+        return image, bs, grasps, bk, grasps_keep
 
 class RandomVerticalRotate(object):
     def __call__(self, image, boxes=None, grasps=None, boxes_keep=None, grasps_keep=None):

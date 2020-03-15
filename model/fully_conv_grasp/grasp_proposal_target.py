@@ -19,20 +19,6 @@ import numpy as np
 import pdb
 import time
 
-'''
-amiou = "AM_IOU.txt"
-f1 = open(amiou,'w')
-jmiou = "JM_IOU.txt"
-f2 = open(jmiou,'w')
-amang = "AM_ANG.txt"
-f3 = open(amang,'w')
-jmang = "JM_ANG.txt"
-f4 = open(jmang,'w')
-amt = "AM_T.txt"
-f5 = open(amt,'w')
-jmt = "JM_T.txt"
-f6 = open(jmt ,'w')
-'''
 
 from .bbox_transform_grasp import labels2points, points2labels, \
     grasp_encode, grasp_decode,jaccard_overlap
@@ -100,27 +86,10 @@ class _GraspTargetLayer(nn.Module):
 
         mask = torch.zeros_like(xdiff) + mask_gt.float()
 
-        #t1 = time.time()
         match_mat = (xdiff <= xthresh) \
                     & (ydiff <= ythresh) \
                     & (angdiff <= angle_thresh) \
                     & (mask != 0)
-        #t2 = time.time()
-
-        #iou_ind = torch.nonzero(match_mat).data.cpu()
-        #for i in iou_ind:
-            #rec1 = np.array(priors[i[0].item(),i[1].item(),:])
-            #rec2 = np.array(gt[i[0].item(),i[2].item(),:])
-            #f1.write(str(jaccard_overlap(rec1,rec2)))
-            #f1.write('\n')
-
-        #angs = angdiff[match_mat]
-        #for i in angs:
-            #f3.write(str(i.item()))
-            #f3.write('\n')
-
-        #f5.write(str(t2-t1))
-        #f5.write('\n')
 
         match_num = torch.sum(match_mat, 2, keepdim = True)
         label = torch.zeros(self.batch_size, num_priors).type_as(gt).long()
@@ -162,7 +131,6 @@ class _GraspTargetLayer(nn.Module):
         #angdiff = torch.abs(priors[:, :, 4:5] - ang_gt)
         mask = torch.zeros_like(xdiff) + mask_gt.float()
 
-        #t1 = time.time()
         match_mat = (xdiff <= self._feat_stride / 2) \
                     & (ydiff <= self._feat_stride / 2) \
                     & (mask != 0)
@@ -173,18 +141,6 @@ class _GraspTargetLayer(nn.Module):
             rec2 = np.array(gt[i[0].item(),i[2].item(),:])
             if jaccard_overlap(rec1,rec2) < cfg.TRAIN.FCGN.JACCARD_THRESH:
                 match_mat[i[0].item(),i[1].item(),i[2].item()] = 0
-            #else:
-                #f2.write(str(jaccard_overlap(rec1, rec2)))
-                #f2.write('\n')
-        #t2 = time.time()
-
-        #angs = angdiff[match_mat]
-        #for i in angs:
-            #f4.write(str(i.item()))
-            #f4.write('\n')
-
-        #f6.write(str(t2-t1))
-        #f6.write('\n')
 
         match_num = torch.sum(match_mat, 2, keepdim = True)
         label = torch.zeros(self.batch_size, num_priors).type_as(gt).long()

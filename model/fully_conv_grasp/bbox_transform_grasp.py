@@ -35,20 +35,29 @@ def points2labels(points):
     return label
 
 def labels2points(label):
-    x = label[:,:,0:1]
-    y = label[:,:,1:2]
-    w = label[:,:,2:3]
-    h = label[:,:,3:4]
-    a = label[:,:,4:5]
-    a = a / 180 * np.pi
+    if label.dim() == 2:
+        x = label[:, 0:1]
+        y = label[:, 1:2]
+        w = label[:, 2:3]
+        h = label[:, 3:4]
+        a = label[:, 4:5]
+        a = a / 180 * np.pi
+    elif label.dim() == 3:
+        x = label[:,:,0:1]
+        y = label[:,:,1:2]
+        w = label[:,:,2:3]
+        h = label[:,:,3:4]
+        a = label[:,:,4:5]
+        a = a / 180 * np.pi
     vec1x = w/2*torch.cos(a) + h/2*torch.sin(a)
     vec1y = -w/2*torch.sin(a) + h/2*torch.cos(a)
     vec2x = w/2*torch.cos(a) - h/2*torch.sin(a)
     vec2y = -w/2*torch.sin(a) - h/2*torch.cos(a)
     return torch.cat([x + vec1x,y + vec1y, x - vec2x,y - vec2y,
-        x - vec1x,y - vec1y, x + vec2x,y + vec2y,],2)
+        x - vec1x,y - vec1y, x + vec2x,y + vec2y,],-1)
 
 def grasp_encode(label, ref):
+    assert label.dim() == ref.dim()
     if ref.dim() == 2:
         ref_widths = ref[:, 2]
         ref_heights = ref[:, 3]
@@ -56,18 +65,11 @@ def grasp_encode(label, ref):
         ref_ctr_y = ref[:, 1]
         ref_angle = ref[:, 4]
 
-        gt_widths = label[:, :, 2]
-        gt_heights = label[:, :, 3]
-        gt_ctr_x = label[:, :, 0]
-        gt_ctr_y = label[:, :, 1]
-        gt_angle = label[:, :, 4]
-
-        targets_dx = (gt_ctr_x - ref_ctr_x.view(1,-1).expand_as(gt_ctr_x)) / ref_widths.view(1,-1).expand_as(gt_ctr_x)
-        targets_dy = (gt_ctr_y - ref_ctr_y.view(1,-1).expand_as(gt_ctr_y)) / ref_heights.view(1,-1).expand_as(gt_ctr_x)
-        targets_dw = torch.log(gt_widths / ref_widths.view(1,-1).expand_as(gt_widths))
-        targets_dh = torch.log(gt_heights / ref_heights.view(1,-1).expand_as(gt_heights))
-        targets_da = torch.div(gt_angle - ref_angle.view(1,-1).expand_as(gt_angle),
-                               cfg.TRAIN.FCGN.ANGLE_THRESH)
+        gt_widths = label[:, 2]
+        gt_heights = label[:, 3]
+        gt_ctr_x = label[:, 0]
+        gt_ctr_y = label[:, 1]
+        gt_angle = label[:, 4]
 
     elif ref.dim() == 3:
         ref_widths = ref[:, :, 2]
@@ -81,22 +83,23 @@ def grasp_encode(label, ref):
         gt_ctr_x = label[:, :, 0]
         gt_ctr_y = label[:, :, 1]
         gt_angle = label[:, :, 4]
-
-        targets_dx = (gt_ctr_x - ref_ctr_x) / ref_widths
-        targets_dy = (gt_ctr_y - ref_ctr_y) / ref_heights
-        targets_dw = torch.log(gt_widths / ref_widths)
-        targets_dh = torch.log(gt_heights / ref_heights)
-        targets_da = torch.div(gt_angle - ref_angle, cfg.TRAIN.FCGN.ANGLE_THRESH)
     else:
         raise ValueError('ref_roi input dimension is not correct.')
 
+    targets_dx = (gt_ctr_x - ref_ctr_x) / ref_widths
+    targets_dy = (gt_ctr_y - ref_ctr_y) / ref_heights
+    targets_dw = torch.log(gt_widths / ref_widths)
+    targets_dh = torch.log(gt_heights / ref_heights)
+    targets_da = torch.div(gt_angle - ref_angle, cfg.TRAIN.FCGN.ANGLE_THRESH)
+
+
     targets = torch.stack(
-        (targets_dx, targets_dy, targets_dw, targets_dh, targets_da),2)
+        (targets_dx, targets_dy, targets_dw, targets_dh, targets_da),-1)
 
     return targets
 
 def grasp_decode(encoded_label, ref):
-
+    assert encoded_label.dim() == ref.dim()
     if ref.dim() == 2:
         ref_widths = ref[:, 2]
         ref_heights = ref[:, 3]
@@ -104,17 +107,11 @@ def grasp_decode(encoded_label, ref):
         ref_ctr_y = ref[:, 1]
         ref_angle = ref[:, 4]
 
-        gt_widths = encoded_label[:, :, 2]
-        gt_heights = encoded_label[:, :, 3]
-        gt_ctr_x = encoded_label[:, :, 0]
-        gt_ctr_y = encoded_label[:, :, 1]
-        gt_angle = encoded_label[:, :, 4]
-
-        targets_dx = gt_ctr_x * ref_widths.view(1,-1).expand_as(gt_ctr_x) + ref_ctr_x.view(1,-1).expand_as(gt_ctr_x)
-        targets_dy = gt_ctr_y * ref_heights.view(1,-1).expand_as(gt_ctr_x)+ ref_ctr_y.view(1,-1).expand_as(gt_ctr_y)
-        targets_dw = torch.exp(gt_widths) * ref_widths.view(1,-1).expand_as(gt_widths)
-        targets_dh = torch.exp(gt_heights) * ref_heights.view(1,-1).expand_as(gt_heights)
-        targets_da = gt_angle * cfg.TRAIN.FCGN.ANGLE_THRESH + ref_angle.view(1,-1).expand_as(gt_angle)
+        gt_widths = encoded_label[:, 2]
+        gt_heights = encoded_label[:, 3]
+        gt_ctr_x = encoded_label[:, 0]
+        gt_ctr_y = encoded_label[:, 1]
+        gt_angle = encoded_label[:, 4]
 
     elif ref.dim() == 3:
         ref_widths = ref[:, :, 2]
@@ -128,17 +125,18 @@ def grasp_decode(encoded_label, ref):
         gt_ctr_x = encoded_label[:, :, 0]
         gt_ctr_y = encoded_label[:, :, 1]
         gt_angle = encoded_label[:, :, 4]
-
-        targets_dx = gt_ctr_x * ref_widths + ref_ctr_x
-        targets_dy = gt_ctr_y * ref_heights + ref_ctr_y
-        targets_dw = torch.exp(gt_widths) * ref_widths
-        targets_dh = torch.exp(gt_heights) * ref_heights
-        targets_da = gt_angle * cfg.TRAIN.FCGN.ANGLE_THRESH + ref_angle
     else:
         raise ValueError('ref_roi input dimension is not correct.')
 
+    targets_dx = gt_ctr_x * ref_widths + ref_ctr_x
+    targets_dy = gt_ctr_y * ref_heights + ref_ctr_y
+    targets_dw = torch.exp(gt_widths) * ref_widths
+    targets_dh = torch.exp(gt_heights) * ref_heights
+    targets_da = gt_angle * cfg.TRAIN.FCGN.ANGLE_THRESH + ref_angle
+
+
     targets = torch.stack(
-        (targets_dx, targets_dy, targets_dw, targets_dh, targets_da),2)
+        (targets_dx, targets_dy, targets_dw, targets_dh, targets_da),-1)
 
     return targets
 

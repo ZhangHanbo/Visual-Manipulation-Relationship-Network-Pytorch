@@ -175,7 +175,7 @@ def parse_args():
                       default=False, type=bool)
   parser.add_argument('--vis', dest='vis',
                       help='whether to visualize training data',
-                      default=False, type=bool)
+                      action='store_true')
 
   args = parser.parse_args()
   return args
@@ -407,6 +407,23 @@ def init_network(args, n_cls):
 
     return Network, optimizer
 
+def detection_filter(all_boxes, all_grasp = None, max_per_image = 100):
+    # Limit to max_per_image detections *over all classes*
+    image_scores = np.hstack([all_boxes[j][:, -1]
+                              for j in xrange(1, len(all_boxes))])
+    if len(image_scores) > max_per_image:
+        image_thresh = np.sort(image_scores)[-max_per_image]
+        for j in xrange(1, len(all_boxes)):
+            keep = np.where(all_boxes[j][:, -1] >= image_thresh)[0]
+            all_boxes[j] = all_boxes[j][keep, :]
+            if all_grasp is not None:
+                all_grasp[j][0] = all_grasp[j][0][keep, :]
+                all_grasp[j][1] = all_grasp[j][1][keep, :]
+    if all_grasp is not None:
+        return all_boxes, all_grasp
+    else:
+        return all_boxes
+
 def evalute_model(Network, namedb, args):
     max_per_image = 100
 
@@ -414,32 +431,32 @@ def evalute_model(Network, namedb, args):
     imdb, roidb, ratio_list, ratio_index = combined_roidb(namedb, False)
     if args.frame in {"fpn", "faster_rcnn"}:
         dataset = objdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           imdb.num_classes, training=False, cls_list=imdb.classes)
+                           imdb.num_classes, training=False, cls_list=imdb.classes, augmentation=False)
     elif args.frame in {"ssd"}:
         dataset = objdetRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           imdb.num_classes, training=False, cls_list=imdb.classes)
+                           imdb.num_classes, training=False, cls_list=imdb.classes, augmentation=False)
     elif args.frame in {"ssd_vmrn", "vam"}:
         dataset = vmrdetRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           imdb.num_classes, training=False, cls_list=imdb.classes)
+                           imdb.num_classes, training=False, cls_list=imdb.classes, augmentation=False)
     elif args.frame in {"faster_rcnn_vmrn"}:
         dataset = vmrdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           imdb.num_classes, training=False, cls_list=imdb.classes)
+                           imdb.num_classes, training=False, cls_list=imdb.classes, augmentation=False)
     elif args.frame in {"fcgn"}:
         dataset = graspdetRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           imdb.num_classes, training=False, cls_list=imdb.classes)
+                           imdb.num_classes, training=False, cls_list=imdb.classes, augmentation=False)
     elif args.frame in {"all_in_one"}:
         dataset = allInOneMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           imdb.num_classes, training=False, cls_list=imdb.classes)
+                           imdb.num_classes, training=False, cls_list=imdb.classes, augmentation=False)
     elif args.frame in {"roign", "mgn"}:
         dataset = roigdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           imdb.num_classes, training=False, cls_list=imdb.classes)
+                           imdb.num_classes, training=False, cls_list=imdb.classes, augmentation=False)
     else:
         raise RuntimeError
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False, num_workers=0, pin_memory=True)
     data_iter = iter(dataloader)
     num_images = len(imdb.image_index)
 
-    output_dir = args.save_dir + "/" + args.net + "/" + args.dataset
+    output_dir = args.save_dir + "/" + args.dataset + "/" + args.net
 
     start = time.time()
     thresh = 0.01
@@ -503,33 +520,26 @@ def evalute_model(Network, namedb, args):
             # detected_box is a list of boxes. len(list) = num_classes
             det_box = objdet_inference(cls_prob[0].data, bbox_pred[0].data, data_batch[1][0].data,
                         box_prior=boxes[0].data, class_agnostic=args.class_agnostic, n_classes=imdb.num_classes, for_vis=False)
+            if max_per_image > 0:
+                det_box = detection_filter(det_box, None, max_per_image)
             for j in xrange(1, imdb.num_classes):
                 all_boxes[j][i] = det_box[j]
         elif args.frame in {'mgn', 'roign', 'all_in_one'}:
-            det_box, det_grasps = objgrasp_inference(cls_prob[0].data, bbox_pred[0].data, grasp_prob.data, grasp_loc.data, data_batch[1][0].data,
-                        rois.data, class_agnostic=args.class_agnostic, n_classes=imdb.num_classes,
+            det_box, det_grasps = objgrasp_inference(cls_prob[0].data if cls_prob is not None else cls_prob,
+                        bbox_pred[0].data if bbox_pred is not None else bbox_pred,
+                        grasp_prob.data, grasp_loc.data, data_batch[1][0].data, rois[0].data,
+                        class_agnostic=args.class_agnostic, n_classes=imdb.num_classes,
                         g_box_prior=grasp_all_anchors.data, for_vis=False, topN_g = 1)
+            if max_per_image > 0:
+                det_box, det_grasps = detection_filter(det_box, det_grasps, max_per_image)
             for j in xrange(1, imdb.num_classes):
                 all_boxes[j][i] = det_box[j]
                 all_grasp[j][i] = [det_box[j].copy(), det_grasps[j]]
         elif args.frame in {'fcgn'}:
-            det_grasps = grasp_inference(cls_prob[0].data, bbox_pred[0].data, data_batch[1][0].data, box_prior = boxes.data, topN = 1)
+            det_grasps = grasp_inference(cls_prob[0].data, bbox_pred[0].data, data_batch[1][0].data, box_prior = boxes[0].data, topN = 1)
             all_grasp[1][i] = det_grasps
         else:
             raise RuntimeError("Illegal algorithm.")
-
-        # Limit to max_per_image detections *over all classes*
-        if max_per_image > 0:
-            image_scores = np.hstack([all_boxes[j][i][:, -1]
-                                      for j in xrange(1, imdb.num_classes)])
-            if len(image_scores) > max_per_image:
-                image_thresh = np.sort(image_scores)[-max_per_image]
-                for j in xrange(1, imdb.num_classes):
-                    keep = np.where(all_boxes[j][i][:, -1] >= image_thresh)[0]
-                    all_boxes[j][i] = all_boxes[j][i][keep, :]
-                    if args.frame in {'mgn', 'all_in_one'}:
-                        all_grasp[j][i][0] = all_grasp[j][i][0][keep, :]
-                        all_grasp[j][i][1] = all_grasp[j][i][1][keep, :]
 
         misc_toc = time.time()
         nms_time = misc_toc - misc_tic
@@ -641,6 +651,7 @@ def train():
         Network.train()
 
         start_epoch_time = time.time()
+        start = time.time()
 
         data_iter = iter(dataloader)
         for step in range(iters_per_epoch):
@@ -649,8 +660,10 @@ def train():
             data_batch = next(data_iter)
             if args.vis:
                 for i in range(data_batch[0].size(0)):
-                    im_vis = visualizer.draw_graspdet_with_owner(data_batch[0][i].permute(1,2,0).numpy() + cfg.PIXEL_MEANS,
-                        data_batch[2][i].numpy(),data_batch[3][i].numpy(),data_batch[7][i].numpy())
+                    # im_vis = visualizer.draw_graspdet_with_owner(data_batch[0][i].permute(1,2,0).numpy() + cfg.PIXEL_MEANS,
+                    #     data_batch[2][i].numpy(),data_batch[3][i].numpy(),data_batch[7][i].numpy())
+                    im_vis = visualizer.draw_graspdet(data_batch[0][i].permute(1,2,0).numpy() + cfg.PIXEL_MEANS,
+                                                      data_batch[2][i].numpy())
                     cv2.imwrite(os.path.join(data_vis_dir, "vis_batch" + str(step) + "_img" + str(i) + ".png"), im_vis)
             # ship to cuda
             if args.cuda:

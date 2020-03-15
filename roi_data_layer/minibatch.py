@@ -58,10 +58,6 @@ def get_minibatch_vmrdet(roidb):
     return blobs
 
 def get_minibatch_graspdet(roidb):
-    num_images = len(roidb)
-    assert (cfg.TRAIN.RCNN_COMMON.BATCH_SIZE % num_images == 0), \
-        'num_images ({}) must divide BATCH_SIZE ({})'.format(num_images, cfg.TRAIN.RCNN_COMMON.BATCH_SIZE)
-
     im_blob = _get_image_blob(roidb)
     gt_grasps = roidb['grasps'].astype(np.float32)
 

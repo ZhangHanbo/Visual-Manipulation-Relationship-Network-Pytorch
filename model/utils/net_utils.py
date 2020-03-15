@@ -339,7 +339,7 @@ def grasp_inference(cls_prob, box_output, im_info, box_prior = None, topN = Fals
     pred_boxes = labels2points(pred_label)
 
     imshape = np.tile(np.array([im_info[1], im_info[0]]),
-                      (pred_boxes.shape[:-2], int(pred_boxes.size(-2)), int(pred_boxes.size(-1) / 2)))
+                      pred_boxes.shape[:-2] + (int(pred_boxes.size(-2)), int(pred_boxes.size(-1) / 2)))
     imshape = torch.from_numpy(imshape).type_as(pred_boxes)
     keep = (((pred_boxes > imshape) | (pred_boxes < 0)).sum(-1) == 0)
     pred_boxes = pred_boxes[keep]
