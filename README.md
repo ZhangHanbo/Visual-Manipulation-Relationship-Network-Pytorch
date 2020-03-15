@@ -53,6 +53,6 @@ FPN | ResNet-101 | VOC2007trainval | VOC2007test | 73.4 |
 
 ## Problem Shooting
 
-[Solved] 1. When setting batch_size of Faster RCNN to 1 and augmentation to True, we want to use SSD-like augmentation to generate more training data. However, it will cause NaN error.
+1. [Solved] When setting batch_size of Faster RCNN to 1 and augmentation to True, we want to use SSD-like augmentation to generate more training data. However, it will cause NaN error.
 2. There are some grasp and relation label errors in VMRD. However, we find that they do not affect the detection performance much. We will fix this problem as soon as possible.
 3. This package only supports pytorch 0.4.0. When using 0.4.1, there will be segmentation fault (reason not found).
