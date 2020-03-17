@@ -2,13 +2,13 @@ EXP_DIR: res101
 SCALES: [800,]
 TRAIN:
   COMMON:
-    LEARNING_RATE : 0.001
-    LR_DECAY_STEPSIZE: [80000]
+    LEARNING_RATE : 0.002
+    LR_DECAY_STEPSIZE: [16000]
     GAMMA : 0.1
-    SNAPSHOT_ITERS: 10000
-    IMS_PER_BATCH : 2
-    MAX_EPOCH: 30
-    # AUGMENTATION : True # When this is True, remember to go to utils/augmantation.py to config augmentation.
+    SNAPSHOT_ITERS: 2000
+    IMS_PER_BATCH : 1
+    MAX_EPOCH: 20
+    AUGMENTATION : True # When this is True, remember to go to utils/augmantation.py to config augmentation.
     BBOX_NORMALIZE_TARGETS_PRECOMPUTED: True
     DISPLAY : 20
     WEIGHT_DECAY: 0.0005

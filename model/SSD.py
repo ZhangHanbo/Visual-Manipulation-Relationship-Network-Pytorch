@@ -194,8 +194,9 @@ class vgg16(_SSD):
 
     def _init_modules(self):
         # TODO: ADD CONFIGS INTO CONFIT.PY
-        base_cfg = [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'C', 512, 512, 512, 'M',
-                    512, 512, 512]
+        base_cfg = [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'C', 512, 512, 512  # conv3, stride 8
+            , 'M', 512, 512, 512 # conv4 stride 16
+                    ]
 
         extras_cfg = [256, 'S', 512, 128, 'S', 256, 128, 256, 128, 256]
 

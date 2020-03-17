@@ -19,19 +19,22 @@ from roi_pooling.modules.roi_pool import _RoIPooling
 from roi_crop.modules.roi_crop import _RoICrop
 from roi_align.modules.roi_align import RoIAlignAvg
 from rpn.proposal_target_layer_cascade import _ProposalTargetLayer
+from object_detector import objectDetector
 import time
 import pdb
-from utils.net_utils import _smooth_l1_loss, _crop_pool_layer, _affine_grid_gen, _affine_theta
-from basenet.resnet import resnet18,resnet34,resnet50,resnet101,resnet152
+from utils.net_utils import _smooth_l1_loss, _crop_pool_layer, _affine_grid_gen, _affine_theta, weights_normal_init,\
+    set_bn_eval, set_bn_fix
 
-class _fasterRCNN(nn.Module):
+class fasterRCNN(objectDetector):
     """ faster RCNN """
-    def __init__(self, classes, class_agnostic):
-        super(_fasterRCNN, self).__init__()
-        self.classes = classes
-        self.n_classes = len(classes)
-        self.class_agnostic = class_agnostic
+    def __init__(self, classes, class_agnostic, feat_name, feat_list=('conv4',), pretrained = True):
+
+        super(fasterRCNN, self).__init__(classes, class_agnostic, feat_name, feat_list, pretrained)
         # loss
+        rand_img = torch.Tensor(1, 3, 224, 224)
+        rand_feat = self.feat_extractor(rand_img)
+        self.dout_base_model = rand_feat.size(1)
+
         self.RCNN_loss_cls = 0
         self.RCNN_loss_bbox = 0
 
@@ -61,7 +64,7 @@ class _fasterRCNN(nn.Module):
             self.iter_counter += 1
 
         # feed image data to base model to obtain base feature map
-        base_feat = self.RCNN_base(im_data)
+        base_feat = self.feat_extractor(im_data)
 
         # feed base feature map tp RPN to obtain rois
         rois, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes)
@@ -136,139 +139,62 @@ class _fasterRCNN(nn.Module):
         return rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox, rois_label
 
     def _init_weights(self):
-        def normal_init(m, mean, stddev, truncated=False):
-            """
-            weight initalizer: truncated normal and random normal.
-            """
-            # x is a parameter
-            if truncated:
-                m.weight.data.normal_().fmod_(2).mul_(stddev).add_(mean) # not a perfect approximation
-            else:
-                m.weight.data.normal_(mean, stddev)
-                m.bias.data.zero_()
-
-        normal_init(self.RCNN_rpn.RPN_Conv, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-        normal_init(self.RCNN_rpn.RPN_cls_score, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-        normal_init(self.RCNN_rpn.RPN_bbox_pred, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-        normal_init(self.RCNN_cls_score, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-        normal_init(self.RCNN_bbox_pred, 0, 0.001, cfg.TRAIN.COMMON.TRUNCATED)
+        weights_normal_init(self.RCNN_rpn.RPN_Conv, 0.01)
+        weights_normal_init(self.RCNN_rpn.RPN_cls_score, 0.01)
+        weights_normal_init(self.RCNN_rpn.RPN_bbox_pred, 0.01)
+        weights_normal_init(self.RCNN_cls_score, 0.01)
+        weights_normal_init(self.RCNN_bbox_pred, 0.001)
 
     def create_architecture(self):
         self._init_modules()
         self._init_weights()
 
-class resnet(_fasterRCNN):
-  def __init__(self, classes, num_layers=101, pretrained=False, class_agnostic=False):
-    self.model_path = 'data/pretrained_model/resnet101_caffe.pth'
-    self.dout_base_model = 1024
-    self.pretrained = pretrained
-    self.class_agnostic = class_agnostic
-
-    _fasterRCNN.__init__(self, classes, class_agnostic)
-
-  def _init_modules(self):
-    resnet = resnet101()
-
-    if self.pretrained == True:
-      print("Loading pretrained weights from %s" %(self.model_path))
-      state_dict = torch.load(self.model_path)
-      resnet.load_state_dict({k:v for k,v in state_dict.items() if k in resnet.state_dict()})
-
-    # Build resnet.
-    self.RCNN_base = nn.Sequential(resnet.conv1, resnet.bn1,resnet.relu,
-      resnet.maxpool,resnet.layer1,resnet.layer2,resnet.layer3)
-
-    self.RCNN_top = nn.Sequential(resnet.layer4)
-
-    self.RCNN_cls_score = nn.Linear(2048, self.n_classes)
-    if self.class_agnostic:
-      self.RCNN_bbox_pred = nn.Linear(2048, 4)
-    else:
-      self.RCNN_bbox_pred = nn.Linear(2048, 4 * self.n_classes)
-
-    # Fix blocks
-    for p in self.RCNN_base[0].parameters(): p.requires_grad=False
-    for p in self.RCNN_base[1].parameters(): p.requires_grad=False
-
-    assert (0 <= cfg.RESNET.FIXED_BLOCKS < 4)
-    if cfg.RESNET.FIXED_BLOCKS >= 3:
-      for p in self.RCNN_base[6].parameters(): p.requires_grad=False
-    if cfg.RESNET.FIXED_BLOCKS >= 2:
-      for p in self.RCNN_base[5].parameters(): p.requires_grad=False
-    if cfg.RESNET.FIXED_BLOCKS >= 1:
-      for p in self.RCNN_base[4].parameters(): p.requires_grad=False
-
-    def set_bn_fix(m):
-      classname = m.__class__.__name__
-      if classname.find('BatchNorm') != -1:
-        for p in m.parameters(): p.requires_grad=False
-
-    self.RCNN_base.apply(set_bn_fix)
-    self.RCNN_top.apply(set_bn_fix)
-
-  def train(self, mode=True):
-    # Override train so that the training mode is set as we want
-    nn.Module.train(self, mode)
-    if mode:
-      # Set fixed blocks to be in eval mode
-      self.RCNN_base.eval()
-      self.RCNN_base[5].train()
-      self.RCNN_base[6].train()
-
-      def set_bn_eval(m):
-        classname = m.__class__.__name__
-        if classname.find('BatchNorm') != -1:
-          m.eval()
-
-      self.RCNN_base.apply(set_bn_eval)
-      self.RCNN_top.apply(set_bn_eval)
-
-  def _head_to_tail(self, pool5):
-    fc7 = self.RCNN_top(pool5).mean(3).mean(2)
-    return fc7
-
-
-class vgg16(_fasterRCNN):
-    def __init__(self, classes, pretrained=False, class_agnostic=False):
-        self.model_path = 'data/pretrained_model/vgg16_caffe.pth'
-        self.dout_base_model = 512
-        self.pretrained = pretrained
-        self.class_agnostic = class_agnostic
-
-        _fasterRCNN.__init__(self, classes, class_agnostic)
-
     def _init_modules(self):
-        vgg = models.vgg16()
-        if self.pretrained:
-            print("Loading pretrained weights from %s" % (self.model_path))
-            state_dict = torch.load(self.model_path)
-            vgg.load_state_dict({k: v for k, v in state_dict.items() if k in vgg.state_dict()})
+        objectDetector._init_modules(self)
+        if self.feat_name[:3] == 'res':
+            self._init_modules_resnet()
+        elif self.feat_name[:3] == 'vgg':
+            self._init_modules_vgg()
 
-        vgg.classifier = nn.Sequential(*list(vgg.classifier._modules.values())[:-1])
+    def _init_modules_resnet(self):
 
-        # not using the last maxpool layer
-        self.RCNN_base = nn.Sequential(*list(vgg.features._modules.values())[:-1])
+        self.RCNN_top = self.feat_extractor.feat_layer["conv5"]
+        self.RCNN_cls_score = nn.Linear(2048, self.n_classes)
+        if self.class_agnostic:
+            self.RCNN_bbox_pred = nn.Linear(2048, 4)
+        else:
+            self.RCNN_bbox_pred = nn.Linear(2048, 4 * self.n_classes)
 
-        # Fix the layers before conv3:
-        for layer in range(10):
-            for p in self.RCNN_base[layer].parameters(): p.requires_grad = False
+        self.RCNN_top.apply(set_bn_fix)
 
-        # self.RCNN_base = _RCNN_base(vgg.features, self.classes, self.dout_base_model)
+    def _init_modules_vgg(self):
 
-        self.RCNN_top = vgg.classifier
-
+        self.RCNN_top = self.feat_extractor.feat_layer["fc"]
         # not using the last maxpool layer
         self.RCNN_cls_score = nn.Linear(4096, self.n_classes)
-
         if self.class_agnostic:
             self.RCNN_bbox_pred = nn.Linear(4096, 4)
         else:
             self.RCNN_bbox_pred = nn.Linear(4096, 4 * self.n_classes)
 
-    def _head_to_tail(self, pool5):
+    def train(self, mode=True):
+        objectDetector.train(self, mode = mode)
+        if mode:
+            self.RCNN_top.apply(set_bn_eval)
 
+    def _head_to_tail(self, pool5):
+        if self.feat_name[:3] == 'res':
+            return self._head_to_tail_resnet(pool5)
+        elif self.feat_name[:3] == 'vgg':
+            return self._head_to_tail_vgg(pool5)
+
+    def _head_to_tail_resnet(self, pool5):
+        fc7 = self.RCNN_top(pool5).mean(3).mean(2)
+        return fc7
+
+    def _head_to_tail_vgg(self, pool5):
         pool5_flat = pool5.view(pool5.size(0), -1)
         fc7 = self.RCNN_top(pool5_flat)
-
         return fc7
+
 

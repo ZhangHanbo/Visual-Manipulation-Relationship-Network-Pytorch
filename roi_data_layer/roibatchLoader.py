@@ -3,6 +3,7 @@
 # Copyright: Hanbo Zhang
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Hanbo Zhang
+# based on code from Jiasen Lu, Jianwei Yang, Ross Girshick
 # --------------------------------------------------------
 
 from __future__ import absolute_import
@@ -87,7 +88,7 @@ class objdetRoibatchLoader(roibatchLoader):
         blob['data'], im_scale = prep_im_for_blob(blob['data'], cfg.SCALES[random_scale_ind], cfg.TRAIN.COMMON.MAX_SIZE, fix_size)
         # modify bounding boxes according to resize parameters
         blob['im_info'][:2] = (blob['data'].shape[0], blob['data'].shape[1])
-        blob['im_info'][-2:] = (im_scale['y'], im_scale['x'])
+        blob['im_info'][2:4] = (im_scale['y'], im_scale['x'])
         blob['gt_boxes'][:, :-1][:, 0::2] *= im_scale['x']
         blob['gt_boxes'][:, :-1][:, 1::2] *= im_scale['y']
         # substract means and swap channels
@@ -166,7 +167,7 @@ class graspdetRoibatchLoader(roibatchLoader):
         random_scale_ind = np.random.randint(0, high=len(cfg.SCALES))
         blob['data'], im_scale = prep_im_for_blob(blob['data'], cfg.SCALES[random_scale_ind], cfg.TRAIN.COMMON.MAX_SIZE, fix_size)
         blob['im_info'][:2] = (blob['data'].shape[0], blob['data'].shape[1])
-        blob['im_info'][-2:] = (im_scale['y'], im_scale['x'])
+        blob['im_info'][2:4] = (im_scale['y'], im_scale['x'])
         blob['gt_grasps'][:, 0::2] *= im_scale['x']
         blob['gt_grasps'][:, 1::2] *= im_scale['y']
         # substract means and swap channels
@@ -240,7 +241,7 @@ class vmrdetRoibatchLoader(objdetRoibatchLoader):
         blob['data'], im_scale = prep_im_for_blob(blob['data'], cfg.SCALES[random_scale_ind], cfg.TRAIN.COMMON.MAX_SIZE, fix_size)
         # modify bounding boxes according to resize parameters
         blob['im_info'][:2] = (blob['data'].shape[0], blob['data'].shape[1])
-        blob['im_info'][-2:] = (im_scale['y'], im_scale['x'])
+        blob['im_info'][2:4] = (im_scale['y'], im_scale['x'])
         blob['gt_boxes'][:, :-1][:, 0::2] *= im_scale['x']
         blob['gt_boxes'][:, :-1][:, 1::2] *= im_scale['y']
         # substract means and swap channels
@@ -642,7 +643,7 @@ class roigdetMulInSizeRoibatchLoader(graspMulInSizeRoibatchLoader, objdetMulInSi
         random_scale_ind = np.random.randint(0, high=len(cfg.SCALES))
         blob['data'], im_scale = prep_im_for_blob(blob['data'], cfg.SCALES[random_scale_ind], cfg.TRAIN.COMMON.MAX_SIZE, fix_size)
         blob['im_info'][:2] = (blob['data'].shape[0], blob['data'].shape[1])
-        blob['im_info'][-2:] = (im_scale['y'], im_scale['x'])
+        blob['im_info'][2:4] = (im_scale['y'], im_scale['x'])
         # modify bounding boxes according to resize parameters
         blob['gt_boxes'][:, :-1][:, 0::2] *= im_scale['x']
         blob['gt_boxes'][:, :-1][:, 1::2] *= im_scale['y']
@@ -760,7 +761,7 @@ class allInOneMulInSizeRoibatchLoader(vmrdetMulInSizeRoibatchLoader, roigdetMulI
         random_scale_ind = np.random.randint(0, high=len(cfg.SCALES))
         blob['data'], im_scale = prep_im_for_blob(blob['data'], cfg.SCALES[random_scale_ind], cfg.TRAIN.COMMON.MAX_SIZE, fix_size)
         blob['im_info'][:2] = (blob['data'].shape[0], blob['data'].shape[1])
-        blob['im_info'][-2:] = (im_scale['y'], im_scale['x'])
+        blob['im_info'][2:4] = (im_scale['y'], im_scale['x'])
         # modify bounding boxes according to resize parameters
         blob['gt_boxes'][:, :-1][:, 0::2] *= im_scale['x']
         blob['gt_boxes'][:, :-1][:, 1::2] *= im_scale['y']

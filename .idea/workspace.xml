@@ -3,15 +3,25 @@
   <component name="ChangeListManager">
     <list default="true" id="c9b880e4-a6e3-414a-b387-4aa4ff30b986" name="Default" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change beforePath="$PROJECT_DIR$/cfgs/cornell_fcgn_res50.yml" afterPath="$PROJECT_DIR$/cfgs/cornell_fcgn_res50.yml" />
-      <change beforePath="$PROJECT_DIR$/cfgs/cornell_fcgn_vgg16.yml" afterPath="$PROJECT_DIR$/cfgs/cornell_fcgn_vgg16.yml" />
+      <change beforePath="$PROJECT_DIR$/cfgs/pascal_voc_faster_rcnn_res101.yml" afterPath="$PROJECT_DIR$/cfgs/pascal_voc_faster_rcnn_res101.yml" />
+      <change beforePath="$PROJECT_DIR$/cfgs/pascal_voc_fpn_res101.yml" afterPath="$PROJECT_DIR$/cfgs/pascal_voc_fpn_res101.yml" />
       <change beforePath="$PROJECT_DIR$/cfgs/vmrdcompv1_mgn_res101.yml" afterPath="$PROJECT_DIR$/cfgs/vmrdcompv1_mgn_res101.yml" />
-      <change beforePath="$PROJECT_DIR$/datasets/coco.py" afterPath="$PROJECT_DIR$/datasets/coco.py" />
-      <change beforePath="$PROJECT_DIR$/datasets/imdb.py" afterPath="$PROJECT_DIR$/datasets/imdb.py" />
-      <change beforePath="$PROJECT_DIR$/datasets/pascal_voc.py" afterPath="$PROJECT_DIR$/datasets/pascal_voc.py" />
-      <change beforePath="$PROJECT_DIR$/datasets/vmrd.py" afterPath="$PROJECT_DIR$/datasets/vmrd.py" />
       <change beforePath="$PROJECT_DIR$/main.py" afterPath="$PROJECT_DIR$/main.py" />
+      <change beforePath="$PROJECT_DIR$/model/AllinOne.py" afterPath="$PROJECT_DIR$/model/AllinOne.py" />
+      <change beforePath="$PROJECT_DIR$/model/FasterRCNN.py" afterPath="$PROJECT_DIR$/model/FasterRCNN.py" />
+      <change beforePath="$PROJECT_DIR$/model/FullyConvGrasp.py" afterPath="$PROJECT_DIR$/model/FCGN.py" />
+      <change beforePath="$PROJECT_DIR$/model/MultiGrasp.py" afterPath="$PROJECT_DIR$/model/MultiGrasp.py" />
+      <change beforePath="$PROJECT_DIR$/model/RoIGrasp.py" afterPath="$PROJECT_DIR$/model/RoIGrasp.py" />
+      <change beforePath="$PROJECT_DIR$/model/SSD.py" afterPath="$PROJECT_DIR$/model/SSD.py" />
+      <change beforePath="$PROJECT_DIR$/model/basenet/resnet.py" afterPath="$PROJECT_DIR$/model/basenet/resnet.py" />
+      <change beforePath="$PROJECT_DIR$/model/fully_conv_grasp/__init__.py" afterPath="$PROJECT_DIR$/model/fcgn/__init__.py" />
+      <change beforePath="$PROJECT_DIR$/model/fully_conv_grasp/bbox_transform_grasp.py" afterPath="$PROJECT_DIR$/model/fcgn/bbox_transform_grasp.py" />
+      <change beforePath="$PROJECT_DIR$/model/fully_conv_grasp/classifier.py" afterPath="$PROJECT_DIR$/model/fcgn/classifier.py" />
+      <change beforePath="$PROJECT_DIR$/model/fully_conv_grasp/generate_grasp_anchors.py" afterPath="$PROJECT_DIR$/model/fcgn/generate_grasp_anchors.py" />
+      <change beforePath="$PROJECT_DIR$/model/fully_conv_grasp/grasp_proposal_target.py" afterPath="$PROJECT_DIR$/model/fcgn/grasp_proposal_target.py" />
+      <change beforePath="$PROJECT_DIR$/model/utils/data_viewer.py" afterPath="$PROJECT_DIR$/model/utils/data_viewer.py" />
       <change beforePath="$PROJECT_DIR$/model/utils/net_utils.py" afterPath="$PROJECT_DIR$/model/utils/net_utils.py" />
+      <change beforePath="$PROJECT_DIR$/roi_data_layer/minibatch.py" afterPath="$PROJECT_DIR$/roi_data_layer/minibatch.py" />
       <change beforePath="$PROJECT_DIR$/roi_data_layer/roibatchLoader.py" afterPath="$PROJECT_DIR$/roi_data_layer/roibatchLoader.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -29,17 +39,52 @@
     <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$test.coverage" NAME="test Coverage Results" MODIFIED="1526990247439" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$showlabel__1_.coverage" NAME="showlabel (1) Coverage Results" MODIFIED="1551077509174" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="/Volumes/Extreme SSD/Jacquard/Jacquard_Dataset_0/1a3efcaaf8db9957a010c31b9816f48b" />
     <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$showlabel.coverage" NAME="showlabel Coverage Results" MODIFIED="1549424673805" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="/Volumes/Extreme SSD/Jacquard/Jacquard_Dataset_0/1a1ec1cfe633adcdebbf11b1629fc16a" />
-    <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$trainval_net.coverage" NAME="trainval_net Coverage Results" MODIFIED="1584256183777" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$FasterRCNN.coverage" NAME="FasterRCNN Coverage Results" MODIFIED="1584407268651" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/model" />
+    <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$trainval_net.coverage" NAME="trainval_net Coverage Results" MODIFIED="1584416008963" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
       <file leaf-file-name="main.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/main.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="211">
-              <caret line="569" column="25" lean-forward="false" selection-start-line="569" selection-start-column="25" selection-end-line="569" selection-end-column="25" />
+            <state relative-caret-position="142">
+              <caret line="549" column="127" lean-forward="false" selection-start-line="549" selection-start-column="127" selection-end-line="549" selection-end-column="127" />
               <folding>
-                <element signature="e#265#303#0" expanded="true" />
+                <element signature="e#319#357#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="data_viewer.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/model/utils/data_viewer.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="164">
+              <caret line="85" column="0" lean-forward="false" selection-start-line="85" selection-start-column="0" selection-end-line="85" selection-end-column="0" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="FasterRCNN.py" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/model/FasterRCNN.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="2625">
+              <caret line="188" column="19" lean-forward="false" selection-start-line="188" selection-start-column="19" selection-end-line="188" selection-end-column="19" />
+              <folding>
+                <element signature="e#265#278#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="object_detector.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/model/object_detector.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="303">
+              <caret line="38" column="0" lean-forward="true" selection-start-line="38" selection-start-column="0" selection-end-line="38" selection-end-column="0" />
+              <folding>
+                <element signature="e#0#12#0" expanded="true" />
               </folding>
             </state>
           </provider>
@@ -48,60 +93,30 @@
       <file leaf-file-name="net_utils.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/model/utils/net_utils.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="280">
-              <caret line="461" column="31" lean-forward="false" selection-start-line="461" selection-start-column="31" selection-end-line="461" selection-end-column="31" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="data_viewer.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/model/utils/data_viewer.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-1112">
-              <caret line="12" column="28" lean-forward="false" selection-start-line="12" selection-start-column="28" selection-end-line="12" selection-end-column="28" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="README.md" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/README.md">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="855">
-              <caret line="57" column="0" lean-forward="false" selection-start-line="57" selection-start-column="0" selection-end-line="57" selection-end-column="0" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="roibatchLoader.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/roi_data_layer/roibatchLoader.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="276">
-              <caret line="726" column="0" lean-forward="false" selection-start-line="726" selection-start-column="0" selection-end-line="726" selection-end-column="0" />
+            <state relative-caret-position="380">
+              <caret line="53" column="17" lean-forward="true" selection-start-line="53" selection-start-column="17" selection-end-line="53" selection-end-column="17" />
               <folding>
-                <element signature="e#265#303#0" expanded="true" />
+                <element signature="e#0#12#0" expanded="true" />
               </folding>
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="pascal_voc.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/datasets/pascal_voc.py">
+      <file leaf-file-name="vmrdcompv1_mgn_res101.yml" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/cfgs/vmrdcompv1_mgn_res101.yml">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="258">
-              <caret line="290" column="32" lean-forward="false" selection-start-line="290" selection-start-column="23" selection-end-line="290" selection-end-column="32" />
+            <state relative-caret-position="120">
+              <caret line="8" column="21" lean-forward="false" selection-start-line="8" selection-start-column="21" selection-end-line="8" selection-end-column="21" />
               <folding />
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="vmrdcompv1_mgn_res101.yml" pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/cfgs/vmrdcompv1_mgn_res101.yml">
+      <file leaf-file-name="FPN.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/model/FPN.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="135">
-              <caret line="9" column="17" lean-forward="false" selection-start-line="9" selection-start-column="17" selection-end-line="9" selection-end-column="17" />
+            <state relative-caret-position="53">
+              <caret line="30" column="25" lean-forward="false" selection-start-line="30" selection-start-column="25" selection-end-line="30" selection-end-column="25" />
               <folding />
             </state>
           </provider>
@@ -118,26 +133,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>misc_tic</find>
-      <find>AGNO</find>
-      <find>CLASS</find>
-      <find>class_agnostic</find>
-      <find>class_ag</find>
-      <find>init_network</find>
-      <find>end</find>
-      <find>box_filter</find>
-      <find>max</find>
-      <find>INPUT_</find>
-      <find>NUM</find>
-      <find>max_epo</find>
-      <find>&amp;</find>
-      <find>asser</find>
-      <find>self.config</find>
-      <find>flipped</find>
-      <find>_load_rpn_roidb</find>
-      <find>create_roidb_from_box_list</find>
-      <find>merge_roidbs</find>
-      <find>astype</find>
       <find>augm</find>
       <find>all_boxes</find>
       <find>salt</find>
@@ -145,9 +140,29 @@
       <find>_get_voc_results_file_template</find>
       <find>topN_g</find>
       <find>evaluate_detections</find>
-      <find>max_per</find>
       <find>gt_grasps[</find>
       <find>detections</find>
+      <find>_load_image_set_index</find>
+      <find>blob['im_info'][-2:]</find>
+      <find>max_per</find>
+      <find>image_id</find>
+      <find>roidb</find>
+      <find>self._roidb</find>
+      <find>im_info</find>
+      <find>model_urls</find>
+      <find>ceil_mode</find>
+      <find>PRIOR_ASPECT_RATIO</find>
+      <find>RCNN_top</find>
+      <find>grid_size</find>
+      <find>FIXED_BLOCKS</find>
+      <find>RCNN_base</find>
+      <find>TRUNCATED</find>
+      <find>pretrained_model_path</find>
+      <find>net</find>
+      <find>dout_base_model</find>
+      <find>init_module</find>
+      <find>init_network</find>
+      <find>vis_result</find>
     </findStrings>
     <replaceStrings>
       <replace>iter_conter</replace>
@@ -160,7 +175,10 @@
       <replace>roidb</replace>
       <replace>box_</replace>
       <replace>image=</replace>
+      <replace>blob['im_info'][2:4]</replace>
       <replace>box_output</replace>
+      <replace />
+      <replace>vis_gt</replace>
     </replaceStrings>
   </component>
   <component name="Git.Settings">
@@ -169,23 +187,13 @@
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
       <list>
-        <option value="$PROJECT_DIR$/cfgs/vmrdcompv1_ssd_vgg16.yml" />
-        <option value="$PROJECT_DIR$/cfgs/vmrdcompv1_fcgn_res101.yml" />
-        <option value="$PROJECT_DIR$/cfgs/vmrdcompv1_faster_rcnn_vgg16.yml" />
-        <option value="$PROJECT_DIR$/cfgs/pascal_voc_ssd_vgg16.yml" />
-        <option value="$PROJECT_DIR$/cfgs/jacquard_roign_res101.yml" />
-        <option value="$PROJECT_DIR$/cfgs/jacquard_fcgn_res101.yml" />
         <option value="$PROJECT_DIR$/cfgs/cornell_roign_res101.yml" />
         <option value="$PROJECT_DIR$/cfgs/cornell_fcgn_res101.yml" />
-        <option value="$PROJECT_DIR$/roi_data_layer/roidb.py" />
         <option value="$PROJECT_DIR$/cfgs/vmrdcompv1_all_in_one_res101.yml" />
         <option value="$PROJECT_DIR$/model/VAM.py" />
-        <option value="$PROJECT_DIR$/model/SSD.py" />
         <option value="$PROJECT_DIR$/model/SSD_VMRN.py" />
-        <option value="$PROJECT_DIR$/model/RoIGrasp.py" />
         <option value="$PROJECT_DIR$/model/MultiGrasp.py" />
         <option value="$PROJECT_DIR$/model/FPN.py" />
-        <option value="$PROJECT_DIR$/model/FasterRCNN.py" />
         <option value="$PROJECT_DIR$/model/AllinOne.py" />
         <option value="$PROJECT_DIR$/model/fully_conv_grasp/classifier.py" />
         <option value="$PROJECT_DIR$/model/fully_conv_grasp/generate_grasp_anchors.py" />
@@ -195,16 +203,13 @@
         <option value="$PROJECT_DIR$/datasets/cornell.py" />
         <option value="$PROJECT_DIR$/datasets/jacquard.py" />
         <option value="$PROJECT_DIR$/model/utils/blob.py" />
-        <option value="$PROJECT_DIR$/model/utils/data_viewer.py" />
         <option value="$PROJECT_DIR$/cfgs/vmrdcompv1_faster_rcnn_res101.yml" />
-        <option value="$PROJECT_DIR$/cfgs/pascal_voc_fpn_res101.yml" />
         <option value="$PROJECT_DIR$/model/rpn/anchor_target_layer.py" />
         <option value="$PROJECT_DIR$/model/rpn/bbox_transform.py" />
         <option value="$PROJECT_DIR$/model/utils/config.py" />
         <option value="$PROJECT_DIR$/trainval_net.py" />
         <option value="$PROJECT_DIR$/model/VMRN.py" />
         <option value="$PROJECT_DIR$/model/FullyConvGrasp.py" />
-        <option value="$PROJECT_DIR$/roi_data_layer/minibatch.py" />
         <option value="$PROJECT_DIR$/model/fully_conv_grasp/grasp_proposal_target.py" />
         <option value="$PROJECT_DIR$/model/fully_conv_grasp/bbox_transform_grasp.py" />
         <option value="$PROJECT_DIR$/model/utils/augmentations.py" />
@@ -214,11 +219,24 @@
         <option value="$PROJECT_DIR$/datasets/imdb.py" />
         <option value="$PROJECT_DIR$/cfgs/cornell_fcgn_res50.yml" />
         <option value="$PROJECT_DIR$/cfgs/cornell_fcgn_vgg16.yml" />
-        <option value="$PROJECT_DIR$/cfgs/pascal_voc_faster_rcnn_res101.yml" />
-        <option value="$PROJECT_DIR$/cfgs/vmrdcompv1_mgn_res101.yml" />
-        <option value="$PROJECT_DIR$/roi_data_layer/roibatchLoader.py" />
-        <option value="$PROJECT_DIR$/model/utils/net_utils.py" />
         <option value="$PROJECT_DIR$/datasets/vmrd.py" />
+        <option value="$PROJECT_DIR$/model/RoIGrasp.py" />
+        <option value="$PROJECT_DIR$/cfgs/pascal_voc_faster_rcnn_res101.yml" />
+        <option value="$PROJECT_DIR$/cfgs/pascal_voc_fpn_res101.yml" />
+        <option value="$PROJECT_DIR$/roi_data_layer/roidb.py" />
+        <option value="$PROJECT_DIR$/roi_data_layer/roibatchLoader.py" />
+        <option value="$PROJECT_DIR$/roi_data_layer/minibatch.py" />
+        <option value="$PROJECT_DIR$/model/__init__.py" />
+        <option value="$PROJECT_DIR$/model/SSD.py" />
+        <option value="$PROJECT_DIR$/model/basenet/factory.py" />
+        <option value="$PROJECT_DIR$/cfgs/vmrdcompv1_mgn_res101.yml" />
+        <option value="$PROJECT_DIR$/model/utils/net_utils.py" />
+        <option value="$PROJECT_DIR$/model/object_detector.py" />
+        <option value="$PROJECT_DIR$/model/basenet/feat_extractor.py" />
+        <option value="$PROJECT_DIR$/model/basenet/vgg.py" />
+        <option value="$PROJECT_DIR$/model/basenet/resnet.py" />
+        <option value="$PROJECT_DIR$/model/FasterRCNN.py" />
+        <option value="$PROJECT_DIR$/model/utils/data_viewer.py" />
         <option value="$PROJECT_DIR$/main.py" />
       </list>
     </option>
@@ -264,13 +282,29 @@
             <path>
               <item name="Visual-Manipulation-Relationship-Network-Pytorch" type="b2602c69:ProjectViewProjectNode" />
               <item name="Visual-Manipulation-Relationship-Network-Pytorch" type="462c0819:PsiDirectoryNode" />
+              <item name="cfgs" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="Visual-Manipulation-Relationship-Network-Pytorch" type="b2602c69:ProjectViewProjectNode" />
+              <item name="Visual-Manipulation-Relationship-Network-Pytorch" type="462c0819:PsiDirectoryNode" />
               <item name="model" type="462c0819:PsiDirectoryNode" />
             </path>
             <path>
               <item name="Visual-Manipulation-Relationship-Network-Pytorch" type="b2602c69:ProjectViewProjectNode" />
               <item name="Visual-Manipulation-Relationship-Network-Pytorch" type="462c0819:PsiDirectoryNode" />
               <item name="model" type="462c0819:PsiDirectoryNode" />
+              <item name="basenet" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="Visual-Manipulation-Relationship-Network-Pytorch" type="b2602c69:ProjectViewProjectNode" />
+              <item name="Visual-Manipulation-Relationship-Network-Pytorch" type="462c0819:PsiDirectoryNode" />
+              <item name="model" type="462c0819:PsiDirectoryNode" />
               <item name="utils" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="Visual-Manipulation-Relationship-Network-Pytorch" type="b2602c69:ProjectViewProjectNode" />
+              <item name="Visual-Manipulation-Relationship-Network-Pytorch" type="462c0819:PsiDirectoryNode" />
+              <item name="roi_data_layer" type="462c0819:PsiDirectoryNode" />
             </path>
           </expand>
           <select />
@@ -286,6 +320,7 @@
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/model/basenet" />
       <recent name="$PROJECT_DIR$/cfgs" />
       <recent name="$PROJECT_DIR$/model" />
     </key>
@@ -307,6 +342,25 @@
     </option>
   </component>
   <component name="RunManager" selected="Python.trainval_net">
+    <configuration name="FasterRCNN" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/model" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="Visual-Manipulation-Relationship-Network-Pytorch" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/model/FasterRCNN.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+    </configuration>
     <configuration name="gen_cornell_box" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -364,26 +418,6 @@
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
     </configuration>
-    <configuration name="showlabel" type="PythonConfigurationType" factoryName="Python" temporary="true">
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-        <env name="PYTHONPATH" value="$PROJECT_DIR$/model" />
-      </envs>
-      <option name="SDK_HOME" value="$USER_HOME$/Workspace/pytorch/bin/python" />
-      <option name="WORKING_DIRECTORY" value="/Volumes/Extreme SSD/Jacquard/Jacquard_Dataset_0/1a1ec1cfe633adcdebbf11b1629fc16a" />
-      <option name="IS_MODULE_SDK" value="false" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <module name="Visual-Manipulation-Relationship-Network-Pytorch" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="/Volumes/Extreme SSD/Jacquard/Jacquard_Dataset_0/1a1ec1cfe633adcdebbf11b1629fc16a/showlabel.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-    </configuration>
     <configuration name="trainval_net" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -399,25 +433,25 @@
       <module name="Visual-Manipulation-Relationship-Network-Pytorch" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/main.py" />
-      <option name="PARAMETERS" value="--net res101 --frame mgn --dataset vmrdcompv1 --cuda --vis" />
+      <option name="PARAMETERS" value="--net res101 --frame faster_rcnn --dataset pascal_voc --cuda --vis" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
     </configuration>
     <list size="5">
       <item index="0" class="java.lang.String" itemvalue="Python.jacquard_dataset_gen" />
-      <item index="1" class="java.lang.String" itemvalue="Python.showlabel" />
-      <item index="2" class="java.lang.String" itemvalue="Python.gen_cornell_box" />
-      <item index="3" class="java.lang.String" itemvalue="Python.showlabel (1)" />
-      <item index="4" class="java.lang.String" itemvalue="Python.trainval_net" />
+      <item index="1" class="java.lang.String" itemvalue="Python.gen_cornell_box" />
+      <item index="2" class="java.lang.String" itemvalue="Python.showlabel (1)" />
+      <item index="3" class="java.lang.String" itemvalue="Python.trainval_net" />
+      <item index="4" class="java.lang.String" itemvalue="Python.FasterRCNN" />
     </list>
     <recent_temporary>
       <list size="5">
         <item index="0" class="java.lang.String" itemvalue="Python.trainval_net" />
-        <item index="1" class="java.lang.String" itemvalue="Python.showlabel (1)" />
-        <item index="2" class="java.lang.String" itemvalue="Python.gen_cornell_box" />
-        <item index="3" class="java.lang.String" itemvalue="Python.jacquard_dataset_gen" />
-        <item index="4" class="java.lang.String" itemvalue="Python.showlabel" />
+        <item index="1" class="java.lang.String" itemvalue="Python.FasterRCNN" />
+        <item index="2" class="java.lang.String" itemvalue="Python.showlabel (1)" />
+        <item index="3" class="java.lang.String" itemvalue="Python.gen_cornell_box" />
+        <item index="4" class="java.lang.String" itemvalue="Python.jacquard_dataset_gen" />
       </list>
     </recent_temporary>
   </component>
@@ -482,269 +516,11 @@
           </properties>
         </breakpoint>
       </default-breakpoints>
-      <option name="time" value="133" />
+      <option name="time" value="148" />
     </breakpoint-manager>
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/model/FasterRCNN.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="90">
-          <caret line="6" column="0" lean-forward="true" selection-start-line="6" selection-start-column="0" selection-end-line="6" selection-end-column="0" />
-          <folding>
-            <element signature="e#265#278#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/model/AllinOne.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="6" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/model/rpn/proposal_target_layer_cascade.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding>
-            <element signature="e#0#38#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/model/fully_conv_grasp/classifier.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="6" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/model/fully_conv_grasp/generate_grasp_anchors.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="6" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/model/op2l/object_pairing_layer.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="6" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/model/op2l/op2l.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="6" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/model/op2l/rois_pair_expanding_layer.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="6" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/model/op2l/test_op2l.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding>
-            <element signature="e#0#12#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/datasets/bdds.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/datasets/jacquard.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="235">
-          <caret line="174" column="73" lean-forward="false" selection-start-line="174" selection-start-column="73" selection-end-line="174" selection-end-column="73" />
-          <folding>
-            <element signature="e#0#37#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/cfgs/pascal_voc_fpn_res101.yml">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="90">
-          <caret line="6" column="24" lean-forward="false" selection-start-line="6" selection-start-column="24" selection-end-line="6" selection-end-column="24" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/model/rpn/anchor_target_layer.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1930">
-          <caret line="116" column="44" lean-forward="true" selection-start-line="116" selection-start-column="44" selection-end-line="116" selection-end-column="44" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/model/rpn/rpn.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="397">
-          <caret line="43" column="46" lean-forward="false" selection-start-line="43" selection-start-column="46" selection-end-line="43" selection-end-column="46" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/model/utils/blob.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="855">
-          <caret line="57" column="17" lean-forward="false" selection-start-line="57" selection-start-column="17" selection-end-line="57" selection-end-column="17" />
-          <folding>
-            <element signature="e#279#297#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$USER_HOME$/Workspace/pytorch/lib/python2.7/site-packages/torch/utils/data/dataloader.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="455">
-          <caret line="450" column="25" lean-forward="false" selection-start-line="450" selection-start-column="25" selection-end-line="450" selection-end-column="25" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$USER_HOME$/Library/Caches/PyCharm2017.3/python_stubs/-1493621059/numpy/core/_multiarray_umath.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="193">
-          <caret line="751" column="4" lean-forward="false" selection-start-line="751" selection-start-column="4" selection-end-line="751" selection-end-column="4" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/model/RoIGrasp.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="81">
-          <caret line="196" column="27" lean-forward="true" selection-start-line="196" selection-start-column="27" selection-end-line="196" selection-end-column="27" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/model/ssd/default_bbox_generator.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-756">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/model/ssd/multi_bbox_loss.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1716">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/test_net.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/roi_data_layer/roidb.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="120">
-          <caret line="8" column="34" lean-forward="false" selection-start-line="8" selection-start-column="0" selection-end-line="9" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/datasets/factory.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="361">
-          <caret line="89" column="4" lean-forward="false" selection-start-line="89" selection-start-column="4" selection-end-line="89" selection-end-column="4" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/model/FullyConvGrasp.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="178">
-          <caret line="73" column="13" lean-forward="false" selection-start-line="73" selection-start-column="13" selection-end-line="73" selection-end-column="13" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/roi_data_layer/minibatch.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-431">
-          <caret line="11" column="10" lean-forward="false" selection-start-line="11" selection-start-column="7" selection-end-line="11" selection-end-column="10" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/model/utils/config.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="178">
-          <caret line="31" column="26" lean-forward="false" selection-start-line="31" selection-start-column="17" selection-end-line="31" selection-end-column="26" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/datasets/cornell.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-297">
-          <caret line="24" column="0" lean-forward="true" selection-start-line="24" selection-start-column="0" selection-end-line="24" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/model/rpn/bbox_transform.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1252">
-          <caret line="157" column="0" lean-forward="false" selection-start-line="157" selection-start-column="0" selection-end-line="157" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/model/VMRN.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="359">
-          <caret line="163" column="28" lean-forward="true" selection-start-line="163" selection-start-column="28" selection-end-line="163" selection-end-column="28" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/requirements.txt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/README.md">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="855">
-          <caret line="57" column="0" lean-forward="false" selection-start-line="57" selection-start-column="0" selection-end-line="57" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/datasets/coco.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="527">
@@ -760,14 +536,6 @@
           <folding>
             <element signature="e#0#37#0" expanded="false" />
           </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/model/fully_conv_grasp/bbox_transform_grasp.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1241">
-          <caret line="96" column="71" lean-forward="false" selection-start-line="96" selection-start-column="71" selection-end-line="96" selection-end-column="71" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -803,7 +571,7 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/model/fully_conv_grasp/grasp_proposal_target.py">
+    <entry file="file://$PROJECT_DIR$/model/fcgn/grasp_proposal_target.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="218">
           <caret line="45" column="27" lean-forward="true" selection-start-line="45" selection-start-column="27" selection-end-line="45" selection-end-column="27" />
@@ -821,26 +589,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/cfgs/pascal_voc_faster_rcnn_res101.yml">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="129">
-          <caret line="14" column="21" lean-forward="true" selection-start-line="14" selection-start-column="4" selection-end-line="14" selection-end-column="21" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/model/nms/nms_gpu.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="75">
           <caret line="9" column="0" lean-forward="false" selection-start-line="9" selection-start-column="0" selection-end-line="9" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/datasets/imdb.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="154">
-          <caret line="48" column="12" lean-forward="false" selection-start-line="48" selection-start-column="12" selection-end-line="48" selection-end-column="12" />
           <folding />
         </state>
       </provider>
@@ -853,63 +605,349 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/model/utils/net_utils.py">
+    <entry file="file://$PROJECT_DIR$/model/RoIGrasp.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="280">
-          <caret line="461" column="31" lean-forward="false" selection-start-line="461" selection-start-column="31" selection-end-line="461" selection-end-column="31" />
+        <state relative-caret-position="1146">
+          <caret line="182" column="31" lean-forward="false" selection-start-line="182" selection-start-column="31" selection-end-line="182" selection-end-column="31" />
           <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/model/utils/data_viewer.py">
+    <entry file="file://$PROJECT_DIR$/model/MultiGrasp.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1112">
-          <caret line="12" column="28" lean-forward="false" selection-start-line="12" selection-start-column="28" selection-end-line="12" selection-end-column="28" />
+        <state relative-caret-position="-3003">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
           <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/main.py">
+    <entry file="file://$PROJECT_DIR$/README.md">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="211">
-          <caret line="569" column="25" lean-forward="false" selection-start-line="569" selection-start-column="25" selection-end-line="569" selection-end-column="25" />
+        <state relative-caret-position="726">
+          <caret line="57" column="0" lean-forward="false" selection-start-line="57" selection-start-column="0" selection-end-line="57" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/model/rpn/anchor_target_layer.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="780">
+          <caret line="72" column="15" lean-forward="false" selection-start-line="72" selection-start-column="8" selection-end-line="72" selection-end-column="15" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/model/rpn/bbox_transform.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="171">
+          <caret line="144" column="26" lean-forward="false" selection-start-line="144" selection-start-column="26" selection-end-line="144" selection-end-column="26" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/model/rpn/proposal_layer.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1209">
+          <caret line="138" column="28" lean-forward="false" selection-start-line="138" selection-start-column="28" selection-end-line="138" selection-end-column="28" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/model/rpn/rpn.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-1034">
+          <caret line="40" column="37" lean-forward="false" selection-start-line="40" selection-start-column="36" selection-end-line="40" selection-end-column="37" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/model/rpn/proposal_target_layer_cascade.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="70">
+          <caret line="32" column="49" lean-forward="false" selection-start-line="32" selection-start-column="49" selection-end-line="32" selection-end-column="49" />
           <folding>
-            <element signature="e#265#303#0" expanded="true" />
+            <element signature="e#0#38#0" expanded="false" />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/model/op2l/rois_pair_expanding_layer.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-452">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="6" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/model/op2l/op2l.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-167">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="6" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/model/op2l/object_pairing_layer.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-479">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/model/AllinOne.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="429">
+          <caret line="129" column="25" lean-forward="true" selection-start-line="129" selection-start-column="25" selection-end-line="129" selection-end-column="25" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/datasets/imdb.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="164">
+          <caret line="32" column="9" lean-forward="false" selection-start-line="32" selection-start-column="9" selection-end-line="32" selection-end-column="9" />
+          <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/datasets/vmrd.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="3959">
-          <caret line="557" column="46" lean-forward="false" selection-start-line="557" selection-start-column="46" selection-end-line="557" selection-end-column="46" />
+        <state relative-caret-position="-2897">
+          <caret line="53" column="54" lean-forward="false" selection-start-line="53" selection-start-column="33" selection-end-line="53" selection-end-column="54" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/cfgs/pascal_voc_fpn_res101.yml">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-77">
+          <caret line="8" column="17" lean-forward="false" selection-start-line="8" selection-start-column="17" selection-end-line="8" selection-end-column="17" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/roi_data_layer/roidb.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="376">
+          <caret line="42" column="29" lean-forward="true" selection-start-line="42" selection-start-column="29" selection-end-line="42" selection-end-column="29" />
+          <folding>
+            <element signature="e#78#116#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/roi_data_layer/minibatch.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="75">
+          <caret line="5" column="59" lean-forward="false" selection-start-line="5" selection-start-column="59" selection-end-line="5" selection-end-column="59" />
+          <folding>
+            <element signature="e#325#363#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/model/fcgn/bbox_transform_grasp.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1305">
+          <caret line="96" column="71" lean-forward="false" selection-start-line="96" selection-start-column="71" selection-end-line="96" selection-end-column="71" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/model/FCGN.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="260">
+          <caret line="73" column="13" lean-forward="false" selection-start-line="73" selection-start-column="13" selection-end-line="73" selection-end-column="13" />
+          <folding>
+            <element signature="e#265#277#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/Library/Caches/PyCharm2017.3/python_stubs/-1493621059/__builtin__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="167">
+          <caret line="4351" column="12" lean-forward="true" selection-start-line="4351" selection-start-column="12" selection-end-line="4351" selection-end-column="12" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/model/fcgn/classifier.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="375">
+          <caret line="32" column="22" lean-forward="false" selection-start-line="32" selection-start-column="22" selection-end-line="32" selection-end-column="22" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/model/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/Workspace/pytorch/lib/python2.7/site-packages/torch/nn/modules/pooling.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-1521">
+          <caret line="10" column="48" lean-forward="false" selection-start-line="10" selection-start-column="39" selection-end-line="10" selection-end-column="48" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/model/SSD.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="113">
+          <caret line="216" column="21" lean-forward="true" selection-start-line="216" selection-start-column="21" selection-end-line="216" selection-end-column="21" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/datasets/factory.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="390">
+          <caret line="28" column="7" lean-forward="true" selection-start-line="28" selection-start-column="7" selection-end-line="28" selection-end-column="7" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/datasets/pascal_voc.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="780">
+          <caret line="81" column="18" lean-forward="false" selection-start-line="81" selection-start-column="18" selection-end-line="81" selection-end-column="18" />
           <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/roi_data_layer/roibatchLoader.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="276">
-          <caret line="726" column="0" lean-forward="false" selection-start-line="726" selection-start-column="0" selection-end-line="726" selection-end-column="0" />
-          <folding>
-            <element signature="e#265#303#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="9210">
+          <caret line="632" column="38" lean-forward="false" selection-start-line="632" selection-start-column="38" selection-end-line="632" selection-end-column="38" />
+          <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/datasets/pascal_voc.py">
+    <entry file="file://$PROJECT_DIR$/model/basenet/factory.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="258">
-          <caret line="290" column="32" lean-forward="false" selection-start-line="290" selection-start-column="23" selection-end-line="290" selection-end-column="32" />
+        <state relative-caret-position="297">
+          <caret line="21" column="36" lean-forward="false" selection-start-line="21" selection-start-column="36" selection-end-line="21" selection-end-column="36" />
           <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/cfgs/vmrdcompv1_mgn_res101.yml">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="135">
-          <caret line="9" column="17" lean-forward="false" selection-start-line="9" selection-start-column="17" selection-end-line="9" selection-end-column="17" />
+        <state relative-caret-position="120">
+          <caret line="8" column="21" lean-forward="false" selection-start-line="8" selection-start-column="21" selection-end-line="8" selection-end-column="21" />
           <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/model/utils/config.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="154">
+          <caret line="36" column="26" lean-forward="false" selection-start-line="36" selection-start-column="17" selection-end-line="36" selection-end-column="26" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/Workspace/pytorch/lib/python2.7/site-packages/torch/nn/modules/module.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="110">
+          <caret line="806" column="8" lean-forward="false" selection-start-line="806" selection-start-column="8" selection-end-line="806" selection-end-column="8" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/model/utils/net_utils.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="380">
+          <caret line="53" column="17" lean-forward="true" selection-start-line="53" selection-start-column="17" selection-end-line="53" selection-end-column="17" />
+          <folding>
+            <element signature="e#0#12#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/model/FPN.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="53">
+          <caret line="30" column="25" lean-forward="false" selection-start-line="30" selection-start-column="25" selection-end-line="30" selection-end-column="25" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/model/basenet/vgg.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="113">
+          <caret line="48" column="70" lean-forward="false" selection-start-line="48" selection-start-column="70" selection-end-line="48" selection-end-column="70" />
+          <folding>
+            <element signature="e#60#71#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/model/basenet/feat_extractor.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="135">
+          <caret line="14" column="34" lean-forward="true" selection-start-line="14" selection-start-column="34" selection-end-line="14" selection-end-column="34" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/model/basenet/resnet.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-186">
+          <caret line="183" column="26" lean-forward="false" selection-start-line="183" selection-start-column="26" selection-end-line="183" selection-end-column="26" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/model/object_detector.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="303">
+          <caret line="38" column="0" lean-forward="true" selection-start-line="38" selection-start-column="0" selection-end-line="38" selection-end-column="0" />
+          <folding>
+            <element signature="e#0#12#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/model/utils/data_viewer.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="164">
+          <caret line="85" column="0" lean-forward="false" selection-start-line="85" selection-start-column="0" selection-end-line="85" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/cfgs/pascal_voc_faster_rcnn_res101.yml">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="180">
+          <caret line="12" column="24" lean-forward="true" selection-start-line="12" selection-start-column="24" selection-end-line="12" selection-end-column="24" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/main.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="142">
+          <caret line="549" column="127" lean-forward="false" selection-start-line="549" selection-start-column="127" selection-end-line="549" selection-end-column="127" />
+          <folding>
+            <element signature="e#319#357#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/model/FasterRCNN.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2625">
+          <caret line="188" column="19" lean-forward="false" selection-start-line="188" selection-start-column="19" selection-end-line="188" selection-end-column="19" />
+          <folding>
+            <element signature="e#265#278#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>

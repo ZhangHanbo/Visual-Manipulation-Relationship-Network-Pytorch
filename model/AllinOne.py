@@ -23,13 +23,13 @@ from roi_crop.modules.roi_crop import _RoICrop
 from roi_align.modules.roi_align import RoIAlignAvg
 from rpn.proposal_target_layer_cascade import _ProposalTargetLayer
 from model.rpn.bbox_transform import bbox_transform_inv, clip_boxes
-from model.fully_conv_grasp.bbox_transform_grasp import points2labels
+from model.fcgn.bbox_transform_grasp import points2labels
 from model.nms.nms_wrapper import nms
 from model.basenet.resnet import Bottleneck
 
-from model.fully_conv_grasp.classifier import _Classifier
-from model.fully_conv_grasp.grasp_proposal_target import _GraspTargetLayer
-from model.fully_conv_grasp.generate_grasp_anchors import generate_oriented_anchors
+from model.fcgn.classifier import _Classifier
+from model.fcgn.grasp_proposal_target import _GraspTargetLayer
+from model.fcgn.generate_grasp_anchors import generate_oriented_anchors
 
 import time
 import pdb

@@ -2,7 +2,8 @@
 # Visual Detection: State-of-the-Art
 # Copyright: Hanbo Zhang
 # Licensed under The MIT License [see LICENSE for details]
-# Written by Hanbo Zhang
+# Written by Hanbo
+# based on code from Jiasen Lu, Jianwei Yang, Ross Girshick
 # --------------------------------------------------------
 
 from __future__ import absolute_import
@@ -33,10 +34,10 @@ from model.utils.net_utils import weights_normal_init, save_net, load_net, \
       adjust_learning_rate, save_checkpoint, clip_gradient
 from model.utils.data_viewer import dataViewer
 
-import model.FasterRCNN as FasterRCNN
+from model.FasterRCNN import fasterRCNN
 import model.FPN as FPN
 import model.VMRN as VMRN
-import model.FullyConvGrasp as FCGN
+import model.FCGN as FCGN
 import model.SSD as SSD
 import model.SSD_VMRN as SSD_VMRN
 import model.MultiGrasp as MGN
@@ -269,17 +270,9 @@ def init_network(args, n_cls):
     """
     # initilize the network here.'
     if args.frame == 'faster_rcnn':
-        if args.net == 'vgg16':
-            Network = FasterRCNN.vgg16(n_cls, pretrained=True, class_agnostic=args.class_agnostic)
-        elif args.net == 'res101':
-            Network = FasterRCNN.resnet(n_cls, 101, pretrained=True, class_agnostic=args.class_agnostic)
-        elif args.net == 'res50':
-            Network = FasterRCNN.resnet(n_cls, 50, pretrained=True, class_agnostic=args.class_agnostic)
-        elif args.net == 'res152':
-            Network = FasterRCNN.resnet(n_cls, 152, pretrained=True, class_agnostic=args.class_agnostic)
-        else:
-            print("network is not defined")
-            pdb.set_trace()
+        conv_num = str(int(np.log2(cfg.RCNN_COMMON.FEAT_STRIDE[0])))
+        Network = fasterRCNN(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
+                             feat_list=('conv' + conv_num,), pretrained = True)
     elif args.frame == 'faster_rcnn_vmrn':
         if args.net == 'vgg16':
             Network = VMRN.vgg16(n_cls, pretrained=True, class_agnostic=args.class_agnostic)
@@ -423,6 +416,34 @@ def detection_filter(all_boxes, all_grasp = None, max_per_image = 100):
     else:
         return all_boxes
 
+def vis_gt(data_batch, visualizer, frame):
+    batch_size = data_batch[0].size(0)
+    im_list = []
+    for i in range(batch_size):
+        if frame in {"fpn", "faster_rcnn", "ssd"}:
+            im_vis = visualizer.draw_objdet(data_batch[0][i].permute(1, 2, 0).cpu().numpy() + cfg.PIXEL_MEANS,
+                                            data_batch[2][i].cpu().numpy())
+        elif frame in {"ssd_vmrn", "vam", "faster_rcnn_vmrn"}:
+            # TODO: visualize manipulation relationship tree
+            im_vis = visualizer.draw_objdet(data_batch[0][i].permute(1, 2, 0).cpu().numpy() + cfg.PIXEL_MEANS,
+                                            data_batch[2][i].cpu().numpy())
+        elif frame in {"fcgn"}:
+            im_vis = visualizer.draw_graspdet(data_batch[0][i].permute(1, 2, 0).cpu().numpy() + cfg.PIXEL_MEANS,
+                                              data_batch[2][i].cpu().numpy())
+        elif frame in {"all_in_one"}:
+            # TODO: visualize manipulation relationship tree
+            im_vis = visualizer.draw_graspdet_with_owner(data_batch[0][i].permute(1, 2, 0).cpu().numpy() + cfg.PIXEL_MEANS,
+                                                         data_batch[2][i].cpu().numpy(), data_batch[3][i].cpu().numpy(),
+                                                         data_batch[-1][i].cpu().numpy())
+        elif frame in {"roign", "mgn"}:
+            im_vis = visualizer.draw_graspdet_with_owner(data_batch[0][i].permute(1, 2, 0).cpu().numpy() + cfg.PIXEL_MEANS,
+                                                         data_batch[2][i].cpu().numpy(), data_batch[3][i].cpu().numpy(),
+                                                         data_batch[-1][i].cpu().numpy())
+        else:
+            raise RuntimeError
+        im_list.append(im_vis)
+    return im_list
+
 def evalute_model(Network, namedb, args):
     max_per_image = 100
 
@@ -457,8 +478,16 @@ def evalute_model(Network, namedb, args):
 
     output_dir = args.save_dir + "/" + args.dataset + "/" + args.net
 
+    if args.vis:
+        visualizer = dataViewer(imdb.classes)
+        data_vis_dir = os.path.join(args.save_dir, args.dataset, 'data_vis', 'test')
+        if not os.path.exists(data_vis_dir):
+            os.makedirs(data_vis_dir)
+        id_number_to_name = {}
+        for r in roidb:
+            id_number_to_name[r["img_id"]] = r["image"]
+
     start = time.time()
-    thresh = 0.01
 
     # init variables
     all_boxes = [[[] for _ in xrange(num_images)]
@@ -519,6 +548,7 @@ def evalute_model(Network, namedb, args):
             # detected_box is a list of boxes. len(list) = num_classes
             det_box = objdet_inference(cls_prob[0].data, bbox_pred[0].data, data_batch[1][0].data,
                         box_prior=boxes[0].data, class_agnostic=args.class_agnostic, n_classes=imdb.num_classes, for_vis=False)
+            # TODO: visualize detection results
             if max_per_image > 0:
                 det_box = detection_filter(det_box, None, max_per_image)
             for j in xrange(1, imdb.num_classes):
@@ -631,9 +661,12 @@ def train():
 
     if args.vis:
         visualizer = dataViewer(imdb.classes)
-        data_vis_dir = os.path.join(args.save_dir, args.dataset, 'data_vis')
+        data_vis_dir = os.path.join(args.save_dir, args.dataset, 'data_vis', 'train')
         if not os.path.exists(data_vis_dir):
             os.makedirs(data_vis_dir)
+        id_number_to_name = {}
+        for r in roidb:
+            id_number_to_name[r["img_id"]] = r["image"]
 
     # init network
     Network, optimizer = init_network(args, imdb.classes)
@@ -659,11 +692,10 @@ def train():
             data_batch = next(data_iter)
             if args.vis:
                 for i in range(data_batch[0].size(0)):
-                    im_vis = visualizer.draw_graspdet_with_owner(data_batch[0][i].permute(1,2,0).numpy() + cfg.PIXEL_MEANS,
-                        data_batch[2][i].numpy(),data_batch[3][i].numpy(),data_batch[-1][i].numpy())
-                    # im_vis = visualizer.draw_graspdet(data_batch[0][i].permute(1,2,0).numpy() + cfg.PIXEL_MEANS,
-                    #                                   data_batch[2][i].numpy())
-                    cv2.imwrite(os.path.join(data_vis_dir, "vis_batch" + str(step) + "_img" + str(i) + ".png"), im_vis)
+                    im_list = vis_gt(data_batch, visualizer, args.frame)
+                    for i, im_vis in enumerate(im_list):
+                        img_name = id_number_to_name[data_batch[1][i][4].item()].split("/")[-1]
+                        cv2.imwrite(os.path.join(data_vis_dir, img_name), im_vis)
             # ship to cuda
             if args.cuda:
                 data_batch = makeCudaData(data_batch)
@@ -895,18 +927,13 @@ def test():
 
     imdb = get_imdb(args.imdb_name)
 
-    if args.vis:
-        visualizer = dataViewer(imdb.classes)
-        data_vis_dir = os.path.join(args.save_dir, args.dataset, 'data_vis')
-        if not os.path.exists(data_vis_dir):
-            os.makedirs(data_vis_dir)
-
     # init network
     Network, optimizer = init_network(args, imdb.classes)
     Network.eval()
     evalute_model(Network, args.imdbval_name, args)
 
 if __name__ == '__main__':
+
     # init arguments
     args = read_cfgs()
     assert args.frame in LEGAL_FRAMES, "Illegal algorithm name."

@@ -69,7 +69,7 @@ class dataViewer(object):
         """
         # make memory contiguous
         im = np.ascontiguousarray(im)
-        dets = dets[dets[:, 0] > 0]
+        dets = dets[dets[:, 0] > 0].astype(np.int)
         num_grasp = dets.shape[0]
         for i in range(num_grasp):
             im = self.draw_single_grasp(im, dets[i], str(g_inds[i]) if g_inds is not None else None)
@@ -83,7 +83,7 @@ class dataViewer(object):
         """
         # make memory contiguous
         im = np.ascontiguousarray(im)
-        dets = dets[dets[:,0] > 0]
+        dets = dets[dets[:,0] > 0].astype(np.int)
         num_grasp = dets.shape[0]
 
         for i in range(num_grasp):

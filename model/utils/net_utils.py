@@ -12,7 +12,7 @@ import random
 import time
 
 from model.rpn.bbox_transform import bbox_transform_inv, clip_boxes
-from model.fully_conv_grasp.bbox_transform_grasp import labels2points, grasp_decode
+from model.fcgn.bbox_transform_grasp import labels2points, grasp_decode
 from model.nms.nms_wrapper import nms
 
 def save_net(fname, net):
@@ -39,6 +39,15 @@ def weights_normal_init(model, dev=0.01):
             elif isinstance(m, nn.Linear):
                 m.weight.data.normal_(0.0, dev)
 
+def set_bn_fix(m):
+    classname = m.__class__.__name__
+    if classname.find('BatchNorm') != -1:
+        for p in m.parameters(): p.requires_grad=False
+
+def set_bn_eval(m):
+    classname = m.__class__.__name__
+    if classname.find('BatchNorm') != -1:
+        m.eval()
 
 def clip_gradient(model, clip_norm):
     """Computes a gradient clipping coefficient based on gradient norm."""

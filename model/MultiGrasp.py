@@ -23,13 +23,13 @@ from roi_align.modules.roi_align import RoIAlignAvg
 from rpn.proposal_target_layer_cascade import _ProposalTargetLayer
 from rpn.rpn import _RPN
 
-from model.fully_conv_grasp.classifier import _Classifier
-from model.fully_conv_grasp.grasp_proposal_target import _GraspTargetLayer
-from model.fully_conv_grasp.bbox_transform_grasp import \
+from model.fcgn.classifier import _Classifier
+from model.fcgn.grasp_proposal_target import _GraspTargetLayer
+from model.fcgn.bbox_transform_grasp import \
     points2labels,labels2points,grasp_encode, grasp_decode
 from model.rpn.bbox_transform import bbox_overlaps_batch
 
-from model.fully_conv_grasp.bbox_transform_grasp import points2labels
+from model.fcgn.bbox_transform_grasp import points2labels
 from model.utils.net_utils import _smooth_l1_loss, _affine_grid_gen
 
 from model.basenet.resnet import Bottleneck
@@ -37,7 +37,7 @@ from model.basenet.resnet import Bottleneck
 import numpy as np
 import copy
 
-from model.fully_conv_grasp.generate_grasp_anchors import generate_oriented_anchors
+from model.fcgn.generate_grasp_anchors import generate_oriented_anchors
 
 import pdb
 
