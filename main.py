@@ -286,15 +286,8 @@ def init_network(args, n_cls):
             print("network is not defined")
             pdb.set_trace()
     elif args.frame == 'fpn':
-        if args.net == 'res101':
-            Network = FPN.resnet(n_cls, 101, pretrained=True, class_agnostic=args.class_agnostic)
-        elif args.net == 'res50':
-            Network = FPN.resnet(n_cls, 50, pretrained=True, class_agnostic=args.class_agnostic)
-        elif args.net == 'res152':
-            Network = FPN.resnet(n_cls, 152, pretrained=True, class_agnostic=args.class_agnostic)
-        else:
-            print("network is not defined")
-            pdb.set_trace()
+        Network = fasterRCNN(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
+                             feat_list=('conv2', 'conv3', 'conv4', 'conv5'), pretrained=True)
     elif args.frame == 'fcgn':
         if args.net == 'res101':
             Network = FCGN.resnet(num_layers=101, pretrained=True)

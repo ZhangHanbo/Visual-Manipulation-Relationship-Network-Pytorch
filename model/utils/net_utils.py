@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
+import torch.nn.init as init
+
 import numpy as np
 import torchvision.models as models
 from model.utils.config import cfg
@@ -36,8 +38,23 @@ def weights_normal_init(model, dev=0.01):
         for m in model.modules():
             if isinstance(m, nn.Conv2d):
                 m.weight.data.normal_(0.0, dev)
+                m.bias.data.zero_()
             elif isinstance(m, nn.Linear):
                 m.weight.data.normal_(0.0, dev)
+                m.bias.data.zero_()
+
+def weights_xavier_init(model):
+    def xavier(param):
+        init.xavier_uniform(param)
+
+    if isinstance(model, list):
+        for m in model:
+            weights_xavier_init(m)
+    else:
+        for m in model.modules():
+            if isinstance(m, nn.Conv2d):
+                xavier(m.weight.data)
+                m.bias.data.zero_()
 
 def set_bn_fix(m):
     classname = m.__class__.__name__

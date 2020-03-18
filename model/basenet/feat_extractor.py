@@ -15,3 +15,6 @@ class featExtractor(nn.Module):
         """
         super(featExtractor, self).__init__()
         self.feat_list = feat_list
+
+        self.feat_layer = OrderedDict()
+

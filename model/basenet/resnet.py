@@ -31,11 +31,11 @@ model_urls = {
 }
 
 local_model_paths = {
-    'res152': 'data/pretrained_model/resnet152_caffe.pth',
+    'res152': 'data/pretrained_model/resnet152-b121ed2d.pth',
     'res101': 'data/pretrained_model/resnet101_caffe.pth',
-    'res50': 'data/pretrained_model/resnet50_caffe.pth',
-    'res34': 'data/pretrained_model/resnet34_caffe.pth',
-    'res18': 'data/pretrained_model/resnet18_caffe.pth',
+    'res50': 'data/pretrained_model/resnet50-19c8e357.pth',
+    'res34': 'data/pretrained_model/resnet34-333f7ec4.pth',
+    'res18': 'data/pretrained_model/resnet18-5c106cde.pth',
 }
 
 def conv3x3(in_planes, out_planes, stride=1):
@@ -133,6 +133,7 @@ class ResNet(featExtractor):
 
         # it is slightly better whereas slower to set stride = 1
         # self.layer4 = self._make_layer(block, 512, layers[3], stride=1)
+
         self.avgpool = nn.AvgPool2d(7)
         self.fc = nn.Linear(512 * block.expansion, num_classes)
 
@@ -145,7 +146,7 @@ class ResNet(featExtractor):
                 m.bias.data.zero_()
 
         if pretrained_model_path is not None:
-            print("loading pretrained model: ", pretrained_model_path)
+            print("loading pretrained model: " + pretrained_model_path)
             state_dict = torch.load(pretrained_model_path)
             self.load_state_dict({k:v for k,v in state_dict.items() if k in self.state_dict()})
 
@@ -153,7 +154,6 @@ class ResNet(featExtractor):
 
         self._init_modules()
 
-        self.feat_layer = OrderedDict()
         self.feat_layer["conv1"] = [self.conv1, self.bn1, self.relu]
         self.feat_layer["maxpool"] = self.maxpool
         self.feat_layer["conv2"] = self.layer1

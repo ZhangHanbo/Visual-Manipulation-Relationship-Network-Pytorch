@@ -6,6 +6,12 @@ import torch
 import torch.nn as nn
 import torch.nn.init as init
 
+from model.utils.config import cfg
+
+from .feat_extractor import featExtractor
+
+from model.utils.net_utils import set_bn_fix, set_bn_eval
+
 model_urls = {
     'vgg11': 'https://download.pytorch.org/models/vgg11-bbd30ac9.pth',
     'vgg13': 'https://download.pytorch.org/models/vgg13-c768596a.pth',
@@ -18,11 +24,18 @@ model_urls = {
 }
 
 local_model_paths = {
-    'vgg16': 'data/pretrained_model/vgg16_caffe.pth',
+    'vgg11': 'data/pretrained_model/vgg11-bbd30ac9.pth',
+    'vgg13': 'data/pretrained_model/vgg13-c768596a.pth',
+    'vgg16': 'data/pretrained_model/vgg16-397923af.pth',
+    'vgg19': 'data/pretrained_model/vgg19-dcbb9e9d.pth',
+    'vgg11_bn': 'data/pretrained_model/vgg11_bn-6002323d.pth',
+    'vgg13_bn': 'data/pretrained_model/vgg13_bn-abd245e5.pth',
+    'vgg16_bn': 'data/pretrained_model/vgg16_bn-6c64b313.pth',
+    'vgg19_bn': 'data/pretrained_model/vgg19_bn-c79401a0.pth',
 }
 
 
-class VGG(nn.Module):
+class VGG(featExtractor):
     '''
     VGG model
     '''
@@ -46,7 +59,7 @@ class VGG(nn.Module):
 
          # Initialize weights
         if pretrained_model_path is not None:
-            print("loading pretrained model: ", pretrained_model_path)
+            print("loading pretrained model: " + pretrained_model_path)
             state_dict = torch.load(pretrained_model_path)
             self.load_state_dict({k: v for k, v in state_dict.items() if k in self.state_dict()})
         else:
@@ -54,11 +67,11 @@ class VGG(nn.Module):
 
         self.feat_list = feat_list
         # init feat layer
-        self.feat_layer["conv1"] = nn.Sequential(self.features[self.pool_loc[0] : self.pool_loc[1]])
-        self.feat_layer["conv2"] = nn.Sequential(self.features[self.pool_loc[1] : self.pool_loc[2]])
-        self.feat_layer["conv3"] = nn.Sequential(self.features[self.pool_loc[2] : self.pool_loc[3]])
-        self.feat_layer["conv4"] = nn.Sequential(self.features[self.pool_loc[3] : self.pool_loc[4]])
-        self.feat_layer["conv5"] = nn.Sequential(self.features[self.pool_loc[4] : self.pool_loc[5]])
+        self.feat_layer["conv1"] = self.features[self.pool_loc[0] : self.pool_loc[1]]
+        self.feat_layer["conv2"] = self.features[self.pool_loc[1] : self.pool_loc[2]]
+        self.feat_layer["conv3"] = self.features[self.pool_loc[2] : self.pool_loc[3]]
+        self.feat_layer["conv4"] = self.features[self.pool_loc[3] : self.pool_loc[4]]
+        self.feat_layer["conv5"] = self.features[self.pool_loc[4] : self.pool_loc[5]]
         self.feat_layer["fc"] = self.classifier[:-1]
         self.feat_layer["cscore"] = self.classifier[-1]
 
@@ -89,6 +102,38 @@ class VGG(nn.Module):
         if len(self.feat_list) == 1:
             feats = feats[0]
         return feats
+
+    def _init_modules(self):
+
+        # Fix blocks
+        for p in self.feat_layer["conv1"].parameters(): p.requires_grad = False
+
+        assert (0 <= cfg.RESNET.FIXED_BLOCKS < 4)
+        if cfg.VGG.FIXED_BLOCKS >= 3:
+            for p in self.feat_layer["conv4"].parameters(): p.requires_grad = False
+        if cfg.VGG.FIXED_BLOCKS >= 2:
+            for p in self.feat_layer["conv3"].parameters(): p.requires_grad = False
+        if cfg.VGG.FIXED_BLOCKS >= 1:
+            for p in self.feat_layer["conv2"].parameters(): p.requires_grad = False
+
+        self.apply(set_bn_fix)
+
+    def train(self, mode = True):
+        # Override train so that the training mode is set as we want
+        nn.Module.train(self, mode)
+        if mode:
+
+            # Set fixed blocks to be in eval mode
+            self.feat_layer["conv1"].eval()
+
+            if cfg.VGG.FIXED_BLOCKS >= 1:
+                self.feat_layer["conv2"].eval()
+            if cfg.VGG.FIXED_BLOCKS >= 2:
+                self.feat_layer["conv3"].eval()
+            if cfg.VGG.FIXED_BLOCKS >= 3:
+                self.feat_layer["conv4"].eval()
+
+            self.apply(set_bn_eval)
 
 def make_layers(cfg, batch_norm=False):
     layers = []
@@ -129,14 +174,14 @@ cfgs = {
 def vgg_initializer(name, feat_list, pretrained = False):
     cfg_dict = {
         "vgg11": {"cfg": "A", "bn": False},
-        "vgg13": {"block": "B", "bn": False},
-        "vgg16": {"block": "D", "bn": False},
-        "vgg19": {"block": "E", "bn": False},
-        "vgg11_bn": {"block": "A", "bn": True},
-        "vgg13_bn": {"block": "B", "bn": True},
-        "vgg16_bn": {"block": "D", "bn": True},
-        "vgg19_bn": {"block": "E", "bn": True},
+        "vgg13": {"cfg": "B", "bn": False},
+        "vgg16": {"cfg": "D", "bn": False},
+        "vgg19": {"cfg": "E", "bn": False},
+        "vgg11_bn": {"cfg": "A", "bn": True},
+        "vgg13_bn": {"cfg": "B", "bn": True},
+        "vgg16_bn": {"cfg": "D", "bn": True},
+        "vgg19_bn": {"cfg": "E", "bn": True},
     }
-    model = VGG(make_layers(cfgs[cfg_dict[name]["cfg"]], batch_norm=cfg_dict[name]["bn"]), feat_list,
-                local_model_paths[name] if pretrained else None)
+    model = VGG(make_layers(cfgs[cfg_dict[name]["cfg"]], batch_norm=cfg_dict[name]["bn"]), feat_list=feat_list,
+                pretrained_model_path=local_model_paths[name] if pretrained else None)
     return model

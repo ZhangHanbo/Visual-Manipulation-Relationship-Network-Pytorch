@@ -25,6 +25,8 @@ import pdb
 from utils.net_utils import _smooth_l1_loss, _crop_pool_layer, _affine_grid_gen, _affine_theta, weights_normal_init,\
     set_bn_eval, set_bn_fix
 
+from basenet.resnet import resnet101
+
 class fasterRCNN(objectDetector):
     """ faster RCNN """
     def __init__(self, classes, class_agnostic, feat_name, feat_list=('conv4',), pretrained = True):
@@ -66,6 +68,7 @@ class fasterRCNN(objectDetector):
             self.iter_counter += 1
 
         # feed image data to base model to obtain base feature map
+        # base_feat = self.FeatExt(im_data)
         base_feat = self.FeatExt(im_data)
 
         # feed base feature map tp RPN to obtain rois
@@ -141,12 +144,22 @@ class fasterRCNN(objectDetector):
         return rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox, rois_label
 
     def _init_weights(self):
+        def normal_init(m, mean, stddev, truncated=False):
+            """
+            weight initalizer: truncated normal and random normal.
+            """
+            # x is a parameter
+            if truncated:
+                m.weight.data.normal_().fmod_(2).mul_(stddev).add_(mean)  # not a perfect approximation
+            else:
+                m.weight.data.normal_(mean, stddev)
+                m.bias.data.zero_()
 
-        weights_normal_init(self.RCNN_rpn.RPN_Conv, 0.01)
-        weights_normal_init(self.RCNN_rpn.RPN_cls_score, 0.01)
-        weights_normal_init(self.RCNN_rpn.RPN_bbox_pred, 0.01)
-        weights_normal_init(self.RCNN_cls_score, 0.01)
-        weights_normal_init(self.RCNN_bbox_pred, 0.001)
+        normal_init(self.RCNN_rpn.RPN_Conv, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
+        normal_init(self.RCNN_rpn.RPN_cls_score, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
+        normal_init(self.RCNN_rpn.RPN_bbox_pred, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
+        normal_init(self.RCNN_cls_score, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
+        normal_init(self.RCNN_bbox_pred, 0, 0.001, cfg.TRAIN.COMMON.TRUNCATED)
 
     def create_architecture(self):
         self._init_modules()
@@ -161,7 +174,6 @@ class fasterRCNN(objectDetector):
 
     def _init_modules_resnet(self):
 
-        self.RCNN_top = self.FeatExt.feat_layer["conv5"]
         self.RCNN_cls_score = nn.Linear(2048, self.n_classes)
         if self.class_agnostic:
             self.RCNN_bbox_pred = nn.Linear(2048, 4)
@@ -170,8 +182,6 @@ class fasterRCNN(objectDetector):
 
     def _init_modules_vgg(self):
 
-        self.RCNN_top = self.FeatExt.feat_layer["fc"]
-        # not using the last maxpool layer
         self.RCNN_cls_score = nn.Linear(4096, self.n_classes)
         if self.class_agnostic:
             self.RCNN_bbox_pred = nn.Linear(4096, 4)
@@ -185,10 +195,10 @@ class fasterRCNN(objectDetector):
             return self._head_to_tail_vgg(pool5)
 
     def _head_to_tail_resnet(self, pool5):
-        fc7 = self.RCNN_top(pool5).mean(3).mean(2)
+        fc7 = self.FeatExt.layer4(pool5).mean(3).mean(2)
         return fc7
 
     def _head_to_tail_vgg(self, pool5):
         pool5_flat = pool5.view(pool5.size(0), -1)
-        fc7 = self.RCNN_top(pool5_flat)
+        fc7 = self.FeatExt["fc"](pool5_flat)
         return fc7

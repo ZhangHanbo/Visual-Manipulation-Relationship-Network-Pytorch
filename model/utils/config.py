@@ -205,6 +205,9 @@ __C.RESNET.MAX_POOL = False
 # Range: 0 (none) to 3 (all)
 __C.RESNET.FIXED_BLOCKS = 1
 
+__C.VGG = edict()
+__C.VGG.FIXED_BLOCKS = 1
+
 #
 # MobileNet options
 #

@@ -8,6 +8,7 @@ from utils.net_utils import set_bn_fix, set_bn_eval
 import abc
 
 from basenet.resnet import resnet_initializer
+from basenet.vgg import vgg_initializer
 
 class objectDetector(nn.Module):
     __metaclass__ = abc.ABCMeta
@@ -30,4 +31,4 @@ class objectDetector(nn.Module):
         if self.feat_name in {'res18', 'res34', 'res50', 'res101', 'res152'}:
             return resnet_initializer(self.feat_name, self.feat_list, self.pretrained)
         elif self.feat_name in {'vgg11', 'vgg13', 'vgg16', 'vgg19'}:
-            pass
+            return vgg_initializer(self.feat_name, self.feat_list, self.pretrained)

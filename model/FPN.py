@@ -19,23 +19,57 @@ from roi_pooling.modules.roi_pool import _RoIPooling
 from roi_crop.modules.roi_crop import _RoICrop
 from roi_align.modules.roi_align import RoIAlignAvg
 from rpn.proposal_target_layer_cascade import _ProposalTargetLayer
+from object_detector import objectDetector
+
 import time
 import pdb
-from utils.net_utils import _smooth_l1_loss, _crop_pool_layer, _affine_grid_gen, _affine_theta
+from utils.net_utils import _smooth_l1_loss, _crop_pool_layer, _affine_grid_gen, \
+    _affine_theta, weights_normal_init, weights_xavier_init
 from basenet.resnet import resnet18,resnet34,resnet50,resnet101,resnet152
 
 import torch.nn.init as init
 
-class _FPN(nn.Module):
+class FPN(objectDetector):
     """ faster RCNN """
-    def __init__(self, classes, class_agnostic):
-        super(_FPN, self).__init__()
-        self.classes = classes
-        self.n_classes = len(classes)
-        self.class_agnostic = class_agnostic
+    def __init__(self, classes, class_agnostic, feat_name, feat_list=('conv2', 'conv3', 'conv4', 'conv5'), pretrained = True):
+        super(FPN, self).__init__(classes, class_agnostic, feat_name, feat_list, pretrained)
+        ##### Important to set model to eval mode before evaluation ####
+        self.FeatExt.eval()
+        rand_img = torch.Tensor(1, 3, 224, 224)
+        rand_feat = self.FeatExt(rand_img)
+        self.FeatExt.train()
+        n_channels = [f.size(1) for f in rand_feat]
+
+        self.dout_base_model = 256
+
         # loss
         self.RCNN_loss_cls = 0
         self.RCNN_loss_bbox = 0
+
+        # for generating Conv6
+        self.conv6_layer = nn.MaxPool2d(kernel_size=3, stride=2)
+
+        # FPN channel reducing layers
+        self.RCNN_newconvs = nn.ModuleList()
+        self.RCNN_newconvs.append(nn.Conv2d(n_channels[0], 256, 1, stride=1))
+        self.RCNN_newconvs.append(nn.Conv2d(n_channels[1], 256, 1, stride=1))
+        self.RCNN_newconvs.append(nn.Conv2d(n_channels[2], 256, 1, stride=1))
+        self.RCNN_newconvs.append(nn.Conv2d(n_channels[3], 256, 1, stride=1))
+        self.RCNN_newconvs.append(nn.Conv2d(n_channels[3], 256, 1, stride=1))
+
+        # FPN mix conv layers
+        self.RCNN_mixconvs = nn.ModuleList()
+        for i in range(5):
+            self.RCNN_mixconvs.append(
+                nn.Conv2d(256, 256, 3, stride=1, padding=1)
+            )
+
+        # FPN upsample conv layers (whether to attach a conv layer after upsampling, totally 3)
+        self.RCNN_upsampleconvs = nn.ModuleList()
+        for i in range(3):
+            self.RCNN_upsampleconvs.append(
+                nn.Conv2d(256, 256, 1, stride=1)
+            )
 
         # define rpns
         self._share_rpn = cfg.FPN.SHARE_RPN
@@ -88,15 +122,13 @@ class _FPN(nn.Module):
             self.iter_counter += 1
 
         # feed image data to base model to obtain base feature map
-        base_feat = self.RCNN_base(im_data)
-        C = [base_feat]
-        for i, layer in enumerate(self.RCNN_feat_layers):
-            C.append(layer(C[i]))
+        base_feat = self.FeatExt(im_data)
+        base_feat.append(self.conv6_layer(base_feat[-1]))
 
         # C2 C3 C4 C5 C6
         C256 = []
         for i, newconv in enumerate(self.RCNN_newconvs):
-            C256.append(newconv(C[i+1]))
+            C256.append(newconv(base_feat[i]))
 
         source = [C256[3]]
         for i, upsampleconv in enumerate(self.RCNN_upsampleconvs):
@@ -275,176 +307,51 @@ class _FPN(nn.Module):
 
 
     def _init_weights(self):
-        def normal_init(m, mean, stddev, truncated=False):
-            """
-            weight initalizer: truncated normal and random normal.
-            """
-            # x is a parameter
-            if truncated:
-                m.weight.data.normal_().fmod_(2).mul_(stddev).add_(mean) # not a perfect approximation
-            else:
-                m.weight.data.normal_(mean, stddev)
-                m.bias.data.zero_()
 
         if self._share_rpn:
-            normal_init(self.RCNN_rpn.RPN_Conv, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-            normal_init(self.RCNN_rpn.RPN_cls_score, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-            normal_init(self.RCNN_rpn.RPN_bbox_pred, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
+            weights_normal_init(self.RCNN_rpn.RPN_Conv, 0.01)
+            weights_normal_init(self.RCNN_rpn.RPN_cls_score, 0.01)
+            weights_normal_init(self.RCNN_rpn.RPN_bbox_pred, 0.01)
         else:
             for rpn in self.RCNN_rpns:
-                normal_init(rpn.RPN_Conv, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-                normal_init(rpn.RPN_cls_score, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-                normal_init(rpn.RPN_bbox_pred, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-        normal_init(self.RCNN_cls_score, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-        normal_init(self.RCNN_bbox_pred, 0, 0.001, cfg.TRAIN.COMMON.TRUNCATED)
+                weights_normal_init(rpn.RPN_Conv, 0.01)
+                weights_normal_init(rpn.RPN_cls_score, 0.01)
+                weights_normal_init(rpn.RPN_bbox_pred, 0.01)
+        weights_normal_init(self.RCNN_cls_score, 0.01)
+        weights_normal_init(self.RCNN_bbox_pred, 0.001)
 
         # FPN layers init
         for newconv in self.RCNN_newconvs:
-            normal_init(newconv, 0, 0.001, cfg.TRAIN.COMMON.TRUNCATED)
+            weights_normal_init(newconv, 0.001)
         for deconv in self.RCNN_upsampleconvs:
-            normal_init(deconv, 0, 0.001, cfg.TRAIN.COMMON.TRUNCATED)
+            weights_normal_init(deconv, 0.001)
         for mixconv in self.RCNN_mixconvs:
-            normal_init(mixconv, 0, 0.001, cfg.TRAIN.COMMON.TRUNCATED)
+            weights_normal_init(mixconv, 0.001)
 
-        def xavier_init(m):
-
-            def xavier(param):
-                init.xavier_uniform(param)
-            if isinstance(m, nn.Conv2d):
-                xavier(m.weight.data)
-                m.bias.data.zero_()
-
-        self.RCNN_top.apply(xavier_init)
+        self.RCNN_top.apply(weights_xavier_init)
 
     def create_architecture(self):
         self._init_modules()
         self._init_weights()
 
-class resnet(_FPN):
-  def __init__(self, classes, num_layers=101, pretrained=False, class_agnostic=False):
-    self.model_path = 'data/pretrained_model/resnet' + str(num_layers) + '_caffe.pth'
-    self.dout_base_model = 256
-    self.pretrained = pretrained
-    self.class_agnostic = class_agnostic
-    self.num_layers = num_layers
+    def _init_modules(self):
 
-    if num_layers == 18 or num_layers == 34:
-        self.expansions = 1
-    elif num_layers == 50 or num_layers == 101 or num_layers == 152:
-        self.expansions = 4
-    else:
-        assert 0, "network not defined"
+        hidden_num = 1024
 
-    _FPN.__init__(self, classes, class_agnostic)
+        self.RCNN_top = nn.Sequential(
+            nn.Linear(256 * 7 * 7, hidden_num),
+            nn.ReLU(),
+            nn.Linear(hidden_num, hidden_num),
+            nn.ReLU())
 
-  def _init_modules(self):
-    if self.num_layers == 18:
-        resnet = resnet18()
-    elif self.num_layers == 34:
-        resnet = resnet34()
-    elif self.num_layers == 50:
-        resnet = resnet50()
-    elif self.num_layers == 101:
-        resnet = resnet101()
-    elif self.num_layers == 152:
-        resnet = resnet152()
-    else:
-        assert 0, "network not defined"
+        self.RCNN_cls_score = nn.Linear(hidden_num, self.n_classes)
+        if self.class_agnostic:
+            self.RCNN_bbox_pred = nn.Linear(hidden_num, 4)
+        else:
+            self.RCNN_bbox_pred = nn.Linear(1024, 4 * self.n_classes)
 
-    if self.pretrained == True:
-      print("Loading pretrained weights from %s" %(self.model_path))
-      state_dict = torch.load(self.model_path)
-      resnet.load_state_dict({k:v for k,v in state_dict.items() if k in resnet.state_dict()})
-
-    # Build resnet.
-    self.RCNN_base = nn.Sequential(resnet.conv1, resnet.bn1,resnet.relu,
-      resnet.maxpool)
-
-    self.RCNN_feat_layers = nn.ModuleList()
-    self.RCNN_feat_layers.append(resnet.layer1)
-    self.RCNN_feat_layers.append(resnet.layer2)
-    self.RCNN_feat_layers.append(resnet.layer3)
-    self.RCNN_feat_layers.append(resnet.layer4)
-    self.RCNN_feat_layers.append(nn.MaxPool2d(kernel_size=3, stride=2))
-
-    # FPN channel reducing layers
-    self.RCNN_newconvs = nn.ModuleList()
-    self.RCNN_newconvs.append(nn.Conv2d(64 * self.expansions, 256, 1, stride=1))
-    self.RCNN_newconvs.append(nn.Conv2d(128 * self.expansions, 256, 1, stride=1))
-    self.RCNN_newconvs.append(nn.Conv2d(256 * self.expansions, 256, 1, stride=1))
-    self.RCNN_newconvs.append(nn.Conv2d(512 * self.expansions, 256, 1, stride=1))
-    self.RCNN_newconvs.append(nn.Conv2d(512 * self.expansions, 256, 1, stride=1))
-
-    # FPN mix conv layers
-    self.RCNN_mixconvs = nn.ModuleList()
-    self.RCNN_mixconvs.append(nn.Conv2d(256, 256, 3, stride=1, padding=1))
-    self.RCNN_mixconvs.append(nn.Conv2d(256, 256, 3, stride=1, padding=1))
-    self.RCNN_mixconvs.append(nn.Conv2d(256, 256, 3, stride=1, padding=1))
-    self.RCNN_mixconvs.append(nn.Conv2d(256, 256, 3, stride=1, padding=1))
-    self.RCNN_mixconvs.append(nn.Conv2d(256, 256, 3, stride=1, padding=1))
-
-    # FPN upsample conv layers (whether to attach a conv layer after upsampling, totally 3)
-    self.RCNN_upsampleconvs = nn.ModuleList()
-    for i in range(3):
-        self.RCNN_upsampleconvs.append(
-            nn.Conv2d(256, 256, 1, stride=1)
-        )
-    hidden_num = 1024
-    # fully connected classifier and regressor
-    self.RCNN_top = nn.Sequential(
-        nn.Linear(self.expansions * 64 * 7 * 7, hidden_num),
-        nn.ReLU(),
-        nn.Linear(hidden_num, hidden_num),
-        nn.ReLU())
-
-    self.RCNN_cls_score = nn.Linear(hidden_num, self.n_classes)
-    if self.class_agnostic:
-      self.RCNN_bbox_pred = nn.Linear(hidden_num, 4)
-    else:
-      self.RCNN_bbox_pred = nn.Linear(1024, 4 * self.n_classes)
-
-    # Fix blocks
-    for p in self.RCNN_base[0].parameters(): p.requires_grad=False
-    for p in self.RCNN_base[1].parameters(): p.requires_grad=False
-
-    assert (0 <= cfg.RESNET.FIXED_BLOCKS < 4)
-    if cfg.RESNET.FIXED_BLOCKS >= 3:
-      for p in self.RCNN_feat_layers[2].parameters(): p.requires_grad=False
-    if cfg.RESNET.FIXED_BLOCKS >= 2:
-      for p in self.RCNN_feat_layers[1].parameters(): p.requires_grad=False
-    if cfg.RESNET.FIXED_BLOCKS >= 1:
-      for p in self.RCNN_feat_layers[0].parameters(): p.requires_grad=False
-
-    def set_bn_fix(m):
-      classname = m.__class__.__name__
-      if classname.find('BatchNorm') != -1:
-        for p in m.parameters(): p.requires_grad=False
-
-    self.RCNN_base.apply(set_bn_fix)
-    self.RCNN_feat_layers.apply(set_bn_fix)
-
-  def train(self, mode=True):
-    # Override train so that the training mode is set as we want
-    nn.Module.train(self, mode)
-    if mode:
-      # Set fixed blocks to be in eval mode
-      self.RCNN_base.eval()
-      self.RCNN_feat_layers[0].eval()
-      self.RCNN_feat_layers[1].train()
-      self.RCNN_feat_layers[2].train()
-      self.RCNN_feat_layers[3].train()
-
-      def set_bn_eval(m):
-        classname = m.__class__.__name__
-        if classname.find('BatchNorm') != -1:
-          m.eval()
-
-      self.RCNN_base.apply(set_bn_eval)
-      self.RCNN_feat_layers.apply(set_bn_eval)
-      self.RCNN_top.apply(set_bn_eval)
-
-  def _head_to_tail(self, pool5):
-    pool5_flat = pool5.view(pool5.size(0), -1)
-    fc7 = self.RCNN_top(pool5_flat)
-    return fc7
+    def _head_to_tail(self, pool5):
+        pool5_flat = pool5.view(pool5.size(0), -1)
+        fc7 = self.RCNN_top(pool5_flat)
+        return fc7
 
