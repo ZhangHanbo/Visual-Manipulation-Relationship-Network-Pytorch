@@ -160,7 +160,7 @@ def parse_args():
 # resume trained model
   parser.add_argument('--r', dest='resume',
                       help='resume checkpoint or not',
-                      default=False, type=bool)
+                      action='store_true')
   parser.add_argument('--checksession', dest='checksession',
                       help='checksession to load model',
                       default=1, type=int)
@@ -548,7 +548,15 @@ def evalute_model(Network, namedb, args):
             # detected_box is a list of boxes. len(list) = num_classes
             det_box = objdet_inference(cls_prob[0].data, bbox_pred[0].data, data_batch[1][0].data,
                         box_prior=boxes[0].data, class_agnostic=args.class_agnostic, n_classes=imdb.num_classes, for_vis=False)
-            # TODO: visualize detection results
+            if args.vis:
+                input_img = data_batch[0][0].permute(1, 2, 0).cpu().numpy() + cfg.PIXEL_MEANS
+                vis_boxes = objdet_inference(cls_prob[0].data, bbox_pred[0].data, data_batch[1][0].data,
+                                 box_prior=boxes[0].data, class_agnostic=args.class_agnostic,
+                                 n_classes=imdb.num_classes, for_vis=True)
+                im_vis = visualizer.draw_objdet(input_img, vis_boxes)
+                img_name = id_number_to_name[data_batch[1][0][4].item()].split("/")[-1]
+                cv2.imwrite(os.path.join(data_vis_dir, img_name), im_vis)
+
             if max_per_image > 0:
                 det_box = detection_filter(det_box, None, max_per_image)
             for j in xrange(1, imdb.num_classes):
@@ -869,13 +877,13 @@ def train():
             # test and save
             if (Network.iter_counter - 1)% cfg.TRAIN.COMMON.SNAPSHOT_ITERS == 0:
                 # test network and record results
-                Network.eval()
-                current_result = evalute_model(Network, args.imdbval_name, args)
-                if args.use_tfboard:
-                    logger.scalar_summary('mAP', current_result, Network.iter_counter)
-                Network.train()
 
                 if cfg.TRAIN.COMMON.SNAPSHOT_AFTER_TEST:
+                    Network.eval()
+                    current_result = evalute_model(Network, args.imdbval_name, args)
+                    if args.use_tfboard:
+                        logger.scalar_summary('mAP', current_result, Network.iter_counter)
+                    Network.train()
                     if current_result > best_result:
                         best_result = current_result
                         save_flag = True
@@ -939,6 +947,7 @@ if __name__ == '__main__':
     assert args.frame in LEGAL_FRAMES, "Illegal algorithm name."
 
     if args.test:
+        args.resume = True
         test()
     else:
         train()

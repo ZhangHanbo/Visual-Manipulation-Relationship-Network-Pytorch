@@ -30,9 +30,11 @@ class fasterRCNN(objectDetector):
     def __init__(self, classes, class_agnostic, feat_name, feat_list=('conv4',), pretrained = True):
 
         super(fasterRCNN, self).__init__(classes, class_agnostic, feat_name, feat_list, pretrained)
-        # loss
+        ##### Important to set model to eval mode before evaluation ####
+        self.FeatExt.eval()
         rand_img = torch.Tensor(1, 3, 224, 224)
-        rand_feat = self.feat_extractor(rand_img)
+        rand_feat = self.FeatExt(rand_img)
+        self.FeatExt.train()
         self.dout_base_model = rand_feat.size(1)
 
         self.RCNN_loss_cls = 0
@@ -64,7 +66,7 @@ class fasterRCNN(objectDetector):
             self.iter_counter += 1
 
         # feed image data to base model to obtain base feature map
-        base_feat = self.feat_extractor(im_data)
+        base_feat = self.FeatExt(im_data)
 
         # feed base feature map tp RPN to obtain rois
         rois, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes)
@@ -139,6 +141,7 @@ class fasterRCNN(objectDetector):
         return rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox, rois_label
 
     def _init_weights(self):
+
         weights_normal_init(self.RCNN_rpn.RPN_Conv, 0.01)
         weights_normal_init(self.RCNN_rpn.RPN_cls_score, 0.01)
         weights_normal_init(self.RCNN_rpn.RPN_bbox_pred, 0.01)
@@ -150,7 +153,7 @@ class fasterRCNN(objectDetector):
         self._init_weights()
 
     def _init_modules(self):
-        objectDetector._init_modules(self)
+
         if self.feat_name[:3] == 'res':
             self._init_modules_resnet()
         elif self.feat_name[:3] == 'vgg':
@@ -158,29 +161,22 @@ class fasterRCNN(objectDetector):
 
     def _init_modules_resnet(self):
 
-        self.RCNN_top = self.feat_extractor.feat_layer["conv5"]
+        self.RCNN_top = self.FeatExt.feat_layer["conv5"]
         self.RCNN_cls_score = nn.Linear(2048, self.n_classes)
         if self.class_agnostic:
             self.RCNN_bbox_pred = nn.Linear(2048, 4)
         else:
             self.RCNN_bbox_pred = nn.Linear(2048, 4 * self.n_classes)
 
-        self.RCNN_top.apply(set_bn_fix)
-
     def _init_modules_vgg(self):
 
-        self.RCNN_top = self.feat_extractor.feat_layer["fc"]
+        self.RCNN_top = self.FeatExt.feat_layer["fc"]
         # not using the last maxpool layer
         self.RCNN_cls_score = nn.Linear(4096, self.n_classes)
         if self.class_agnostic:
             self.RCNN_bbox_pred = nn.Linear(4096, 4)
         else:
             self.RCNN_bbox_pred = nn.Linear(4096, 4 * self.n_classes)
-
-    def train(self, mode=True):
-        objectDetector.train(self, mode = mode)
-        if mode:
-            self.RCNN_top.apply(set_bn_eval)
 
     def _head_to_tail(self, pool5):
         if self.feat_name[:3] == 'res':
@@ -196,5 +192,3 @@ class fasterRCNN(objectDetector):
         pool5_flat = pool5.view(pool5.size(0), -1)
         fc7 = self.RCNN_top(pool5_flat)
         return fc7
-
-

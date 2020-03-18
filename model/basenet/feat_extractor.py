@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from collections import OrderedDict
 
+from model.utils.config import cfg
+
 import abc
 
 class featExtractor(nn.Module):
@@ -13,11 +15,3 @@ class featExtractor(nn.Module):
         """
         super(featExtractor, self).__init__()
         self.feat_list = feat_list
-
-        # initialize feat_layer
-        self.feat_layer = OrderedDict()
-        for key in ('conv1', 'conv2', 'conv3', 'conv4', 'conv5', 'fc', 'cscore'):
-            self.feat_layer[key] = None
-
-
-

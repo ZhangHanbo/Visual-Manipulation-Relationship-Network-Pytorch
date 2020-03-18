@@ -13,6 +13,11 @@ import math
 import torch.utils.model_zoo as model_zoo
 import pdb
 
+from collections import OrderedDict
+
+from model.utils.net_utils import set_bn_fix, set_bn_eval
+
+
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
              'resnet152']
 
@@ -145,9 +150,13 @@ class ResNet(featExtractor):
             self.load_state_dict({k:v for k,v in state_dict.items() if k in self.state_dict()})
 
         self.feat_list = feat_list
-        # init feat layer
-        self.feat_layer["conv1"] = nn.Sequential(self.conv1, self.bn1, self.relu)
-        self.feat_layer["conv2"] = nn.Sequential(self.maxpool, self.layer1)
+
+        self._init_modules()
+
+        self.feat_layer = OrderedDict()
+        self.feat_layer["conv1"] = [self.conv1, self.bn1, self.relu]
+        self.feat_layer["maxpool"] = self.maxpool
+        self.feat_layer["conv2"] = self.layer1
         self.feat_layer["conv3"] = self.layer2
         self.feat_layer["conv4"] = self.layer3
         self.feat_layer["conv5"] = self.layer4
@@ -173,18 +182,58 @@ class ResNet(featExtractor):
 
     def forward(self, x):
         feats = []
-        for conv_key, conv_layer in self.feat_layer.items():
-            x = conv_layer(x)
-            if conv_key == 'fc':
+
+        for m_name, m in self.feat_layer.items():
+            if isinstance(m, list):
+                for l in m:
+                    x = l(x)
+            else:
+                x = m(x)
+            if m_name == "fc":
                 x = x.view(x.size(0), -1)
-            if conv_key in self.feat_list:
+            if m_name in self.feat_list:
                 feats.append(x)
-            if conv_key == self.feat_list[-1]:
+            if m_name == self.feat_list[-1]:
                 break
         if len(feats) == 1:
             feats = feats[0]
         return feats
 
+    def _init_modules(self):
+
+        # Fix blocks
+        for p in self.conv1.parameters(): p.requires_grad = False
+        for p in self.bn1.parameters(): p.requires_grad = False
+
+        assert (0 <= cfg.RESNET.FIXED_BLOCKS < 4)
+        if cfg.RESNET.FIXED_BLOCKS >= 3:
+            for p in self.layer3.parameters(): p.requires_grad = False
+        if cfg.RESNET.FIXED_BLOCKS >= 2:
+            for p in self.layer2.parameters(): p.requires_grad = False
+        if cfg.RESNET.FIXED_BLOCKS >= 1:
+            for p in self.layer1.parameters(): p.requires_grad = False
+
+        self.apply(set_bn_fix)
+
+    def train(self, mode = True):
+        # Override train so that the training mode is set as we want
+        nn.Module.train(self, mode)
+        if mode:
+
+            # Set fixed blocks to be in eval mode
+            self.conv1.eval()
+            self.bn1.eval()
+            self.relu.eval()
+            self.maxpool.eval()
+
+            if cfg.RESNET.FIXED_BLOCKS >= 1:
+                self.layer1.eval()
+            if cfg.RESNET.FIXED_BLOCKS >= 2:
+                self.layer2.eval()
+            if cfg.RESNET.FIXED_BLOCKS >= 3:
+                self.layer3.eval()
+
+            self.apply(set_bn_eval)
 
 def resnet18(feat_list, pretrained_model_path):
     """Constructs a ResNet-18 model.
@@ -241,4 +290,6 @@ def resnet_initializer(name, feat_list, pretrained = False):
     model = ResNet(cfg_dict[name]["block"], cfg_dict[name]["layer_cfg"],
                    feat_list=feat_list, pretrained_model_path=local_model_paths[name] if pretrained else None)
     return model
+
+
 

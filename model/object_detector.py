@@ -23,7 +23,7 @@ class objectDetector(nn.Module):
         self.feat_list = feat_list
         self.pretrained = pretrained
 
-        self.feat_extractor = self._init_feature_extractor()
+        self.FeatExt = self._init_feature_extractor()
 
     def _init_feature_extractor(self):
         # init resnet feature extractor
@@ -31,37 +31,3 @@ class objectDetector(nn.Module):
             return resnet_initializer(self.feat_name, self.feat_list, self.pretrained)
         elif self.feat_name in {'vgg11', 'vgg13', 'vgg16', 'vgg19'}:
             pass
-
-    def _init_modules(self):
-
-        # Fix blocks
-        for p in self.feat_extractor.feat_layer["conv1"].parameters(): p.requires_grad = False
-
-        assert (0 <= cfg.RESNET.FIXED_BLOCKS < 4)
-        if cfg.RESNET.FIXED_BLOCKS >= 3:
-            for p in self.feat_extractor.feat_layer["conv4"].parameters(): p.requires_grad = False
-        if cfg.RESNET.FIXED_BLOCKS >= 2:
-            for p in self.feat_extractor.feat_layer["conv3"].parameters(): p.requires_grad = False
-        if cfg.RESNET.FIXED_BLOCKS >= 1:
-            for p in self.feat_extractor.feat_layer["conv2"].parameters(): p.requires_grad = False
-
-        for k in self.feat_extractor.feat_layer.keys():
-            self.feat_extractor.feat_layer[k].apply(set_bn_fix)
-
-    def train(self, mode = True):
-        # Override train so that the training mode is set as we want
-        nn.Module.train(self, mode)
-        if mode:
-            self.feat_extractor.train()
-
-            # Set fixed blocks to be in eval mode
-            self.feat_extractor.feat_layer["conv1"].eval()
-            if cfg.RESNET.FIXED_BLOCKS >= 1:
-                self.feat_extractor.feat_layer["conv2"].eval()
-            if cfg.RESNET.FIXED_BLOCKS >= 2:
-                self.feat_extractor.feat_layer["conv3"].eval()
-            if cfg.RESNET.FIXED_BLOCKS >= 3:
-                self.feat_extractor.feat_layer["conv4"].eval()
-
-            for k in self.feat_extractor.feat_layer.keys():
-                self.feat_extractor.feat_layer[k].apply(set_bn_eval)
