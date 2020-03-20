@@ -35,10 +35,10 @@ from model.utils.net_utils import weights_normal_init, save_net, load_net, \
 from model.utils.data_viewer import dataViewer
 
 from model.FasterRCNN import fasterRCNN
-import model.FPN as FPN
-import model.VMRN as VMRN
+from model.FPN import FPN
+from model.SSD import SSD
+from model.FasterRCNN_VMRN import fasterRCNN_VMRN
 import model.FCGN as FCGN
-import model.SSD as SSD
 import model.SSD_VMRN as SSD_VMRN
 import model.MultiGrasp as MGN
 import model.AllinOne as ALL_IN_ONE
@@ -274,19 +274,11 @@ def init_network(args, n_cls):
         Network = fasterRCNN(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
                              feat_list=('conv' + conv_num,), pretrained = True)
     elif args.frame == 'faster_rcnn_vmrn':
-        if args.net == 'vgg16':
-            Network = VMRN.vgg16(n_cls, pretrained=True, class_agnostic=args.class_agnostic)
-        elif args.net == 'res101':
-            Network = VMRN.resnet(n_cls, 101, pretrained=True, class_agnostic=args.class_agnostic)
-        elif args.net == 'res50':
-            Network = VMRN.resnet(n_cls, 50, pretrained=True, class_agnostic=args.class_agnostic)
-        elif args.net == 'res152':
-            Network = VMRN.resnet(n_cls, 152, pretrained=True, class_agnostic=args.class_agnostic)
-        else:
-            print("network is not defined")
-            pdb.set_trace()
+        conv_num = str(int(np.log2(cfg.RCNN_COMMON.FEAT_STRIDE[0])))
+        Network = fasterRCNN_VMRN(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
+                             feat_list=('conv' + conv_num,), pretrained=True)
     elif args.frame == 'fpn':
-        Network = fasterRCNN(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
+        Network = FPN(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
                              feat_list=('conv2', 'conv3', 'conv4', 'conv5'), pretrained=True)
     elif args.frame == 'fcgn':
         if args.net == 'res101':
@@ -319,11 +311,8 @@ def init_network(args, n_cls):
             print("network is not defined")
             pdb.set_trace()
     elif args.frame == 'ssd':
-        if args.net == 'vgg16':
-            Network = SSD.vgg16(n_cls, pretrained=True)
-        else:
-            print("network is not defined")
-            pdb.set_trace()
+        Network = SSD(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
+                      feat_list=('conv3', 'conv4'), pretrained=True)
     elif args.frame == 'ssd_vmrn':
         if args.net == 'vgg16':
             Network = SSD_VMRN.vgg16(n_cls, pretrained=True)
@@ -366,6 +355,8 @@ def init_network(args, n_cls):
         if 'pooling_mode' in checkpoint.keys():
             cfg.RCNN_COMMON.POOLING_MODE = checkpoint['pooling_mode']
         print("loaded checkpoint %s" % (load_name))
+        if args.iter_per_epoch is not None:
+            Network.iter_counter = (args.checkepoch - 1) * args.iter_per_epoch + args.checkpoint
         print("start iteration:", Network.iter_counter)
 
     if args.cuda:
@@ -505,7 +496,7 @@ def evalute_model(Network, namedb, args):
             boxes = rois[:, :, 1:5]
         elif args.frame == 'ssd':
             bbox_pred, cls_prob, net_loss_bbox, net_loss_cls = Network(data_batch)
-            boxes = Network.priors.type_as(bbox_pred)
+            boxes = Network.priors.type_as(bbox_pred).unsqueeze(0)
         elif args.frame == 'faster_rcnn_vmrn':
             rois, cls_prob, bbox_pred, rel_result, rpn_loss_cls, rpn_loss_box, \
                 RCNN_loss_cls, RCNN_loss_bbox, RCNN_rel_loss_cls, rois_label = Network(data_batch)
@@ -617,6 +608,7 @@ def train():
     np.random.seed(cfg.RNG_SEED)
 
     # init logger
+    # TODO: RESUME LOGGER
     if args.use_tfboard:
         from model.utils.logger import Logger
         # Set the logger
@@ -654,6 +646,8 @@ def train():
         raise RuntimeError
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size,
                             sampler=sampler_batch, num_workers=args.num_workers)
+
+    args.iter_per_epoch = int(len(roidb) / args.batch_size)
 
     # init output directory for model saving
     output_dir = args.save_dir + "/" + args.dataset + "/" + args.net
@@ -928,6 +922,7 @@ def test():
 
     imdb = get_imdb(args.imdb_name)
 
+    args.iter_per_epoch = None
     # init network
     Network, optimizer = init_network(args, imdb.classes)
     Network.eval()

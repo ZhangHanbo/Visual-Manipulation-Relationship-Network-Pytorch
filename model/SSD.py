@@ -16,8 +16,10 @@ from model.ssd.default_bbox_generator import PriorBox
 import torch.nn.init as init
 from model.ssd.multi_bbox_loss import MultiBoxLoss
 from model.utils.config import cfg
-from basenet.resnet import resnet18,resnet34,resnet50,resnet101,resnet152
 import torchvision as tv
+
+from model.utils.net_utils import weights_xavier_init
+from ObjectDetector import objectDetector
 
 class L2Norm(nn.Module):
     def __init__(self,n_channels, scale):
@@ -38,7 +40,7 @@ class L2Norm(nn.Module):
         out = self.weight.unsqueeze(0).unsqueeze(2).unsqueeze(3).expand_as(x) * x
         return out
 
-class _SSD(nn.Module):
+class SSD(objectDetector):
     """Single Shot Multibox Architecture
     The network is composed of a base VGG network followed by the
     added multibox conv layers.  Each multibox layer branches into
@@ -55,8 +57,15 @@ class _SSD(nn.Module):
         head: "multibox head" consists of loc and conf conv layers
     """
 
-    def __init__(self, classes):
-        super(_SSD, self).__init__()
+    def __init__(self, classes, class_agnostic, feat_name, feat_list=('conv3', 'conv4'), pretrained = True):
+        super(SSD, self).__init__(classes, class_agnostic, feat_name, feat_list, pretrained)
+        self.FeatExt.feat_layer["conv3"][0].ceil_mode = True
+        ##### Important to set model to eval mode before evaluation ####
+        self.FeatExt.eval()
+        rand_img = torch.Tensor(1, 3, 300, 300)
+        rand_feat = self.FeatExt(rand_img)
+        self.FeatExt.train()
+        n_channels = [f.size(1) for f in rand_feat]
 
         self.size = cfg.SCALES[0]
         self.classes = classes
@@ -77,8 +86,68 @@ class _SSD(nn.Module):
         # Layer learns to scale the l2 normalized features from conv4_3
         self.L2Norm = L2Norm(512, 20)
         self.softmax = nn.Softmax(dim=-1)
-
         self.criterion = MultiBoxLoss(self.num_classes)
+
+        self.loc = nn.ModuleList()
+        self.conf = nn.ModuleList()
+        mbox_cfg = []
+        for i in cfg.SSD.PRIOR_ASPECT_RATIO:
+            mbox_cfg.append(2 * len(i) + 2)
+
+        self.loc.append(
+            nn.Conv2d(n_channels[0], mbox_cfg[0] * 4 if self.class_agnostic else mbox_cfg[0] * 4 * self.num_classes
+                      , kernel_size=3, padding=1))
+        self.conf.append(nn.Conv2d(n_channels[0], mbox_cfg[0] * self.num_classes, kernel_size=3, padding=1))
+
+        self.SSD_conv7 = nn.Sequential(
+            nn.MaxPool2d(kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(512, 1024, kernel_size=3, padding=6, dilation=6),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(1024, 1024, kernel_size=1),
+            nn.ReLU(inplace=True))
+        self.loc.append(nn.Conv2d(1024, mbox_cfg[1] * 4 if self.class_agnostic else mbox_cfg[1] * 4 * self.num_classes,
+                                  kernel_size=3, padding=1))
+        self.conf.append(nn.Conv2d(1024, mbox_cfg[1] * self.num_classes, kernel_size=3, padding=1))
+
+        self.SSD_conv8 = nn.Sequential(
+            nn.Conv2d(1024, 256, kernel_size=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(256, 512, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(inplace=True),
+        )
+        self.loc.append(nn.Conv2d(512, mbox_cfg[2] * 4 if self.class_agnostic else mbox_cfg[2] * 4 * self.num_classes,
+                                  kernel_size=3, padding=1))
+        self.conf.append(nn.Conv2d(512, mbox_cfg[2] * self.num_classes, kernel_size=3, padding=1))
+
+        self.SSD_conv9 = nn.Sequential(
+            nn.Conv2d(512, 128, kernel_size=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(inplace=True),
+        )
+        self.loc.append(nn.Conv2d(256, mbox_cfg[3] * 4 if self.class_agnostic else mbox_cfg[3] * 4 * self.num_classes,
+                                  kernel_size=3, padding=1))
+        self.conf.append(nn.Conv2d(256, mbox_cfg[3] * self.num_classes, kernel_size=3, padding=1))
+
+        self.SSD_conv10 = nn.Sequential(
+            nn.Conv2d(256, 128, kernel_size=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(128, 256, kernel_size=3),
+            nn.ReLU(inplace=True),
+        )
+        self.loc.append(nn.Conv2d(256, mbox_cfg[4] * 4 if self.class_agnostic else mbox_cfg[4] * 4 * self.num_classes,
+                                  kernel_size=3, padding=1))
+        self.conf.append(nn.Conv2d(256, mbox_cfg[4] * self.num_classes, kernel_size=3, padding=1))
+
+        self.SSD_conv11 = nn.Sequential(
+            nn.Conv2d(256, 128, kernel_size=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(128, 256, kernel_size=3),
+            nn.ReLU(inplace=True),
+        )
+        self.loc.append(nn.Conv2d(256, mbox_cfg[5] * 4 if self.class_agnostic else mbox_cfg[5] * 4 * self.num_classes,
+                                  kernel_size=3, padding=1))
+        self.conf.append(nn.Conv2d(256, mbox_cfg[5] * self.num_classes, kernel_size=3, padding=1))
 
         self.iter_counter = 0
 
@@ -106,30 +175,30 @@ class _SSD(nn.Module):
         if self.training:
             self.iter_counter += 1
 
-        sources = list()
-        loc = list()
-        conf = list()
+        sources = []
+        loc = []
+        conf = []
 
-        # apply vgg up to conv4_3 relu
-        if isinstance(self.base, nn.ModuleList):
-            for layer in self.base:
-                x = layer(x)
-        else:
-            x = self.base(x)
+        s0, x = self.FeatExt(x)
 
-        s = self.L2Norm(x)
-        sources.append(s)
+        s0 = self.L2Norm(s0)
+        sources.append(s0)
 
         # apply vgg up to fc7
-        for conv in self.SSD_feat_layers:
-            x = conv(x)
+        x = self.SSD_conv7(x)
         sources.append(x)
 
-        # apply extra layers and cache source layer outputs
-        for k, v in enumerate(self.extras):
-            x = F.relu(v(x), inplace=True)
-            if k % 2 == 1:
-                sources.append(x)
+        x = self.SSD_conv8(x)
+        sources.append(x)
+
+        x = self.SSD_conv9(x)
+        sources.append(x)
+
+        x = self.SSD_conv10(x)
+        sources.append(x)
+
+        x = self.SSD_conv11(x)
+        sources.append(x)
 
         # apply multibox head to source layers
         for (x, l, c) in zip(sources, self.loc, self.conf):
@@ -160,17 +229,14 @@ class _SSD(nn.Module):
         return loc, conf, SSD_loss_bbox, SSD_loss_cls
 
     def create_architecture(self):
-        self._init_modules()
-        def weights_init(m):
-            def xavier(param):
-                init.xavier_uniform(param)
-            if isinstance(m, nn.Conv2d):
-                xavier(m.weight.data)
-                m.bias.data.zero_()
         # initialize newly added layers' weights with xavier method
-        self.extras.apply(weights_init)
-        self.loc.apply(weights_init)
-        self.conf.apply(weights_init)
+        self.SSD_conv7.apply(weights_xavier_init)
+        self.SSD_conv8.apply(weights_xavier_init)
+        self.SSD_conv9.apply(weights_xavier_init)
+        self.SSD_conv10.apply(weights_xavier_init)
+        self.SSD_conv11.apply(weights_xavier_init)
+        self.loc.apply(weights_xavier_init)
+        self.conf.apply(weights_xavier_init)
 
     def _init_prior_cfg(self):
         prior_cfg = {
@@ -183,98 +249,3 @@ class _SSD(nn.Module):
             'clip':cfg.SSD.PRIOR_CLIP
         }
         return prior_cfg
-
-class vgg16(_SSD):
-    # TODO: SUPPORT VGG19
-    def __init__(self, num_classes, pretrained=False):
-        super(vgg16 , self).__init__(num_classes)
-        self._pretrained = pretrained
-        self.module_path = "data/pretrained_model/vgg16_reducedfc.pth"
-        self._bbox_dim = 4
-
-    def _init_modules(self):
-        # TODO: ADD CONFIGS INTO CONFIT.PY
-        base_cfg = [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'C', 512, 512, 512  # conv3, stride 8
-            , 'M', 512, 512, 512 # conv4 stride 16
-                    ]
-
-        extras_cfg = [256, 'S', 512, 128, 'S', 256, 128, 256, 128, 256]
-
-        mbox_cfg = []
-        for i in cfg.SSD.PRIOR_ASPECT_RATIO:
-            mbox_cfg.append(2 * len(i) + 2)
-
-        base, extras, head = self.multibox(self.vgg(base_cfg, 3),
-                                         self.add_extras(extras_cfg, 1024),
-                                         mbox_cfg, self.num_classes, self._bbox_dim)
-        # init base net
-        self.base = nn.ModuleList(base)
-        vgg_weights = torch.load(self.module_path)
-
-        if self._pretrained:
-            self.base.load_state_dict(vgg_weights)
-
-        self.SSD_feat_layers = self.base[23:]
-        self.base = self.base[:23]
-
-        self.extras = nn.ModuleList(extras)
-        self.loc = nn.ModuleList(head[0])
-        self.conf = nn.ModuleList(head[1])
-
-    def add_extras(self, cfg, i, batch_norm=False):
-        # Extra layers added to VGG for feature scaling
-        layers = []
-        in_channels = i
-        flag = False
-        for k, v in enumerate(cfg):
-            # if last layer is S, skip to next v.
-            if in_channels != 'S':
-                if v == 'S':
-                    layers += [nn.Conv2d(in_channels, cfg[k + 1],
-                                         kernel_size=(1, 3)[flag], stride=2, padding=1)]
-                else:
-                    layers += [nn.Conv2d(in_channels, v, kernel_size=(1, 3)[flag])]
-                flag = not flag
-            in_channels = v
-        return layers
-
-    def multibox(self, vgg, extra_layers, cfg, num_classes, bbox_dim):
-        loc_layers = []
-        conf_layers = []
-        vgg_source = [21, -2]
-        for k, v in enumerate(vgg_source):
-            loc_layers += [nn.Conv2d(vgg[v].out_channels,
-                                     cfg[k] * bbox_dim, kernel_size=3, padding=1)]
-            conf_layers += [nn.Conv2d(vgg[v].out_channels,
-                                      cfg[k] * num_classes, kernel_size=3, padding=1)]
-        for k, v in enumerate(extra_layers[1::2], 2):
-            loc_layers += [nn.Conv2d(v.out_channels, cfg[k]
-                                     * bbox_dim, kernel_size=3, padding=1)]
-            conf_layers += [nn.Conv2d(v.out_channels, cfg[k]
-                                      * num_classes, kernel_size=3, padding=1)]
-        return vgg, extra_layers, (loc_layers, conf_layers)
-
-    # This function is derived from torchvision VGG make_layers()
-    # https://github.com/pytorch/vision/blob/master/torchvision/models/vgg.py
-    def vgg(self, cfg, i, batch_norm=False):
-        layers = []
-        in_channels = i
-        for v in cfg:
-            if v == 'M':
-                layers += [nn.MaxPool2d(kernel_size=2, stride=2)]
-            elif v == 'C':
-                layers += [nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)]
-            else:
-                conv2d = nn.Conv2d(in_channels, v, kernel_size=3, padding=1)
-                if batch_norm:
-                    layers += [conv2d, nn.BatchNorm2d(v), nn.ReLU(inplace=True)]
-                else:
-                    layers += [conv2d, nn.ReLU(inplace=True)]
-                in_channels = v
-        pool5 = nn.MaxPool2d(kernel_size=3, stride=1, padding=1)
-        conv6 = nn.Conv2d(512, 1024, kernel_size=3, padding=6, dilation=6)
-        conv7 = nn.Conv2d(1024, 1024, kernel_size=1)
-        layers += [pool5, conv6,
-                   nn.ReLU(inplace=True), conv7, nn.ReLU(inplace=True)]
-        return layers
-

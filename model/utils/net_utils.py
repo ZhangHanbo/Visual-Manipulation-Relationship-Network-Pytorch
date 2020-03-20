@@ -308,10 +308,12 @@ def box_filter(box, box_scores, thresh, use_nms = True):
 
 def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agnostic = True, n_classes = None, for_vis = False):
     assert box_output.dim() == 2, "Multi-instance batch inference has not been implemented."
+
     if for_vis:
-        thresh = 0.5
+        thresh = cfg.TEST.COMMON.OBJ_DET_THRESHOLD
     else:
-        thresh = 0.01
+        thresh = 0.05
+
     scores = cls_prob
 
     # TODO: Inference for anchor free algorithms has not been implemented.
@@ -411,7 +413,7 @@ def objgrasp_inference(o_cls_prob, o_box_output, g_cls_prob, g_box_output, im_in
     if for_vis:
         o_thresh = 0.5
     else:
-        o_thresh = 0
+        o_thresh = 0.05
         topN_g = 1
 
     if not topN_g:

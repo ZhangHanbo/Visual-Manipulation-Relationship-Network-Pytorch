@@ -7,6 +7,8 @@ from model.utils.config import cfg
 
 import abc
 
+# TODO: Now for each feature extractor, the useless layers are also created, which will waste the memory of GPU.
+
 class featExtractor(nn.Module):
     __metaclass__ = abc.ABCMeta
     def __init__(self, feat_list=('conv5',)):

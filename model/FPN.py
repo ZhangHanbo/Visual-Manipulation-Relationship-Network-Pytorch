@@ -3,14 +3,12 @@
 # Copyright: Hanbo Zhang
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Hanbo Zhang
+# based on code from Jiasen Lu, Jianwei Yang, Ross Girshick
 # --------------------------------------------------------
-
 import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
-import torchvision.models as models
 from torch.autograd import Variable
 import numpy as np
 from utils.config import cfg
@@ -19,13 +17,12 @@ from roi_pooling.modules.roi_pool import _RoIPooling
 from roi_crop.modules.roi_crop import _RoICrop
 from roi_align.modules.roi_align import RoIAlignAvg
 from rpn.proposal_target_layer_cascade import _ProposalTargetLayer
-from object_detector import objectDetector
+from ObjectDetector import objectDetector
 
 import time
 import pdb
 from utils.net_utils import _smooth_l1_loss, _crop_pool_layer, _affine_grid_gen, \
     _affine_theta, weights_normal_init, weights_xavier_init
-from basenet.resnet import resnet18,resnet34,resnet50,resnet101,resnet152
 
 import torch.nn.init as init
 
@@ -38,7 +35,7 @@ class FPN(objectDetector):
         rand_img = torch.Tensor(1, 3, 224, 224)
         rand_feat = self.FeatExt(rand_img)
         self.FeatExt.train()
-        n_channels = [f.size(1) for f in rand_feat]
+        self.n_channels = [f.size(1) for f in rand_feat]
 
         self.dout_base_model = 256
 
@@ -46,50 +43,11 @@ class FPN(objectDetector):
         self.RCNN_loss_cls = 0
         self.RCNN_loss_bbox = 0
 
-        # for generating Conv6
-        self.conv6_layer = nn.MaxPool2d(kernel_size=3, stride=2)
-
-        # FPN channel reducing layers
-        self.RCNN_newconvs = nn.ModuleList()
-        self.RCNN_newconvs.append(nn.Conv2d(n_channels[0], 256, 1, stride=1))
-        self.RCNN_newconvs.append(nn.Conv2d(n_channels[1], 256, 1, stride=1))
-        self.RCNN_newconvs.append(nn.Conv2d(n_channels[2], 256, 1, stride=1))
-        self.RCNN_newconvs.append(nn.Conv2d(n_channels[3], 256, 1, stride=1))
-        self.RCNN_newconvs.append(nn.Conv2d(n_channels[3], 256, 1, stride=1))
-
-        # FPN mix conv layers
-        self.RCNN_mixconvs = nn.ModuleList()
-        for i in range(5):
-            self.RCNN_mixconvs.append(
-                nn.Conv2d(256, 256, 3, stride=1, padding=1)
-            )
-
-        # FPN upsample conv layers (whether to attach a conv layer after upsampling, totally 3)
-        self.RCNN_upsampleconvs = nn.ModuleList()
-        for i in range(3):
-            self.RCNN_upsampleconvs.append(
-                nn.Conv2d(256, 256, 1, stride=1)
-            )
-
-        # define rpns
-        self._share_rpn = cfg.FPN.SHARE_RPN
-        self._share_header = cfg.FPN.SHARE_HEADER
-
         self._num_pyramid_layers = len(cfg.RCNN_COMMON.FEAT_STRIDE)
-        if self._share_rpn:
-            self.RCNN_rpn = _RPN(self.dout_base_model,
-                                 anchor_scales=cfg.RCNN_COMMON.ANCHOR_SCALES,
-                                 anchor_ratios=cfg.RCNN_COMMON.ANCHOR_RATIOS,
-                                 feat_stride=cfg.RCNN_COMMON.FEAT_STRIDE)
-        else:
-            self.RCNN_rpns = nn.ModuleList()
-            for i in range(len(cfg.RCNN_COMMON.FEAT_STRIDE)):
-                self.RCNN_rpns.append(
-                    _RPN(self.dout_base_model,
-                         anchor_scales=cfg.RCNN_COMMON.ANCHOR_SCALES,
-                         anchor_ratios=cfg.RCNN_COMMON.ANCHOR_RATIOS,
-                         feat_stride=cfg.RCNN_COMMON.FEAT_STRIDE[i])
-                )
+        self.RCNN_rpn = _RPN(self.dout_base_model,
+                             anchor_scales=cfg.RCNN_COMMON.ANCHOR_SCALES,
+                             anchor_ratios=cfg.RCNN_COMMON.ANCHOR_RATIOS,
+                             feat_stride=cfg.RCNN_COMMON.FEAT_STRIDE)
 
         self.RCNN_roi_aligns = nn.ModuleList()
         self.RCNN_roi_pools = nn.ModuleList()
@@ -146,20 +104,7 @@ class FPN(objectDetector):
             source[i] = self.RCNN_mixconvs[i](source[i])
 
         # feed base feature map tp RPN to obtain rois
-        if self._share_rpn:
-            rois_rpn, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(source, im_info, gt_boxes, num_boxes)
-        else:
-            rois_rpn = []
-            rpn_loss_bbox = []
-            rpn_loss_cls = []
-            for i in range(len(source)):
-                r, cl, bl = self.RCNN_rpns[i](source[i], im_info, gt_boxes, num_boxes)
-                rois_rpn.append(r)
-                rpn_loss_cls.append(cl)
-                rpn_loss_bbox.append(bl)
-            rpn_loss_bbox = sum(rpn_loss_bbox) / len(rpn_loss_bbox)
-            rpn_loss_cls = sum(rpn_loss_cls) / len(rpn_loss_cls)
-            rois_rpn = torch.cat(rois_rpn, dim = 1)
+        rois_rpn, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(source, im_info, gt_boxes, num_boxes)
 
         # if it is training phrase, then use ground trubut bboxes for refining
         if self.training:
@@ -305,36 +250,74 @@ class FPN(objectDetector):
             roi_data_new = rois_new
             return roi_data_new
 
-
     def _init_weights(self):
 
-        if self._share_rpn:
-            weights_normal_init(self.RCNN_rpn.RPN_Conv, 0.01)
-            weights_normal_init(self.RCNN_rpn.RPN_cls_score, 0.01)
-            weights_normal_init(self.RCNN_rpn.RPN_bbox_pred, 0.01)
-        else:
-            for rpn in self.RCNN_rpns:
-                weights_normal_init(rpn.RPN_Conv, 0.01)
-                weights_normal_init(rpn.RPN_cls_score, 0.01)
-                weights_normal_init(rpn.RPN_bbox_pred, 0.01)
-        weights_normal_init(self.RCNN_cls_score, 0.01)
-        weights_normal_init(self.RCNN_bbox_pred, 0.001)
+        def normal_init(m, mean, stddev, truncated=False):
+            """
+            weight initalizer: truncated normal and random normal.
+            """
+            # x is a parameter
+            if truncated:
+                m.weight.data.normal_().fmod_(2).mul_(stddev).add_(mean)  # not a perfect approximation
+            else:
+                m.weight.data.normal_(mean, stddev)
+                m.bias.data.zero_()
+
+        normal_init(self.RCNN_rpn.RPN_Conv, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
+        normal_init(self.RCNN_rpn.RPN_cls_score, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
+        normal_init(self.RCNN_rpn.RPN_bbox_pred, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
+        normal_init(self.RCNN_cls_score, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
+        normal_init(self.RCNN_bbox_pred, 0, 0.001, cfg.TRAIN.COMMON.TRUNCATED)
 
         # FPN layers init
         for newconv in self.RCNN_newconvs:
-            weights_normal_init(newconv, 0.001)
+            normal_init(newconv, 0, 0.001, cfg.TRAIN.COMMON.TRUNCATED)
         for deconv in self.RCNN_upsampleconvs:
-            weights_normal_init(deconv, 0.001)
+            normal_init(deconv, 0, 0.001, cfg.TRAIN.COMMON.TRUNCATED)
         for mixconv in self.RCNN_mixconvs:
-            weights_normal_init(mixconv, 0.001)
+            normal_init(mixconv, 0, 0.001, cfg.TRAIN.COMMON.TRUNCATED)
 
-        self.RCNN_top.apply(weights_xavier_init)
+        def xavier_init(m):
+
+            def xavier(param):
+                init.xavier_uniform(param)
+
+            if isinstance(m, nn.Conv2d):
+                xavier(m.weight.data)
+                m.bias.data.zero_()
+
+        self.RCNN_top.apply(xavier_init)
 
     def create_architecture(self):
         self._init_modules()
         self._init_weights()
 
     def _init_modules(self):
+
+        # for generating Conv6
+        self.conv6_layer = nn.MaxPool2d(kernel_size=3, stride=2)
+
+        # FPN channel reducing layers
+        self.RCNN_newconvs = nn.ModuleList()
+        self.RCNN_newconvs.append(nn.Conv2d(self.n_channels[0], 256, 1, stride=1))
+        self.RCNN_newconvs.append(nn.Conv2d(self.n_channels[1], 256, 1, stride=1))
+        self.RCNN_newconvs.append(nn.Conv2d(self.n_channels[2], 256, 1, stride=1))
+        self.RCNN_newconvs.append(nn.Conv2d(self.n_channels[3], 256, 1, stride=1))
+        self.RCNN_newconvs.append(nn.Conv2d(self.n_channels[3], 256, 1, stride=1))
+
+        # FPN mix conv layers
+        self.RCNN_mixconvs = nn.ModuleList()
+        for i in range(5):
+            self.RCNN_mixconvs.append(
+                nn.Conv2d(256, 256, 3, stride=1, padding=1)
+            )
+
+        # FPN upsample conv layers (whether to attach a conv layer after upsampling, totally 3)
+        self.RCNN_upsampleconvs = nn.ModuleList()
+        for i in range(3):
+            self.RCNN_upsampleconvs.append(
+                nn.Conv2d(256, 256, 1, stride=1)
+            )
 
         hidden_num = 1024
 

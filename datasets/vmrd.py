@@ -275,7 +275,10 @@ class vmrd(pascal_voc):
                 img_ntp_dif_objnum[anno['boxes'].shape[0]] += 1
 
         o_rec = float(all_tp) / float(all_gt)
-        o_prec = float(all_tp) / float(all_tp + all_fp)
+        if all_tp + all_fp > 0:
+            o_prec = float(all_tp) / float(all_tp + all_fp)
+        else:
+            o_prec = 0
         img_prec = float(img_ntp) / len(self.image_index)
 
         img_prec_dif_objnum = []

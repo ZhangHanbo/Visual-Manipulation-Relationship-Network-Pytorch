@@ -285,7 +285,7 @@ class vmrdetRoibatchLoader(objdetRoibatchLoader):
         # here we set the anchor index to the last one
         # sample in this group
         minibatch_db = self._roidb[index_ratio]
-        blobs = get_minibatch_objdet(minibatch_db)
+        blobs = get_minibatch_vmrdet(minibatch_db)
         # preprocess images
         blobs = self._imagePreprocess(blobs)
 
@@ -565,7 +565,7 @@ class vmrdetMulInSizeRoibatchLoader(vmrdetRoibatchLoader, objdetMulInSizeRoibatc
         # here we set the anchor index to the last one
         # sample in this group
         minibatch_db = self._roidb[index_ratio]
-        blobs = get_minibatch_objdet(minibatch_db)
+        blobs = get_minibatch_vmrdet(minibatch_db)
         # preprocess images
         blobs = self._imagePreprocess(blobs, False)
 

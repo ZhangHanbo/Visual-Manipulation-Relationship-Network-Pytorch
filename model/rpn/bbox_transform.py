@@ -12,6 +12,7 @@ import torch
 import numpy as np
 import pdb
 
+# TODO: CHECK ALL FUNCTIONS IN THIS FILE WHETEHR TO BE COMPATIBLE WITH ALL MODELS
 def bbox_transform(ex_rois, gt_rois):
     ex_widths = ex_rois[:, 2] - ex_rois[:, 0] + 1.0
     ex_heights = ex_rois[:, 3] - ex_rois[:, 1] + 1.0
@@ -76,7 +77,12 @@ def bbox_transform_batch(ex_rois, gt_rois):
 
 def bbox_transform_inv(boxes, deltas, batch_size):
 
+    # one prior with a batch of deltas
+    if boxes.dim() == 2 and deltas.dim() == 3:
+        boxes = boxes.unsqueeze(0)
+
     assert boxes.dim() == deltas.dim()
+
     if deltas.dim() == 2:
         widths = boxes[:, 2] - boxes[:, 0] + 1.0
         heights = boxes[:, 3] - boxes[:, 1] + 1.0
