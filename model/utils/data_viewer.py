@@ -7,6 +7,28 @@
 
 import numpy as np
 import cv2
+import networkx as nx
+import matplotlib.pyplot as plt
+
+from model.utils.config import cfg
+
+def fig2data(fig):
+    """
+    @brief Convert a Matplotlib figure to a 4D numpy array with RGBA channels and return it
+    @param fig a matplotlib figure
+    @return a numpy 3D array of RGBA values
+    """
+    # draw the renderer
+    fig.canvas.draw()
+
+    # Get the RGBA buffer from the figure
+    w, h = fig.canvas.get_width_height()
+    buf = np.fromstring(fig.canvas.tostring_argb(), dtype=np.uint8)
+    buf.shape = (w, h, 4)
+
+    # canvas.tostring_argb give pixmap in ARGB mode. Roll the ALPHA channel to have it in RGBA mode
+    buf = np.roll(buf, 3, axis=2)
+    return buf
 
 # Numpy data viewer to demonstrate detection results or ground truth.
 class dataViewer(object):
@@ -110,5 +132,31 @@ class dataViewer(object):
         im = self.draw_graspdet(im, g_dets, g_inds)
         return im
 
-    def draw_mrt(self, img):
-        raise NotImplementedError
+    def draw_mrt(self, img, rel_mat):
+
+        mrt = nx.DiGraph()
+
+        node_num = np.max(np.where(rel_mat > 0)[0]) + 1
+        for obj1 in xrange(node_num):
+            mrt.add_node("ind" + str(obj1))
+            for obj2 in xrange(obj1):
+                if rel_mat[obj1, obj2].item() == cfg.VMRN.FATHER:
+                    # OBJ1 is the father of OBJ2
+                    mrt.add_edge("ind" + str(obj2), "ind" + str(obj1))
+
+                if rel_mat[obj1, obj2].item() == cfg.VMRN.CHILD:
+                    # OBJ1 is the father of OBJ2
+                    mrt.add_edge("ind" + str(obj1), "ind" + str(obj2))
+
+        fig = plt.figure(0, figsize=(3, 3))
+        nx.draw_kamada_kawai(mrt, with_labels=True, arrowstyle='fancy', font_size=16,
+                             node_color='#FFF68F', node_shape='s', node_size=2000)
+        # grab the pixel buffer and dump it into a numpy array
+        rel_img = fig2data(fig)
+
+        rel_img = cv2.resize(rel_img[:,:,:3], (250, 250), interpolation=cv2.INTER_LINEAR)
+        img = cv2.resize(img, (1000, 1000), interpolation=cv2.INTER_LINEAR)
+        img[:250, :250] = rel_img
+        plt.close(0)
+
+        return img

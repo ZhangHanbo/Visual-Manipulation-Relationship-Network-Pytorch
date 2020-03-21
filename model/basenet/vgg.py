@@ -61,7 +61,8 @@ class VGG(featExtractor):
         if pretrained_model_path is not None:
             print("loading pretrained model: " + pretrained_model_path)
             state_dict = torch.load(pretrained_model_path)
-            self.load_state_dict({k: v for k, v in state_dict.items() if k in self.state_dict()})
+            # self.load_state_dict({k: v for k, v in state_dict.items() if k in self.state_dict()})
+            self.load_state_dict(state_dict)
         else:
             self._initialize_weights()
 
@@ -108,7 +109,7 @@ class VGG(featExtractor):
         # Fix blocks
         for p in self.feat_layer["conv1"].parameters(): p.requires_grad = False
 
-        assert (0 <= cfg.RESNET.FIXED_BLOCKS < 4)
+        assert (0 <= cfg.VGG.FIXED_BLOCKS < 4)
         if cfg.VGG.FIXED_BLOCKS >= 3:
             for p in self.feat_layer["conv4"].parameters(): p.requires_grad = False
         if cfg.VGG.FIXED_BLOCKS >= 2:

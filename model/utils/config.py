@@ -235,7 +235,8 @@ __C.DEDUP_BOXES = 1. / 16.
 # Pixel mean values (BGR order) as a (1, 1, 3) array
 # We use the same pixel mean for all networks even though it's not exactly what
 # they were trained with
-__C.PIXEL_MEANS = np.array([[[102.9801, 115.9465, 122.7717]]])
+__C.PIXEL_MEANS = np.array([[[0.485, 0.456, 0.406]]])
+__C.PIXEL_STDS = np.array([[[0.229, 0.224, 0.225]]])
 # For reproducibility
 __C.RNG_SEED = 3
 # A small number that's used many times
@@ -309,7 +310,6 @@ __C.FCGN.BBOX_NORMALIZE_STDS = (0.1, 0.1, 0.2, 0.2, 0.2)
 __C.FCGN.BBOX_NORMALIZE_MEANS = (0., 0., 0., 0., 0.)
 
 __C.MGN = edict()
-__C.MGN.USE_POOLED_FEATS = True
 __C.MGN.USE_ADAPTIVE_ANCHOR = False
 __C.MGN.OBJECT_GRASP_BALANCE = 1.0
 __C.MGN.USE_FIXED_SIZE_ROI = False

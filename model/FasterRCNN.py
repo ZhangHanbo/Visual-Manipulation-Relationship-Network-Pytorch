@@ -20,7 +20,7 @@ from roi_pooling.modules.roi_pool import _RoIPooling
 from roi_crop.modules.roi_crop import _RoICrop
 from roi_align.modules.roi_align import RoIAlignAvg
 from rpn.proposal_target_layer_cascade import _ProposalTargetLayer
-from ObjectDetector import objectDetector
+from Detectors import objectDetector
 import time
 import pdb
 from utils.net_utils import _smooth_l1_loss, _crop_pool_layer, _affine_grid_gen, _affine_theta, weights_normal_init,\
@@ -81,9 +81,6 @@ class fasterRCNN(objectDetector):
             pooled_feat = self.RCNN_roi_align(base_feat, rois.view(-1, 5))
         elif cfg.RCNN_COMMON.POOLING_MODE == 'pool':
             pooled_feat = self.RCNN_roi_pool(base_feat, rois.view(-1, 5))
-
-        # feed pooled features to top model
-        pooled_feat = self._head_to_tail(pooled_feat)
         return pooled_feat
 
     def _head_to_tail(self, pool5):
@@ -102,6 +99,8 @@ class fasterRCNN(objectDetector):
         return fc7
 
     def _get_det_rslt(self, pooled_feat):
+        # feed pooled features to top model
+        pooled_feat = self._head_to_tail(pooled_feat)
         # compute object classification probability
         cls_score = self.RCNN_cls_score(pooled_feat)
         cls_prob = F.softmax(cls_score)

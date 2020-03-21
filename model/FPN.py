@@ -17,7 +17,7 @@ from roi_pooling.modules.roi_pool import _RoIPooling
 from roi_crop.modules.roi_crop import _RoICrop
 from roi_align.modules.roi_align import RoIAlignAvg
 from rpn.proposal_target_layer_cascade import _ProposalTargetLayer
-from ObjectDetector import objectDetector
+from Detectors import objectDetector
 
 import time
 import pdb

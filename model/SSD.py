@@ -19,7 +19,7 @@ from model.utils.config import cfg
 import torchvision as tv
 
 from model.utils.net_utils import weights_xavier_init
-from ObjectDetector import objectDetector
+from Detectors import objectDetector
 
 class L2Norm(nn.Module):
     def __init__(self,n_channels, scale):
@@ -88,66 +88,45 @@ class SSD(objectDetector):
         self.softmax = nn.Softmax(dim=-1)
         self.criterion = MultiBoxLoss(self.num_classes)
 
-        self.loc = nn.ModuleList()
-        self.conf = nn.ModuleList()
         mbox_cfg = []
         for i in cfg.SSD.PRIOR_ASPECT_RATIO:
             mbox_cfg.append(2 * len(i) + 2)
 
+        self.extra_conv = nn.ModuleList()
+        self.loc = nn.ModuleList()
+        self.conf = nn.ModuleList()
+
+        # conv 4_3 detector
         self.loc.append(
             nn.Conv2d(n_channels[0], mbox_cfg[0] * 4 if self.class_agnostic else mbox_cfg[0] * 4 * self.num_classes
                       , kernel_size=3, padding=1))
         self.conf.append(nn.Conv2d(n_channels[0], mbox_cfg[0] * self.num_classes, kernel_size=3, padding=1))
 
-        self.SSD_conv7 = nn.Sequential(
+        # conv 7 detector
+        self.extra_conv.append(nn.Sequential(
             nn.MaxPool2d(kernel_size=3, stride=1, padding=1),
             nn.Conv2d(512, 1024, kernel_size=3, padding=6, dilation=6),
             nn.ReLU(inplace=True),
             nn.Conv2d(1024, 1024, kernel_size=1),
-            nn.ReLU(inplace=True))
+            nn.ReLU(inplace=True)))
         self.loc.append(nn.Conv2d(1024, mbox_cfg[1] * 4 if self.class_agnostic else mbox_cfg[1] * 4 * self.num_classes,
                                   kernel_size=3, padding=1))
         self.conf.append(nn.Conv2d(1024, mbox_cfg[1] * self.num_classes, kernel_size=3, padding=1))
 
-        self.SSD_conv8 = nn.Sequential(
-            nn.Conv2d(1024, 256, kernel_size=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(256, 512, kernel_size=3, stride=2, padding=1),
-            nn.ReLU(inplace=True),
-        )
-        self.loc.append(nn.Conv2d(512, mbox_cfg[2] * 4 if self.class_agnostic else mbox_cfg[2] * 4 * self.num_classes,
-                                  kernel_size=3, padding=1))
-        self.conf.append(nn.Conv2d(512, mbox_cfg[2] * self.num_classes, kernel_size=3, padding=1))
+        def add_extra_conv(extra_conv, loc, conf, in_c, mid_c, out_c, downsamp, mbox, n_cls, cag):
+            extra_conv.append(nn.Sequential(
+                nn.Conv2d(in_c, mid_c, kernel_size=1),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(mid_c, out_c, kernel_size=3, stride=2 if downsamp else 1, padding=1 if downsamp else 0),
+                nn.ReLU(inplace=True),
+            ))
+            loc.append(nn.Conv2d(out_c, mbox * 4 if cag else mbox * 4 * n_cls, kernel_size=3, padding=1))
+            conf.append(nn.Conv2d(out_c, mbox * n_cls, kernel_size=3, padding=1))
 
-        self.SSD_conv9 = nn.Sequential(
-            nn.Conv2d(512, 128, kernel_size=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),
-            nn.ReLU(inplace=True),
-        )
-        self.loc.append(nn.Conv2d(256, mbox_cfg[3] * 4 if self.class_agnostic else mbox_cfg[3] * 4 * self.num_classes,
-                                  kernel_size=3, padding=1))
-        self.conf.append(nn.Conv2d(256, mbox_cfg[3] * self.num_classes, kernel_size=3, padding=1))
-
-        self.SSD_conv10 = nn.Sequential(
-            nn.Conv2d(256, 128, kernel_size=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(128, 256, kernel_size=3),
-            nn.ReLU(inplace=True),
-        )
-        self.loc.append(nn.Conv2d(256, mbox_cfg[4] * 4 if self.class_agnostic else mbox_cfg[4] * 4 * self.num_classes,
-                                  kernel_size=3, padding=1))
-        self.conf.append(nn.Conv2d(256, mbox_cfg[4] * self.num_classes, kernel_size=3, padding=1))
-
-        self.SSD_conv11 = nn.Sequential(
-            nn.Conv2d(256, 128, kernel_size=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(128, 256, kernel_size=3),
-            nn.ReLU(inplace=True),
-        )
-        self.loc.append(nn.Conv2d(256, mbox_cfg[5] * 4 if self.class_agnostic else mbox_cfg[5] * 4 * self.num_classes,
-                                  kernel_size=3, padding=1))
-        self.conf.append(nn.Conv2d(256, mbox_cfg[5] * self.num_classes, kernel_size=3, padding=1))
+        add_extra_conv(self.extra_conv, self.loc, self.conf, 1024, 256, 512, True, mbox_cfg[2], self.num_classes, self.class_agnostic)
+        add_extra_conv(self.extra_conv, self.loc, self.conf, 512, 128, 256, True, mbox_cfg[3], self.num_classes, self.class_agnostic)
+        add_extra_conv(self.extra_conv, self.loc, self.conf, 256, 128, 256, False, mbox_cfg[4], self.num_classes, self.class_agnostic)
+        add_extra_conv(self.extra_conv, self.loc, self.conf, 256, 128, 256, False, mbox_cfg[5], self.num_classes, self.class_agnostic)
 
         self.iter_counter = 0
 
@@ -184,21 +163,9 @@ class SSD(objectDetector):
         s0 = self.L2Norm(s0)
         sources.append(s0)
 
-        # apply vgg up to fc7
-        x = self.SSD_conv7(x)
-        sources.append(x)
-
-        x = self.SSD_conv8(x)
-        sources.append(x)
-
-        x = self.SSD_conv9(x)
-        sources.append(x)
-
-        x = self.SSD_conv10(x)
-        sources.append(x)
-
-        x = self.SSD_conv11(x)
-        sources.append(x)
+        for m in self.extra_conv:
+            x = m(x)
+            sources.append(x)
 
         # apply multibox head to source layers
         for (x, l, c) in zip(sources, self.loc, self.conf):
@@ -230,11 +197,7 @@ class SSD(objectDetector):
 
     def create_architecture(self):
         # initialize newly added layers' weights with xavier method
-        self.SSD_conv7.apply(weights_xavier_init)
-        self.SSD_conv8.apply(weights_xavier_init)
-        self.SSD_conv9.apply(weights_xavier_init)
-        self.SSD_conv10.apply(weights_xavier_init)
-        self.SSD_conv11.apply(weights_xavier_init)
+        self.extra_conv.apply(weights_xavier_init)
         self.loc.apply(weights_xavier_init)
         self.conf.apply(weights_xavier_init)
 

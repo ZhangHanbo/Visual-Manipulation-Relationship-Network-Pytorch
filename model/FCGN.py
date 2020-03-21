@@ -28,46 +28,48 @@ from model.utils.net_utils import _smooth_l1_loss
 import numpy as np
 
 from model.fcgn.generate_grasp_anchors import generate_oriented_anchors
+from model.Detectors import graspDetector
 
 import pdb
 
-class _FCGN(nn.Module):
+class FCGN(graspDetector):
 
-    def __init__(self):
-        super(_FCGN, self).__init__()
+    def __init__(self, feat_name = 'res101', feat_list = ('conv4',), pretrained = True):
+        super(FCGN, self).__init__(feat_name, feat_list, pretrained)
+        ##### Important to set model to eval mode before evaluation ####
+        self.FeatExt.eval()
+        rand_img = torch.Tensor(1, 3, 224, 224)
+        rand_feat = self.FeatExt(rand_img)
+        self.FeatExt.train()
+        self.dout_base_model = rand_feat.size(1)
+
         self.size = cfg.SCALES[0]
+        self.FCGN_as = cfg.FCGN.ANCHOR_SCALES
+        self.FCGN_ar = cfg.FCGN.ANCHOR_RATIOS
+        self.FCGN_aa = cfg.FCGN.ANCHOR_ANGLES
+        self.FCGN_fs = cfg.FCGN.FEAT_STRIDE[0]
 
-        self._as = cfg.FCGN.ANCHOR_SCALES
-        self._ar = cfg.FCGN.ANCHOR_RATIOS
-        self._aa = cfg.FCGN.ANCHOR_ANGLES
-        self._fs = cfg.FCGN.FEAT_STRIDE[0]
+        self.FCGN_classifier = _Classifier(self.dout_base_model, 5, self.FCGN_as, self.FCGN_ar, self.FCGN_aa)
+        self.FCGN_proposal_target = _GraspTargetLayer(self.FCGN_fs, self.FCGN_ar, self.FCGN_as, self.FCGN_aa)
 
-        # for resnet
-        if self.dout_base_model is None:
-            if self._fs == 16:
-                self.dout_base_model = 256 * self.expansions
-            elif self._fs == 32:
-                self.dout_base_model = 512 * self.expansions
+        self.FCGN_anchors = torch.from_numpy(generate_oriented_anchors(base_size=self.FCGN_fs,
+                                    scales=np.array(self.FCGN_as), ratios=np.array(self.FCGN_ar),
+                                    angles=np.array(self.FCGN_aa))).float()
 
-        self.classifier = _Classifier(self.dout_base_model, 5, self._as, self._ar, self._aa)
-        self.proposal_target = _GraspTargetLayer(self._fs, self._ar, self._as, self._aa)
-
-        self._anchors = torch.from_numpy(generate_oriented_anchors(base_size=self._fs,
-                                    scales=np.array(self._as), ratios=np.array(self._ar),
-                                    angles=np.array(self._aa))).float()
-
-        self._num_anchors = self._anchors.size(0)
-
+        self.FCGN_num_anchors = self.FCGN_anchors.size(0)
         # [x1, y1, x2, y2] -> [xc, yc, w, h]
-        self._anchors = torch.cat([
-            (self._anchors[:, 0:1] + self._anchors[:, 2:3]) / 2,
-            (self._anchors[:, 1:2] + self._anchors[:, 3:4]) / 2,
-            self._anchors[:, 2:3] - self._anchors[:, 0:1] + 1,
-            self._anchors[:, 3:4] - self._anchors[:, 1:2] + 1,
-            self._anchors[:, 4:5]
-        ], dim=1)
+        self.FCGN_anchors = self._grasp_anchor_transform()
 
         self.iter_counter = 0
+
+    def _grasp_anchor_transform(self):
+        return torch.cat([
+            (self.FCGN_anchors[:, 0:1] + self.FCGN_anchors[:, 2:3]) / 2,
+            (self.FCGN_anchors[:, 1:2] + self.FCGN_anchors[:, 3:4]) / 2,
+            self.FCGN_anchors[:, 2:3] - self.FCGN_anchors[:, 0:1] + 1,
+            self.FCGN_anchors[:, 3:4] - self.FCGN_anchors[:, 1:2] + 1,
+            self.FCGN_anchors[:, 4:5]
+        ], dim=1)
 
     def forward(self, data_batch):
         x = data_batch[0]
@@ -79,8 +81,8 @@ class _FCGN(nn.Module):
             self.iter_counter += 1
 
         # features
-        x = self.base(x)
-        pred = self.classifier(x)
+        x = self.FeatExt(x)
+        pred = self.FCGN_classifier(x)
         loc, conf = pred
         self.batch_size = loc.size(0)
 
@@ -101,7 +103,7 @@ class _FCGN(nn.Module):
             # 1. Which bounding box should contribute for classification loss,
             # 2. Balance cls loss and bbox loss
             gt_xywhc = points2labels(gt_boxes)
-            loc_label, conf_label, iw, ow = self.proposal_target(conf, gt_xywhc, all_anchors)
+            loc_label, conf_label, iw, ow = self.FCGN_proposal_target(conf, gt_xywhc, all_anchors)
 
             keep = Variable(conf_label.view(-1).ne(-1).nonzero().view(-1))
             conf = torch.index_select(conf.view(-1, 2), 0, keep.data)
@@ -116,8 +118,8 @@ class _FCGN(nn.Module):
         return loc, prob, bbox_loss , cls_loss, conf_label, all_anchors
 
     def _generate_anchors(self, feat_height, feat_width):
-        shift_x = np.arange(0, feat_width) * self._fs
-        shift_y = np.arange(0, feat_height) * self._fs
+        shift_x = np.arange(0, feat_width) * self.FCGN_fs
+        shift_y = np.arange(0, feat_height) * self.FCGN_fs
         shift_x, shift_y = np.meshgrid(shift_x, shift_y)
         shifts = torch.from_numpy(np.vstack((shift_x.ravel(), shift_y.ravel())).transpose())
         shifts = torch.cat([
@@ -126,18 +128,19 @@ class _FCGN(nn.Module):
         ], dim = 1)
         shifts = shifts.contiguous().float()
 
-        A = self._num_anchors
+        A = self.FCGN_num_anchors
         K = shifts.size(0)
 
-        # anchors = self._anchors.view(1, A, 5) + shifts.view(1, K, 5).permute(1, 0, 2).contiguous()
-        anchors = self._anchors.view(1, A, 5) + shifts.view(K, 1, 5)
+        # anchors = self.FCGN_anchors.view(1, A, 5) + shifts.view(1, K, 5).permute(1, 0, 2).contiguous()
+        anchors = self.FCGN_anchors.view(1, A, 5) + shifts.view(K, 1, 5)
         anchors = anchors.view(1, K * A, 5)
 
         return anchors
 
     def create_architecture(self):
-        self._init_modules()
+        self._init_weights()
 
+    def _init_weights(self):
         def normal_init(m, mean, stddev, truncated=False):
             """
             weight initalizer: truncated normal and random normal.
@@ -149,83 +152,5 @@ class _FCGN(nn.Module):
                 m.weight.data.normal_(mean, stddev)
                 m.bias.data.zero_()
 
-        def weights_init(m):
-            def xavier(param):
-                init.xavier_uniform(param)
-            if isinstance(m, nn.Conv2d):
-                xavier(m.weight.data)
-                m.bias.data.zero_()
-
-        # initialize newly added layers' weights with xavier method
-        # self.classifier.loc.apply(weights_init)
-        # self.classifier.conf.apply(weights_init)
-        normal_init(self.classifier.conf, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-        normal_init(self.classifier.loc, 0, 0.001, cfg.TRAIN.COMMON.TRUNCATED)
-
-class resnet(_FCGN):
-    def __init__(self, num_layers = 101, pretrained=False):
-
-        self.num_layers = num_layers
-        self.model_path = 'data/pretrained_model/resnet' + str(num_layers) + '_caffe.pth'
-
-        self.pretrained = pretrained
-        self._bbox_dim = 5
-        self.dout_base_model = None
-        if num_layers == 18 or num_layers == 34:
-            self.expansions = 1
-        elif num_layers == 50 or num_layers == 101 or num_layers == 152:
-            self.expansions = 4
-        else:
-            assert 0, "network not defined"
-
-        super(resnet, self).__init__()
-
-    def _init_modules(self):
-        if self.num_layers == 18:
-            resnet = resnet18()
-        elif self.num_layers == 34:
-            resnet = resnet34()
-        elif self.num_layers == 50:
-            resnet = resnet50()
-        elif self.num_layers == 101:
-            resnet = resnet101()
-        elif self.num_layers == 152:
-            resnet = resnet152()
-        else:
-            assert 0, "network not defined"
-
-        if self.pretrained == True:
-            print("Loading pretrained weights from %s" % (self.model_path))
-            state_dict = torch.load(self.model_path)
-            resnet.load_state_dict({k: v for k, v in state_dict.items() if k in resnet.state_dict()})
-
-        # Build resnet.
-        if self._fs == 16:
-            self.base = nn.Sequential(resnet.conv1, resnet.bn1, resnet.relu,
-                                      resnet.maxpool, resnet.layer1, resnet.layer2, resnet.layer3)
-        elif self._fs == 32:
-            self.base = nn.Sequential(resnet.conv1, resnet.bn1, resnet.relu,
-                                      resnet.maxpool, resnet.layer1, resnet.layer2, resnet.layer3, resnet.layer4)
-
-
-class vgg16(_FCGN):
-    def __init__(self, pretrained=False):
-
-        self.model_path = 'data/pretrained_model/vgg16_caffe.pth'
-        self.dout_base_model = 512
-        self.pretrained = pretrained
-        self._bbox_dim = 5
-        super(vgg16, self).__init__()
-
-    def _init_modules(self):
-        vgg = models.vgg16()
-
-        if self.pretrained == True:
-            print("Loading pretrained weights from %s" % (self.model_path))
-            state_dict = torch.load(self.model_path)
-            vgg.load_state_dict({k: v for k, v in state_dict.items() if k in vgg.state_dict()})
-
-        if self._fs == 16:
-            self.base = vgg.features[:24]
-        elif self._fs == 32:
-            self.base = vgg.features
+        normal_init(self.FCGN_classifier.conf, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
+        normal_init(self.FCGN_classifier.loc, 0, 0.001, cfg.TRAIN.COMMON.TRUNCATED)

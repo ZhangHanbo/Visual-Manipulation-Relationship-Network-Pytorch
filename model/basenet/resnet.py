@@ -32,7 +32,7 @@ model_urls = {
 
 local_model_paths = {
     'res152': 'data/pretrained_model/resnet152-b121ed2d.pth',
-    'res101': 'data/pretrained_model/resnet101_caffe.pth',
+    'res101': 'data/pretrained_model/resnet101-5d3b4d8f.pth',
     'res50': 'data/pretrained_model/resnet50-19c8e357.pth',
     'res34': 'data/pretrained_model/resnet34-333f7ec4.pth',
     'res18': 'data/pretrained_model/resnet18-5c106cde.pth',
@@ -148,7 +148,8 @@ class ResNet(featExtractor):
         if pretrained_model_path is not None:
             print("loading pretrained model: " + pretrained_model_path)
             state_dict = torch.load(pretrained_model_path)
-            self.load_state_dict({k:v for k,v in state_dict.items() if k in self.state_dict()})
+            # self.load_state_dict({k:v for k,v in state_dict.items() if k in self.state_dict()})
+            self.load_state_dict(state_dict)
 
         self.feat_list = feat_list
 

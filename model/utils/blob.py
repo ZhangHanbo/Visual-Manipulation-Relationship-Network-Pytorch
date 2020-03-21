@@ -56,3 +56,13 @@ def prep_im_for_blob(im, target_size, max_size, fix_size = False):
     im = cv2.resize(im, None, None, fx=im_scale['x'], fy=im_scale['y'],
                     interpolation=cv2.INTER_LINEAR)
     return im, im_scale
+
+def image_normalize(im, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)):
+    im /= 255.
+    im  = (im - mean) / (std + 1e-8)
+    return im.astype(np.float32)
+
+def image_unnormalize(im, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)):
+    im = im * (std + 1e-8) + mean
+    im *= 255.
+    return im.astype(np.float32)

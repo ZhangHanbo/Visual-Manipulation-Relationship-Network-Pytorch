@@ -16,7 +16,7 @@ import torch.utils.data as data
 
 from model.utils.config import cfg
 from roi_data_layer.minibatch import *
-from model.utils.blob import prep_im_for_blob
+from model.utils.blob import prep_im_for_blob, image_normalize
 import abc
 
 import cv2
@@ -91,9 +91,8 @@ class objdetRoibatchLoader(roibatchLoader):
         blob['im_info'][2:4] = (im_scale['y'], im_scale['x'])
         blob['gt_boxes'][:, :-1][:, 0::2] *= im_scale['x']
         blob['gt_boxes'][:, :-1][:, 1::2] *= im_scale['y']
-        # substract means and swap channels
-        blob['data'] -= cfg.PIXEL_MEANS
-        blob['data'] = blob['data'][:, :, ::-1]
+        # NOTE: When using torchvision pretrained models, images should be normalized. 
+        blob['data'] = image_normalize(blob['data'], mean=cfg.PIXEL_MEANS, std=cfg.PIXEL_STDS)
         return blob
 
     def _boxPostProcess(self, gt_boxes):
@@ -170,9 +169,8 @@ class graspdetRoibatchLoader(roibatchLoader):
         blob['im_info'][2:4] = (im_scale['y'], im_scale['x'])
         blob['gt_grasps'][:, 0::2] *= im_scale['x']
         blob['gt_grasps'][:, 1::2] *= im_scale['y']
-        # substract means and swap channels
-        blob['data'] -= cfg.PIXEL_MEANS
-        blob['data'] = blob['data'][:, :, ::-1]
+        # NOTE: When using torchvision pretrained models, images should be normalized. 
+        blob['data'] = image_normalize(blob['data'], mean=cfg.PIXEL_MEANS, std=cfg.PIXEL_STDS)
         return blob
 
     def _graspPostProcess(self, gt_grasps, gt_grasp_inds = None):
@@ -244,9 +242,8 @@ class vmrdetRoibatchLoader(objdetRoibatchLoader):
         blob['im_info'][2:4] = (im_scale['y'], im_scale['x'])
         blob['gt_boxes'][:, :-1][:, 0::2] *= im_scale['x']
         blob['gt_boxes'][:, :-1][:, 1::2] *= im_scale['y']
-        # substract means and swap channels
-        blob['data'] -= cfg.PIXEL_MEANS
-        blob['data'] = blob['data'][:, :, ::-1]
+        # NOTE: When using torchvision pretrained models, images should be normalized. 
+        blob['data'] = image_normalize(blob['data'], mean=cfg.PIXEL_MEANS, std=cfg.PIXEL_STDS)
         blob['node_inds'] = blob['node_inds'][keep]
         blob['parent_lists'] = [blob['parent_lists'][p_ind] for p_ind in list(keep)]
         blob['child_lists'] = [blob['child_lists'][c_ind] for c_ind in list(keep)]
@@ -317,7 +314,7 @@ class mulInSizeRoibatchLoader(roibatchLoader):
         super(mulInSizeRoibatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes,
                                                             training, cls_list, augmentation)
         # given the ratio_list, we want to make the ratio same for each batch.
-        self.ratio_list_batch = torch.Tensor(self.data_size).zero_()
+        self.ratio_list_batch = torch.FloatTensor(self.data_size).zero_()
         num_batch = int(np.ceil(len(ratio_index) / batch_size))
         for i in range(num_batch):
             left_idx = i * batch_size
@@ -651,9 +648,8 @@ class roigdetMulInSizeRoibatchLoader(graspMulInSizeRoibatchLoader, objdetMulInSi
         blob['gt_grasps'][:, 1::2] *= im_scale['y']
         blob['node_inds'] = blob['node_inds'][keep_b]
         blob['gt_grasp_inds'] = blob['gt_grasp_inds'][keep_g]
-        # substract means and swap channels
-        blob['data'] -= cfg.PIXEL_MEANS
-        blob['data'] = blob['data'][:, :, ::-1]
+        # NOTE: When using torchvision pretrained models, images should be normalized. 
+        blob['data'] = image_normalize(blob['data'], mean=cfg.PIXEL_MEANS, std=cfg.PIXEL_STDS)
         return blob
 
     def _graspIndsPostProcess(self, grasp_inds, shuffle_inds, node_inds):
@@ -768,9 +764,8 @@ class allInOneMulInSizeRoibatchLoader(vmrdetMulInSizeRoibatchLoader, roigdetMulI
         blob['gt_grasps'][:, 0::2] *= im_scale['x']
         blob['gt_grasps'][:, 1::2] *= im_scale['y']
         blob['gt_grasp_inds'] = blob['gt_grasp_inds'][keep_g]
-        # substract means and swap channels
-        blob['data'] -= cfg.PIXEL_MEANS
-        blob['data'] = blob['data'][:, :, ::-1]
+        # NOTE: When using torchvision pretrained models, images should be normalized. 
+        blob['data'] = image_normalize(blob['data'], mean=cfg.PIXEL_MEANS, std=cfg.PIXEL_STDS)
         blob['node_inds'] = blob['node_inds'][keep_b]
         blob['parent_lists'] = [blob['parent_lists'][p_ind] for p_ind in list(keep_b)]
         blob['child_lists'] = [blob['child_lists'][c_ind] for c_ind in list(keep_b)]

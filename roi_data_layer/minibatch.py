@@ -12,7 +12,6 @@ from __future__ import print_function
 
 import numpy as np
 import numpy.random as npr
-from scipy.misc import imread
 from model.utils.config import cfg
 from model.utils.blob import prep_im_for_blob, im_list_to_blob
 import pdb
@@ -90,11 +89,16 @@ def _get_image_blob(roidb):
     """Builds an input blob from the images in the roidb at the specified
     scales.
     """
-    im = imread(roidb['image'])
+
+    # remember: cv2.imread will load picture in the order of BGR
+    im = cv2.imread(roidb['image'])
 
     if len(im.shape) == 2:
         im = im[:,:,np.newaxis]
         im = np.concatenate((im,im,im), axis=2)
+
+    # BGR to RGB
+    im = im[:, :, ::-1]
 
     im = im.astype(np.float32, copy=False)
     return im

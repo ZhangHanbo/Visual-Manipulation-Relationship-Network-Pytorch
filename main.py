@@ -26,6 +26,8 @@ import torch.optim as optim
 
 import torchvision.transforms as transforms
 from torch.utils.data.sampler import Sampler
+import matplotlib
+matplotlib.use('Agg')
 
 from roi_data_layer.roidb import combined_roidb
 from roi_data_layer.roibatchLoader import *
@@ -33,14 +35,15 @@ from model.utils.config import cfg, cfg_from_file, cfg_from_list, get_output_dir
 from model.utils.net_utils import weights_normal_init, save_net, load_net, \
       adjust_learning_rate, save_checkpoint, clip_gradient
 from model.utils.data_viewer import dataViewer
+from model.utils.blob import image_unnormalize
 
 from model.FasterRCNN import fasterRCNN
 from model.FPN import FPN
 from model.SSD import SSD
 from model.FasterRCNN_VMRN import fasterRCNN_VMRN
-import model.FCGN as FCGN
+from model.FCGN import FCGN
 import model.SSD_VMRN as SSD_VMRN
-import model.MultiGrasp as MGN
+from model.MGN import MGN
 import model.AllinOne as ALL_IN_ONE
 import model.RoIGrasp as ROIGN
 import model.VAM as VAM
@@ -49,6 +52,8 @@ from model.utils.net_utils import objdet_inference, grasp_inference, objgrasp_in
 from datasets.factory import get_imdb
 
 import warnings
+
+torch.set_default_tensor_type(torch.FloatTensor)
 
 # implemented-algorithm list
 LEGAL_FRAMES = {"faster_rcnn", "ssd", "fpn", "faster_rcnn_vmrn", "ssd_vmrn", "all_in_one", "fcgn", "roign", "mgn", "vam"}
@@ -281,17 +286,8 @@ def init_network(args, n_cls):
         Network = FPN(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
                              feat_list=('conv2', 'conv3', 'conv4', 'conv5'), pretrained=True)
     elif args.frame == 'fcgn':
-        if args.net == 'res101':
-            Network = FCGN.resnet(num_layers=101, pretrained=True)
-        elif args.net == 'res50':
-            Network = FCGN.resnet(num_layers=50, pretrained=True)
-        elif args.net == 'res34':
-            Network = FCGN.resnet(num_layers=34, pretrained=True)
-        elif args.net == 'vgg16':
-            Network = FCGN.vgg16(pretrained=True)
-        else:
-            print("network is not defined")
-            pdb.set_trace()
+        conv_num = str(int(np.log2(cfg.FCGN.FEAT_STRIDE[0])))
+        Network = FCGN(feat_name=args.net, feat_list=('conv' + conv_num,), pretrained=True)
     elif args.frame == 'roign':
         if args.net == 'res101':
             Network = ROIGN.resnet(n_cls, 101, pretrained=True)
@@ -299,11 +295,9 @@ def init_network(args, n_cls):
             print("network is not defined")
             pdb.set_trace()
     elif args.frame == 'mgn':
-        if args.net == 'res101':
-            Network = MGN.resnet(n_cls, 101, pretrained=True, class_agnostic=args.class_agnostic)
-        else:
-            print("network is not defined")
-            pdb.set_trace()
+        conv_num = str(int(np.log2(cfg.RCNN_COMMON.FEAT_STRIDE[0])))
+        Network = MGN(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
+                                  feat_list=('conv' + conv_num,), pretrained=True)
     elif args.frame == 'all_in_one':
         if args.net == 'res101':
             Network = ALL_IN_ONE.resnet(n_cls, 101, pretrained=True, class_agnostic=args.class_agnostic)
@@ -404,25 +398,23 @@ def vis_gt(data_batch, visualizer, frame):
     batch_size = data_batch[0].size(0)
     im_list = []
     for i in range(batch_size):
+        im_vis = image_unnormalize(data_batch[0][i].permute(1, 2, 0).cpu().numpy(),
+                                   mean=cfg.PIXEL_MEANS, std=cfg.PIXEL_STDS)
         if frame in {"fpn", "faster_rcnn", "ssd"}:
-            im_vis = visualizer.draw_objdet(data_batch[0][i].permute(1, 2, 0).cpu().numpy() + cfg.PIXEL_MEANS,
-                                            data_batch[2][i].cpu().numpy())
+            im_vis = visualizer.draw_objdet(im_vis, data_batch[2][i].cpu().numpy())
         elif frame in {"ssd_vmrn", "vam", "faster_rcnn_vmrn"}:
-            # TODO: visualize manipulation relationship tree
-            im_vis = visualizer.draw_objdet(data_batch[0][i].permute(1, 2, 0).cpu().numpy() + cfg.PIXEL_MEANS,
-                                            data_batch[2][i].cpu().numpy())
+            im_vis = visualizer.draw_objdet(im_vis, data_batch[2][i].cpu().numpy(), o_inds = np.arange(data_batch[3][i].item()))
+            im_vis = visualizer.draw_mrt(im_vis, data_batch[4][i].cpu().numpy())
         elif frame in {"fcgn"}:
-            im_vis = visualizer.draw_graspdet(data_batch[0][i].permute(1, 2, 0).cpu().numpy() + cfg.PIXEL_MEANS,
-                                              data_batch[2][i].cpu().numpy())
+            im_vis = visualizer.draw_graspdet(im_vis, data_batch[2][i].cpu().numpy())
         elif frame in {"all_in_one"}:
             # TODO: visualize manipulation relationship tree
-            im_vis = visualizer.draw_graspdet_with_owner(data_batch[0][i].permute(1, 2, 0).cpu().numpy() + cfg.PIXEL_MEANS,
-                                                         data_batch[2][i].cpu().numpy(), data_batch[3][i].cpu().numpy(),
-                                                         data_batch[-1][i].cpu().numpy())
+            im_vis = visualizer.draw_graspdet_with_owner(im_vis, data_batch[2][i].cpu().numpy(),
+                                                         data_batch[3][i].cpu().numpy(), data_batch[-1][i].cpu().numpy())
+            im_vis = visualizer.draw_mrt(im_vis, data_batch[4].cpu().numpy())
         elif frame in {"roign", "mgn"}:
-            im_vis = visualizer.draw_graspdet_with_owner(data_batch[0][i].permute(1, 2, 0).cpu().numpy() + cfg.PIXEL_MEANS,
-                                                         data_batch[2][i].cpu().numpy(), data_batch[3][i].cpu().numpy(),
-                                                         data_batch[-1][i].cpu().numpy())
+            im_vis = visualizer.draw_graspdet_with_owner(im_vis, data_batch[2][i].cpu().numpy(),
+                                                         data_batch[3][i].cpu().numpy(), data_batch[-1][i].cpu().numpy())
         else:
             raise RuntimeError
         im_list.append(im_vis)
@@ -539,7 +531,8 @@ def evalute_model(Network, namedb, args):
                                  n_classes=imdb.num_classes, for_vis=True)
                 im_vis = visualizer.draw_objdet(input_img, vis_boxes)
                 img_name = id_number_to_name[data_batch[1][0][4].item()].split("/")[-1]
-                cv2.imwrite(os.path.join(data_vis_dir, img_name), im_vis)
+                # When using cv2.imwrite, channel order should be BGR
+                cv2.imwrite(os.path.join(data_vis_dir, img_name), im_vis[:,:,::-1])
 
             if max_per_image > 0:
                 det_box = detection_filter(det_box, None, max_per_image)
@@ -690,7 +683,8 @@ def train():
                     im_list = vis_gt(data_batch, visualizer, args.frame)
                     for i, im_vis in enumerate(im_list):
                         img_name = id_number_to_name[data_batch[1][i][4].item()].split("/")[-1]
-                        cv2.imwrite(os.path.join(data_vis_dir, img_name), im_vis)
+                        # When using cv2.imwrite, channel order should be BGR
+                        cv2.imwrite(os.path.join(data_vis_dir, img_name), im_vis[:, :, ::-1])
             # ship to cuda
             if args.cuda:
                 data_batch = makeCudaData(data_batch)

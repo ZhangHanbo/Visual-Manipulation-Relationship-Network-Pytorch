@@ -312,7 +312,7 @@ def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agno
     if for_vis:
         thresh = cfg.TEST.COMMON.OBJ_DET_THRESHOLD
     else:
-        thresh = 0.05
+        thresh = 0.
 
     scores = cls_prob
 
@@ -413,13 +413,13 @@ def objgrasp_inference(o_cls_prob, o_box_output, g_cls_prob, g_box_output, im_in
     if for_vis:
         o_thresh = 0.5
     else:
-        o_thresh = 0.05
+        o_thresh = 0.
         topN_g = 1
 
     if not topN_g:
         g_thresh = 0.5
     else:
-        g_thresh = 0
+        g_thresh = 0.
 
     if rois is None:
         raise RuntimeError("You must specify rois for ROI-GN.")

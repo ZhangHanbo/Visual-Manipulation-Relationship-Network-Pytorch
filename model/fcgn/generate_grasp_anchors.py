@@ -18,10 +18,6 @@ except NameError:
 
 def generate_oriented_anchors(base_size=32, ratios=np.array([1]),
                      scales=np.array([54./32.]), angles= 30 * np.arange(6) - 75):
-    """
-    Generate anchor (reference) windows by enumerating aspect ratios X
-    scales wrt a reference (0, 0, 15, 15) window.
-    """
     base_anchor = np.array([1, 1, base_size, base_size]) - 1
     ratio_anchors = _ratio_enum(base_anchor, ratios)
     vertical_anchors = np.vstack([_scale_enum(ratio_anchors[i, :], scales)
