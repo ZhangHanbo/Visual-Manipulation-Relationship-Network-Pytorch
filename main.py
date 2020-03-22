@@ -394,31 +394,27 @@ def detection_filter(all_boxes, all_grasp = None, max_per_image = 100):
     else:
         return all_boxes
 
-def vis_gt(data_batch, visualizer, frame):
-    batch_size = data_batch[0].size(0)
-    im_list = []
-    for i in range(batch_size):
-        im_vis = image_unnormalize(data_batch[0][i].permute(1, 2, 0).cpu().numpy(),
-                                   mean=cfg.PIXEL_MEANS, std=cfg.PIXEL_STDS)
-        if frame in {"fpn", "faster_rcnn", "ssd"}:
-            im_vis = visualizer.draw_objdet(im_vis, data_batch[2][i].cpu().numpy())
-        elif frame in {"ssd_vmrn", "vam", "faster_rcnn_vmrn"}:
-            im_vis = visualizer.draw_objdet(im_vis, data_batch[2][i].cpu().numpy(), o_inds = np.arange(data_batch[3][i].item()))
-            im_vis = visualizer.draw_mrt(im_vis, data_batch[4][i].cpu().numpy())
-        elif frame in {"fcgn"}:
-            im_vis = visualizer.draw_graspdet(im_vis, data_batch[2][i].cpu().numpy())
-        elif frame in {"all_in_one"}:
-            # TODO: visualize manipulation relationship tree
-            im_vis = visualizer.draw_graspdet_with_owner(im_vis, data_batch[2][i].cpu().numpy(),
-                                                         data_batch[3][i].cpu().numpy(), data_batch[-1][i].cpu().numpy())
-            im_vis = visualizer.draw_mrt(im_vis, data_batch[4].cpu().numpy())
-        elif frame in {"roign", "mgn"}:
-            im_vis = visualizer.draw_graspdet_with_owner(im_vis, data_batch[2][i].cpu().numpy(),
-                                                         data_batch[3][i].cpu().numpy(), data_batch[-1][i].cpu().numpy())
-        else:
-            raise RuntimeError
-        im_list.append(im_vis)
-    return im_list
+def vis_gt(data_list, visualizer, frame):
+    im_vis = image_unnormalize(data_list[0].permute(1, 2, 0).cpu().numpy(),
+                               mean=cfg.PIXEL_MEANS, std=cfg.PIXEL_STDS)
+    if frame in {"fpn", "faster_rcnn", "ssd"}:
+        im_vis = visualizer.draw_objdet(im_vis, data_list[2].cpu().numpy())
+    elif frame in {"ssd_vmrn", "vam", "faster_rcnn_vmrn"}:
+        im_vis = visualizer.draw_objdet(im_vis, data_list[2].cpu().numpy(), o_inds = np.arange(data_list[3].item()))
+        im_vis = visualizer.draw_mrt(im_vis, data_list[4].cpu().numpy())
+    elif frame in {"fcgn"}:
+        im_vis = visualizer.draw_graspdet(im_vis, data_list[2].cpu().numpy())
+    elif frame in {"all_in_one"}:
+        # TODO: visualize manipulation relationship tree
+        im_vis = visualizer.draw_graspdet_with_owner(im_vis, data_list[2].cpu().numpy(),
+                                                     data_list[3].cpu().numpy(), data_list[-1].cpu().numpy())
+        im_vis = visualizer.draw_mrt(im_vis, data_list[4].cpu().numpy())
+    elif frame in {"roign", "mgn"}:
+        im_vis = visualizer.draw_graspdet_with_owner(im_vis, data_list[2].cpu().numpy(),
+                                                     data_list[3].cpu().numpy(), data_list[-1].cpu().numpy())
+    else:
+        raise RuntimeError
+    return im_vis
 
 def evalute_model(Network, namedb, args):
     max_per_image = 100
@@ -525,15 +521,10 @@ def evalute_model(Network, namedb, args):
             det_box = objdet_inference(cls_prob[0].data, bbox_pred[0].data, data_batch[1][0].data,
                         box_prior=boxes[0].data, class_agnostic=args.class_agnostic, n_classes=imdb.num_classes, for_vis=False)
             if args.vis:
-                input_img = data_batch[0][0].permute(1, 2, 0).cpu().numpy() + cfg.PIXEL_MEANS
                 vis_boxes = objdet_inference(cls_prob[0].data, bbox_pred[0].data, data_batch[1][0].data,
                                  box_prior=boxes[0].data, class_agnostic=args.class_agnostic,
                                  n_classes=imdb.num_classes, for_vis=True)
-                im_vis = visualizer.draw_objdet(input_img, vis_boxes)
-                img_name = id_number_to_name[data_batch[1][0][4].item()].split("/")[-1]
-                # When using cv2.imwrite, channel order should be BGR
-                cv2.imwrite(os.path.join(data_vis_dir, img_name), im_vis[:,:,::-1])
-
+                data_list = [data_batch[0][0], data_batch[1][0], torch.Tensor(vis_boxes)]
             if max_per_image > 0:
                 det_box = detection_filter(det_box, None, max_per_image)
             for j in xrange(1, imdb.num_classes):
@@ -544,6 +535,15 @@ def evalute_model(Network, namedb, args):
                         grasp_prob.data, grasp_loc.data, data_batch[1][0].data, rois[0].data,
                         class_agnostic=args.class_agnostic, n_classes=imdb.num_classes,
                         g_box_prior=grasp_all_anchors.data, for_vis=False, topN_g = 1)
+            if args.vis:
+                vis_boxes, vis_grasps = objgrasp_inference(cls_prob[0].data if cls_prob is not None else cls_prob,
+                             bbox_pred[0].data if bbox_pred is not None else bbox_pred,
+                             grasp_prob.data, grasp_loc.data, data_batch[1][0].data, rois[0].data,
+                             class_agnostic=args.class_agnostic, n_classes=imdb.num_classes,
+                             g_box_prior=grasp_all_anchors.data, for_vis=True, topN_g=5)
+                g_inds = torch.Tensor(np.arange(vis_boxes.shape[0])).unsqueeze(1).repeat(1, vis_grasps.shape[1]) + 1
+                data_list = [data_batch[0][0], data_batch[1][0], torch.Tensor(vis_boxes),
+                             torch.Tensor(vis_grasps).view(-1, vis_grasps.shape[-1]), g_inds.long().view(-1)]
             if max_per_image > 0:
                 det_box, det_grasps = detection_filter(det_box, det_grasps, max_per_image)
             for j in xrange(1, imdb.num_classes):
@@ -552,8 +552,16 @@ def evalute_model(Network, namedb, args):
         elif args.frame in {'fcgn'}:
             det_grasps = grasp_inference(cls_prob[0].data, bbox_pred[0].data, data_batch[1][0].data, box_prior = boxes[0].data, topN = 1)
             all_grasp[1][i] = det_grasps
+            if args.vis:
+                data_list = [data_batch[0][0], data_batch[1][0], torch.Tensor(det_grasps)]
         else:
             raise RuntimeError("Illegal algorithm.")
+
+        if args.vis:
+            im_vis = vis_gt(data_list, visualizer, args.frame)
+            img_name = id_number_to_name[data_batch[1][0][4].item()].split("/")[-1]
+            # When using cv2.imwrite, channel order should be BGR
+            cv2.imwrite(os.path.join(data_vis_dir, img_name), im_vis[:, :, ::-1])
 
         misc_toc = time.time()
         nms_time = misc_toc - misc_tic
@@ -563,7 +571,7 @@ def evalute_model(Network, namedb, args):
         sys.stdout.flush()
 
     print('Evaluating detections')
-    if args.frame in {'fcgn'}:
+    if args.frame in {'fcgn'} or 'cornell' in args.dataset or 'jacquard' in args.dataset:
         result = imdb.evaluate_detections(all_grasp, output_dir)
     else:
         result = imdb.evaluate_detections(all_boxes, output_dir)
@@ -579,10 +587,14 @@ def evalute_model(Network, namedb, args):
         result = imgprec
 
     if args.frame == 'mgn':
-        print('Evaluating grasp detection results')
-        grasp_MRFPPI, mean_MRFPPI, key_point_MRFPPI, mAPgrasp = imdb.evaluate_multigrasp_detections(all_boxes, all_grasp)
-        print('Mean Log-Average Miss Rate: %.4f' % np.mean(np.array(mean_MRFPPI)))
-        result = mAPgrasp
+        # when using mgn in single-object grasp dataset, we only use accuracy to measure the performance instead of mAP.
+        if 'cornell' in args.dataset or 'jacquard' in args.dataset:
+            pass
+        else:
+            print('Evaluating grasp detection results')
+            grasp_MRFPPI, mean_MRFPPI, key_point_MRFPPI, mAPgrasp = imdb.evaluate_multigrasp_detections(all_boxes, all_grasp)
+            print('Mean Log-Average Miss Rate: %.4f' % np.mean(np.array(mean_MRFPPI)))
+            result = mAPgrasp
 
     # TODO: implement all_in_one's metric for evaluation
 
@@ -680,11 +692,11 @@ def train():
             data_batch = next(data_iter)
             if args.vis:
                 for i in range(data_batch[0].size(0)):
-                    im_list = vis_gt(data_batch, visualizer, args.frame)
-                    for i, im_vis in enumerate(im_list):
-                        img_name = id_number_to_name[data_batch[1][i][4].item()].split("/")[-1]
-                        # When using cv2.imwrite, channel order should be BGR
-                        cv2.imwrite(os.path.join(data_vis_dir, img_name), im_vis[:, :, ::-1])
+                    data_list = [data_batch[d][i] for d in range(len(data_batch))]
+                    im_vis = vis_gt(data_list, visualizer, args.frame)
+                    img_name = id_number_to_name[data_batch[1][i][4].item()].split("/")[-1]
+                    # When using cv2.imwrite, channel order should be BGR
+                    cv2.imwrite(os.path.join(data_vis_dir, img_name), im_vis[:, :, ::-1])
             # ship to cuda
             if args.cuda:
                 data_batch = makeCudaData(data_batch)
@@ -707,11 +719,6 @@ def train():
             elif args.frame == 'fcgn':
                 bbox_pred, cls_prob, loss_bbox, loss_cls, rois_label,rois = Network(data_batch)
                 loss = loss_bbox.mean() + loss_cls.mean()
-            elif args.frame == 'roign':
-                rois, rpn_loss_cls, rpn_loss_box, rois_label, grasp_loc, grasp_prob, grasp_bbox_loss, grasp_cls_loss, \
-                            grasp_conf_label, grasp_all_anchors = Network(data_batch)
-                loss = rpn_loss_box.mean() + rpn_loss_cls.mean() \
-                       + cfg.MGN.OBJECT_GRASP_BALANCE * (grasp_bbox_loss.mean() + grasp_cls_loss.mean())
             elif args.frame == 'mgn':
                 rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_box, loss_cls, loss_bbox, rois_label, grasp_loc, \
                 grasp_prob, grasp_bbox_loss, grasp_cls_loss, grasp_conf_label, grasp_all_anchors = Network(data_batch)

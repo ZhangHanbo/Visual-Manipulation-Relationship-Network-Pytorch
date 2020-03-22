@@ -27,6 +27,8 @@ class MGN(fasterRCNN, FCGN):
         super(MGN, self).__init__(classes, class_agnostic, feat_name, feat_list, pretrained)
         self.iter_counter = 0
 
+        self.use_objdet_branch = cfg.TRAIN.COMMON.BBOX_REG
+
     def _grasp_anchor_transform(self):
         return torch.cat([
             0 * self.FCGN_anchors[:, 0:1],
@@ -86,6 +88,16 @@ class MGN(fasterRCNN, FCGN):
         if self.training:
             self.iter_counter += 1
 
+        # for jacquard dataset, the bounding box labels are set to -1. For training, we set them to 1, which does not
+        # affect the training process.
+        if self.training:
+            if gt_boxes[:, :, -1].sum().item() < 0:
+                gt_boxes[:, :, -1] = 1
+
+        for i in range(batch_size):
+            if torch.sum(gt_grasp_inds[i]).item() == 0:
+                gt_grasp_inds[i, :num_grasps[i].item()] = 1
+
         # features
         base_feat = self.FeatExt(im_data)
 
@@ -98,17 +110,19 @@ class MGN(fasterRCNN, FCGN):
             rois_label, rois_target, rois_inside_ws, rois_outside_ws = None, None, None, None
         pooled_feat = self._roi_pooling(base_feat, rois)
 
-        # object detection branch
-        cls_score, cls_prob, bbox_pred = self._get_det_rslt(pooled_feat)
-        RCNN_loss_bbox, RCNN_loss_cls = 0, 0
-        if self.training:
-            RCNN_loss_bbox, RCNN_loss_cls = self._loss_comp(cls_score, cls_prob, bbox_pred, rois_label, rois_target,
-                                                            rois_inside_ws, rois_outside_ws)
-        cls_prob = cls_prob.view(batch_size, rois.size(1), -1)
-        bbox_pred = bbox_pred.view(batch_size, rois.size(1), -1)
+        cls_prob, bbox_pred, RCNN_loss_bbox, RCNN_loss_cls = \
+            None, None, torch.Tensor([0]).type_as(rois), torch.Tensor([0]).type_as(rois)
+        if self.use_objdet_branch:
+            # object detection branch
+            cls_score, cls_prob, bbox_pred = self._get_det_rslt(pooled_feat)
+            if self.training:
+                RCNN_loss_bbox, RCNN_loss_cls = self._loss_comp(cls_score, cls_prob, bbox_pred, rois_label, rois_target,
+                                                                rois_inside_ws, rois_outside_ws)
+            cls_prob = cls_prob.view(batch_size, rois.size(1), -1)
+            bbox_pred = bbox_pred.view(batch_size, rois.size(1), -1)
 
         # grasp detection branch
-        # 1. obtaining grasp features of the positive ROIs
+        # 1. obtaining grasp features of the positive ROIs and prepare grasp training data
         if self.training:
             rois_overlaps = bbox_overlaps_batch(rois, gt_boxes)
             # bs x N_{rois}
@@ -127,8 +141,8 @@ class MGN(fasterRCNN, FCGN):
                 # when there are no one positive rois, return dummy results
                 grasp_loc = torch.Tensor([]).type_as(gt_grasps)
                 grasp_prob = torch.Tensor([]).type_as(gt_grasps)
-                grasp_bbox_loss = torch.Tensor([0]).type_as(RCNN_loss_bbox)
-                grasp_cls_loss = torch.Tensor([0]).type_as(RCNN_loss_cls)
+                grasp_bbox_loss = torch.Tensor([0]).type_as(gt_grasps)
+                grasp_cls_loss = torch.Tensor([0]).type_as(gt_grasps)
                 grasp_conf_label = torch.Tensor([-1]).type_as(rois_label)
                 grasp_all_anchors = torch.Tensor([]).type_as(gt_grasps)
                 return rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox, rois_label,\
@@ -145,7 +159,7 @@ class MGN(fasterRCNN, FCGN):
         grasp_prob = F.softmax(grasp_conf, 2)
 
         # 2. calculate grasp loss
-        grasp_bbox_loss, grasp_cls_loss, grasp_conf_label = 0
+        grasp_bbox_loss, grasp_cls_loss, grasp_conf_label = 0, 0, None
         if self.training:
             # N_{gr_rois} x K*A x 5
             grasp_all_anchors = self._generate_anchors(feat_height, feat_width, grasp_rois)
@@ -153,7 +167,7 @@ class MGN(fasterRCNN, FCGN):
                 grasp_conf, grasp_loc, grasp_gt_xywhc, grasp_all_anchors, feat_height, feat_width)
         else:
             # bs*N x K*A x 5
-            grasp_all_anchors = self._generate_anchors(grasp_conf.size(1), grasp_conf.size(2), rois.view(-1, 5))
+            grasp_all_anchors = self._generate_anchors(feat_height, feat_width, rois.view(-1, 5))
 
         return rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox, rois_label,\
                grasp_loc, grasp_prob, grasp_bbox_loss , grasp_cls_loss, grasp_conf_label, grasp_all_anchors

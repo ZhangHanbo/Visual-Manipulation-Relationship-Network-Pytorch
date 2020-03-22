@@ -91,6 +91,11 @@ class dataViewer(object):
         """
         # make memory contiguous
         im = np.ascontiguousarray(im)
+        if dets.shape[0] == 0:
+            return im
+
+        if g_inds is not None:
+            g_inds = g_inds[dets[:,0] > 0]
         dets = dets[dets[:, 0] > 0].astype(np.int)
         num_grasp = dets.shape[0]
         for i in range(num_grasp):
@@ -105,6 +110,11 @@ class dataViewer(object):
         """
         # make memory contiguous
         im = np.ascontiguousarray(im)
+        if dets.shape[0] == 0:
+            return im
+
+        if o_inds is not None:
+            o_inds = o_inds[dets[:,0] > 0]
         dets = dets[dets[:,0] > 0].astype(np.int)
         num_grasp = dets.shape[0]
 
@@ -125,11 +135,10 @@ class dataViewer(object):
         :return:
         """
         im = np.ascontiguousarray(im)
-        o_dets = o_dets[o_dets[:,0] > 0].astype(np.int)
-        g_dets = g_dets[g_dets[:,0] > 0].astype(np.int)
-        o_inds = np.arange(o_dets.shape[0]) + 1
-        im = self.draw_objdet(im, o_dets, o_inds)
-        im = self.draw_graspdet(im, g_dets, g_inds)
+        if o_dets.shape[0] > 0:
+            o_inds = np.arange(o_dets.shape[0]) + 1
+            im = self.draw_objdet(im, o_dets, o_inds)
+            im = self.draw_graspdet(im, g_dets, g_inds)
         return im
 
     def draw_mrt(self, img, rel_mat):

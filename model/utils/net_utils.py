@@ -467,8 +467,11 @@ def objgrasp_inference(o_cls_prob, o_box_output, g_cls_prob, g_box_output, im_in
     # infer object boxes
     if cfg.TRAIN.COMMON.BBOX_NORMALIZE_TARGETS_PRECOMPUTED:
         normalizer = {'mean': cfg.TRAIN.COMMON.BBOX_NORMALIZE_MEANS, 'std': cfg.TRAIN.COMMON.BBOX_NORMALIZE_STDS}
-        box_output = box_unnorm_torch(o_box_output, normalizer, 4, class_agnostic, n_classes)
-        pred_boxes = bbox_transform_inv(rois, box_output, 1)
+        if cfg.TRAIN.COMMON.BBOX_REG:
+            box_output = box_unnorm_torch(o_box_output, normalizer, 4, class_agnostic, n_classes)
+            pred_boxes = bbox_transform_inv(rois, box_output, 1)
+        else:
+            pred_boxes = rois
         pred_boxes = clip_boxes(pred_boxes, im_info, 1)
     else:
         pred_boxes = rois.clone()

@@ -20,10 +20,10 @@ import cv2
 def get_minibatch_objdet(roidb):
     box_dim = roidb['boxes'].shape[1]
 
-    # To support object-agnostic dataset that do not include object-specific classes (e.g. jacquard),
-    # We set -1 label for these boxes.
+    # To support object-agnostic dataset that do not include object-specific classes (e.g. jacquard and cornell),
+    # We set 1 label for these boxes.
     if 'gt_classes' not in roidb:
-        roidb['gt_classes'] = -np.ones(roidb['boxes'].shape[0], dtype=np.int32)
+        roidb['gt_classes'] = np.ones(roidb['boxes'].shape[0], dtype=np.int32)
 
     im_blob = _get_image_blob(roidb)
 
@@ -73,6 +73,11 @@ def get_minibatch_graspdet(roidb):
 
 def get_minibatch_roigdet(roidb):
     blobs = get_minibatch_objdet(roidb)
+    # for cornell and jacquard, the roidb does not contain grasp_inds. But it is obvious that all grasps belonging
+    # to the only object.
+    if 'grasp_inds' not in roidb:
+        roidb['grasp_inds'] = np.ones(roidb['grasps'].shape[0], dtype=np.float32)
+        roidb['node_inds'] = np.ones(1, dtype=np.float32)
     # TODO: deal with the situation that some objects are filtered out (like in COCO, the ones that are ''iscrowd'')
     blobs['gt_grasps'] = roidb['grasps'].astype(np.float32)
     blobs['gt_grasp_inds'] = roidb['grasp_inds']

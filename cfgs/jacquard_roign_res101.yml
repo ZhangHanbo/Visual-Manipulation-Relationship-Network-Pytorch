@@ -10,8 +10,7 @@ TRAIN:
     IMS_PER_BATCH : 4
     DISPLAY : 20
     BBOX_NORMALIZE_TARGETS_PRECOMPUTED: True
-    # USE_VERTICAL_ROTATED : True
-    # AUGMENTATION : True # When this is True, remember to go to utils/augmantation.py to config augmentation.
+    # AUGMENTATION : True
     SNAPSHOT_ITERS: 20000
     SNAPSHOT_AFTER_TEST: True
   RCNN_COMMON:

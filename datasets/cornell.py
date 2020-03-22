@@ -60,8 +60,8 @@ class cornell(imdb):
             else devkit_path
         # Example Cornell/origin
         self._data_path = os.path.join(self._devkit_path, version)
-        self._classes = ('background',  # always index 0
-                         'grasp')
+        self._classes = ('__background__',  # always index 0
+                         'obj')
         self._class_to_ind = dict(zip(self.classes, xrange(self.num_classes)))
         self._image_ext = '.png'
         self._image_index = self._load_image_set_index()
@@ -211,7 +211,8 @@ class cornell(imdb):
         failed_list = []
         for im_ind, index in enumerate(self.image_index):
             total += 1
-            det_result = grasps[im_ind]
+            # only keep top-1 detection
+            det_result = grasps[im_ind][:1]
             if det_result.size != 0:
                 anno = self._load_annotation(index)
                 anno = anno['grasps']
