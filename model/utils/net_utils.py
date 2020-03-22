@@ -331,8 +331,7 @@ def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agno
 
     scores = scores.squeeze()
     pred_boxes = pred_boxes.squeeze()
-    if not for_vis:
-        pred_boxes = box_recover_scale_torch(pred_boxes, im_info[3], im_info[2])
+    pred_boxes = box_recover_scale_torch(pred_boxes, im_info[3], im_info[2])
 
     all_box = [[]]
     for j in xrange(1, n_classes):
@@ -401,13 +400,7 @@ def objgrasp_inference(o_cls_prob, o_box_output, g_cls_prob, g_box_output, im_in
     and o_box_output will be none, and object detection results are shown in the form of ROIs.
     2 This function can only detect one image per invoking.
     """
-    if o_cls_prob is not None:
-        o_scores = o_cls_prob
-    else:
-        # o_cls_prob is None means no object detection header is applied after RPN, therefore, no object-specific
-        # confidence scores are computed. In this situation, we use rois confidence to detect general objects.
-        rois_score = rois[:, 0:1]
-        o_scores = torch.cat((1-rois_score, rois_score), dim = -1)
+    o_scores = o_cls_prob
     rois = rois[:, 1:5]
 
     g_scores = g_cls_prob

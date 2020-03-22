@@ -29,6 +29,10 @@ class MGN(fasterRCNN, FCGN):
 
         self.use_objdet_branch = cfg.TRAIN.COMMON.BBOX_REG
 
+        if not self.use_objdet_branch:
+            # if do not use object detection branch, RPN plays the role of object instance detection.
+            self.RCNN_rpn.RPN_proposal._include_rois_score = True
+
     def _grasp_anchor_transform(self):
         return torch.cat([
             0 * self.FCGN_anchors[:, 0:1],
@@ -103,6 +107,10 @@ class MGN(fasterRCNN, FCGN):
 
         # generate rois of RCNN
         rois, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes)
+        if not self.use_objdet_branch:
+            rois_scores = rois[:, :, 5:].clone()
+            rois = rois[:, :, :5].clone()
+
         if self.training:
             rois, rois_label, rois_target, rois_inside_ws, rois_outside_ws = \
                 self._get_header_train_data(rois, gt_boxes, num_boxes)
@@ -120,6 +128,8 @@ class MGN(fasterRCNN, FCGN):
                                                                 rois_inside_ws, rois_outside_ws)
             cls_prob = cls_prob.view(batch_size, rois.size(1), -1)
             bbox_pred = bbox_pred.view(batch_size, rois.size(1), -1)
+        else:
+            cls_prob = torch.cat([1-rois_scores, rois_scores], dim = -1)
 
         # grasp detection branch
         # 1. obtaining grasp features of the positive ROIs and prepare grasp training data

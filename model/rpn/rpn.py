@@ -16,7 +16,7 @@ import time
 
 class _RPN(nn.Module):
     """ region proposal network """
-    def __init__(self, din, anchor_scales, anchor_ratios, feat_stride):
+    def __init__(self, din, anchor_scales, anchor_ratios, feat_stride, include_rois_score = False):
         super(_RPN, self).__init__()
         
         self.din = din  # get depth of input feature map, e.g., 512
@@ -38,7 +38,7 @@ class _RPN(nn.Module):
         self.RPN_bbox_pred = nn.Conv2d(512, self.nc_bbox_out, 1, 1, 0)
 
         # define proposal layer, which is used to filter good proposals (default number: 300)
-        self.RPN_proposal = _ProposalLayer(self.feat_stride, self.anchor_scales, self.anchor_ratios)
+        self.RPN_proposal = _ProposalLayer(self.feat_stride, self.anchor_scales, self.anchor_ratios, include_rois_score)
 
         # define anchor target layer
         self.RPN_anchor_target = _AnchorTargetLayer(self.feat_stride, self.anchor_scales, self.anchor_ratios)

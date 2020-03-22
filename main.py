@@ -101,19 +101,12 @@ def parse_args():
   parser.add_argument('--net', dest='net',
                     help='vgg16, res101',
                     default='res101', type=str)
-  parser.add_argument('--start_epoch', dest='start_epoch',
-                      help='starting epoch',
-                      default=1, type=int)
   parser.add_argument('--epochs', dest='max_epochs',
                       help='number of epochs to train',
                       default=0, type=int)
   parser.add_argument('--disp_interval', dest='disp_interval',
                       help='number of iterations to display',
                       default=0, type=int)
-  parser.add_argument('--checkpoint_interval', dest='checkpoint_interval',
-                      help='number of iterations to display',
-                      default=10000, type=int)
-
   parser.add_argument('--save_dir', dest='save_dir',
                       help='directory to save models', default="output",
                       type=str)
@@ -123,9 +116,6 @@ def parse_args():
   parser.add_argument('--cuda', dest='cuda',
                       help='whether use CUDA',
                       action='store_true')
-  parser.add_argument('--GPU', dest='GPU',
-                      help='GPU number (Only for model saving.)',
-                      default=0, type=int)
   parser.add_argument('--ls', dest='large_scale',
                       help='whether use large imag scale',
                       action='store_true')
@@ -329,11 +319,12 @@ def init_network(args, n_cls):
     # tr_momentum = cfg.TRAIN.COMMON.MOMENTUM
     # tr_momentum = args.momentum
 
+    args.start_epoch = 1
     if args.resume:
         output_dir = args.save_dir + "/" + args.dataset + "/" + args.net
         load_name = os.path.join(output_dir,
-                                 args.frame + '_{}_{}_{}_{}.pth'.format(args.checksession, args.checkepoch,
-                                                                        args.checkpoint, args.GPU))
+                                 args.frame + '_{}_{}_{}.pth'.format(args.checksession, args.checkepoch,
+                                                                        args.checkpoint))
         print("loading checkpoint %s" % (load_name))
         checkpoint = torch.load(load_name)
         args.session = checkpoint['session']
@@ -390,6 +381,8 @@ def detection_filter(all_boxes, all_grasp = None, max_per_image = 100):
 def vis_gt(data_list, visualizer, frame):
     im_vis = image_unnormalize(data_list[0].permute(1, 2, 0).cpu().numpy(),
                                mean=cfg.PIXEL_MEANS, std=cfg.PIXEL_STDS)
+    im_vis = cv2.resize(im_vis, None, None, fx=1. / data_list[1][3].item(), fy=1. / data_list[1][2].item(),
+                    interpolation=cv2.INTER_LINEAR)
     if frame in {"fpn", "faster_rcnn", "ssd"}:
         im_vis = visualizer.draw_objdet(im_vis, data_list[2].cpu().numpy())
     elif frame in {"ssd_vmrn", "vam", "faster_rcnn_vmrn"}:
@@ -869,29 +862,15 @@ def train():
                     save_flag = True
 
                 if save_flag:
-                    if args.mGPUs:
-                        save_name = os.path.join(output_dir,
-                                                 args.frame + '_{}_{}_{}_{}.pth'.format(args.session, epoch, step,
-                                                                                        args.imdb_name))
-                        save_checkpoint({
-                            'session': args.session,
-                            'epoch': epoch + 1,
-                            'model': Network.module.state_dict(),
-                            'optimizer': optimizer.state_dict(),
-                            'pooling_mode': cfg.RCNN_COMMON.POOLING_MODE,
-                            'class_agnostic': args.class_agnostic,
-                        }, save_name)
-                    else:
-                        save_name = os.path.join(output_dir,
-                                                 args.frame + '_{}_{}_{}_{}.pth'.format(args.session, epoch, step, args.GPU))
-                        save_checkpoint({
-                            'session': args.session,
-                            'epoch': epoch + 1,
-                            'model': Network.state_dict(),
-                            'optimizer': optimizer.state_dict(),
-                            'pooling_mode': cfg.RCNN_COMMON.POOLING_MODE,
-                            'class_agnostic': args.class_agnostic,
-                        }, save_name)
+                    save_name = os.path.join(output_dir, args.frame + '_{}_{}_{}.pth'.format(args.session, epoch, step))
+                    save_checkpoint({
+                        'session': args.session,
+                        'epoch': epoch + 1,
+                        'model': Network.state_dict(),
+                        'optimizer': optimizer.state_dict(),
+                        'pooling_mode': cfg.RCNN_COMMON.POOLING_MODE,
+                        'class_agnostic': args.class_agnostic,
+                    }, save_name)
                     print('save model: {}'.format(save_name))
                     save_flag = False
 
