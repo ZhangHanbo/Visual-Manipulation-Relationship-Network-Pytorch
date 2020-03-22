@@ -401,12 +401,14 @@ def objgrasp_inference(o_cls_prob, o_box_output, g_cls_prob, g_box_output, im_in
     and o_box_output will be none, and object detection results are shown in the form of ROIs.
     2 This function can only detect one image per invoking.
     """
-    if o_box_output is not None:
+    if o_cls_prob is not None:
         o_scores = o_cls_prob
-        rois = rois[:, 1:5]
     else:
+        # o_cls_prob is None means no object detection header is applied after RPN, therefore, no object-specific
+        # confidence scores are computed. In this situation, we use rois confidence to detect general objects.
         rois_score = rois[:, 0:1]
         o_scores = torch.cat((1-rois_score, rois_score), dim = -1)
+    rois = rois[:, 1:5]
 
     g_scores = g_cls_prob
 
@@ -465,14 +467,12 @@ def objgrasp_inference(o_cls_prob, o_box_output, g_cls_prob, g_box_output, im_in
         raise NotImplementedError("Now ROI-GN only supports top-N grasp detection for each object.")
 
     # infer object boxes
-    if cfg.TRAIN.COMMON.BBOX_NORMALIZE_TARGETS_PRECOMPUTED:
-        normalizer = {'mean': cfg.TRAIN.COMMON.BBOX_NORMALIZE_MEANS, 'std': cfg.TRAIN.COMMON.BBOX_NORMALIZE_STDS}
-        if cfg.TRAIN.COMMON.BBOX_REG:
+    if cfg.TRAIN.COMMON.BBOX_REG:
+        if cfg.TRAIN.COMMON.BBOX_NORMALIZE_TARGETS_PRECOMPUTED:
+            normalizer = {'mean': cfg.TRAIN.COMMON.BBOX_NORMALIZE_MEANS, 'std': cfg.TRAIN.COMMON.BBOX_NORMALIZE_STDS}
             box_output = box_unnorm_torch(o_box_output, normalizer, 4, class_agnostic, n_classes)
             pred_boxes = bbox_transform_inv(rois, box_output, 1)
-        else:
-            pred_boxes = rois
-        pred_boxes = clip_boxes(pred_boxes, im_info, 1)
+            pred_boxes = clip_boxes(pred_boxes, im_info, 1)
     else:
         pred_boxes = rois.clone()
 
@@ -482,7 +482,7 @@ def objgrasp_inference(o_cls_prob, o_box_output, g_cls_prob, g_box_output, im_in
     all_box = [[]]
     all_grasp = [[]]
     for j in xrange(1, n_classes):
-        if class_agnostic:
+        if class_agnostic or not cfg.TRAIN.COMMON.BBOX_REG:
             cls_boxes = pred_boxes
         else:
             cls_boxes = pred_boxes[:, j * 4:(j + 1) * 4]
