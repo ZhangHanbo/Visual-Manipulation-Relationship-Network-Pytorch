@@ -45,7 +45,6 @@ from model.FCGN import FCGN
 import model.SSD_VMRN as SSD_VMRN
 from model.MGN import MGN
 import model.AllinOne as ALL_IN_ONE
-import model.RoIGrasp as ROIGN
 import model.VAM as VAM
 
 from model.utils.net_utils import objdet_inference, grasp_inference, objgrasp_inference
@@ -56,7 +55,7 @@ import warnings
 torch.set_default_tensor_type(torch.FloatTensor)
 
 # implemented-algorithm list
-LEGAL_FRAMES = {"faster_rcnn", "ssd", "fpn", "faster_rcnn_vmrn", "ssd_vmrn", "all_in_one", "fcgn", "roign", "mgn", "vam"}
+LEGAL_FRAMES = {"faster_rcnn", "ssd", "fpn", "faster_rcnn_vmrn", "ssd_vmrn", "all_in_one", "fcgn", "mgn", "vam"}
 
 class sampler(Sampler):
     def __init__(self, train_size, batch_size):
@@ -97,7 +96,7 @@ def parse_args():
                       help='training dataset',
                       default='pascal_voc', type=str)
   parser.add_argument('--frame', dest='frame',
-                    help='faster_rcnn, fpn, ssd, faster_rcnn_vmrn, ssd_vmrn, fcgn, mgn, allinone, roign',
+                    help='faster_rcnn, fpn, ssd, faster_rcnn_vmrn, ssd_vmrn, fcgn, mgn, allinone',
                     default='faster_rcnn', type=str)
   parser.add_argument('--net', dest='net',
                     help='vgg16, res101',
@@ -288,12 +287,6 @@ def init_network(args, n_cls):
     elif args.frame == 'fcgn':
         conv_num = str(int(np.log2(cfg.FCGN.FEAT_STRIDE[0])))
         Network = FCGN(feat_name=args.net, feat_list=('conv' + conv_num,), pretrained=True)
-    elif args.frame == 'roign':
-        if args.net == 'res101':
-            Network = ROIGN.resnet(n_cls, 101, pretrained=True)
-        else:
-            print("network is not defined")
-            pdb.set_trace()
     elif args.frame == 'mgn':
         conv_num = str(int(np.log2(cfg.RCNN_COMMON.FEAT_STRIDE[0])))
         Network = MGN(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
@@ -409,7 +402,7 @@ def vis_gt(data_list, visualizer, frame):
         im_vis = visualizer.draw_graspdet_with_owner(im_vis, data_list[2].cpu().numpy(),
                                                      data_list[3].cpu().numpy(), data_list[-1].cpu().numpy())
         im_vis = visualizer.draw_mrt(im_vis, data_list[4].cpu().numpy())
-    elif frame in {"roign", "mgn"}:
+    elif frame in {"mgn"}:
         im_vis = visualizer.draw_graspdet_with_owner(im_vis, data_list[2].cpu().numpy(),
                                                      data_list[3].cpu().numpy(), data_list[-1].cpu().numpy())
     else:
@@ -439,7 +432,7 @@ def evalute_model(Network, namedb, args):
     elif args.frame in {"all_in_one"}:
         dataset = allInOneMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
                            imdb.num_classes, training=False, cls_list=imdb.classes, augmentation=False)
-    elif args.frame in {"roign", "mgn"}:
+    elif args.frame in {"mgn"}:
         dataset = roigdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
                            imdb.num_classes, training=False, cls_list=imdb.classes, augmentation=False)
     else:
@@ -496,12 +489,6 @@ def evalute_model(Network, namedb, args):
             all_rel.append(rel_result)
         elif args.frame == 'fcgn':
             bbox_pred, cls_prob, loss_bbox, loss_cls, rois_label, boxes = Network(data_batch)
-        elif args.frame == 'roign':
-            rois, rpn_loss_cls, rpn_loss_box, rois_label, grasp_loc, grasp_prob, grasp_bbox_loss, grasp_cls_loss, \
-                grasp_conf_label, grasp_all_anchors = Network(data_batch)
-            cls_prob = None
-            bbox_pred = None
-            boxes = rois[:, :, 1:5]
         elif args.frame == 'mgn':
             rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_box, loss_cls, loss_bbox, rois_label, grasp_loc, grasp_prob, \
                 grasp_bbox_loss, grasp_cls_loss, grasp_conf_label, grasp_all_anchors = Network(data_batch)
@@ -529,7 +516,7 @@ def evalute_model(Network, namedb, args):
                 det_box = detection_filter(det_box, None, max_per_image)
             for j in xrange(1, imdb.num_classes):
                 all_boxes[j][i] = det_box[j]
-        elif args.frame in {'mgn', 'roign', 'all_in_one'}:
+        elif args.frame in {'mgn', 'all_in_one'}:
             det_box, det_grasps = objgrasp_inference(cls_prob[0].data if cls_prob is not None else cls_prob,
                         bbox_pred[0].data if bbox_pred is not None else bbox_pred,
                         grasp_prob.data, grasp_loc.data, data_batch[1][0].data, rois[0].data,
@@ -541,7 +528,10 @@ def evalute_model(Network, namedb, args):
                              grasp_prob.data, grasp_loc.data, data_batch[1][0].data, rois[0].data,
                              class_agnostic=args.class_agnostic, n_classes=imdb.num_classes,
                              g_box_prior=grasp_all_anchors.data, for_vis=True, topN_g=5)
-                g_inds = torch.Tensor(np.arange(vis_boxes.shape[0])).unsqueeze(1).repeat(1, vis_grasps.shape[1]) + 1
+                if vis_boxes.shape[0] > 0:
+                    g_inds = torch.Tensor(np.arange(vis_boxes.shape[0])).unsqueeze(1).repeat(1, vis_grasps.shape[1]) + 1
+                else:
+                    g_inds = torch.Tensor([])
                 data_list = [data_batch[0][0], data_batch[1][0], torch.Tensor(vis_boxes),
                              torch.Tensor(vis_grasps).view(-1, vis_grasps.shape[-1]), g_inds.long().view(-1)]
             if max_per_image > 0:
@@ -644,7 +634,7 @@ def train():
     elif args.frame in {"all_in_one"}:
         dataset = allInOneMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
                            imdb.num_classes, training=True, cls_list=imdb.classes, augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
-    elif args.frame in {"roign", "mgn"}:
+    elif args.frame in {"mgn"}:
         dataset = roigdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
                            imdb.num_classes, training=True, cls_list=imdb.classes, augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
     else:
