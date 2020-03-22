@@ -132,7 +132,7 @@ class FCGN(graspDetector):
         K = shifts.size(0)
 
         # anchors = self.FCGN_anchors.view(1, A, 5) + shifts.view(1, K, 5).permute(1, 0, 2).contiguous()
-        anchors = self.FCGN_anchors.view(1, A, 5) + shifts.view(K, 1, 5)
+        anchors = self.FCGN_anchors.view(1, A, 5).type_as(shifts) + shifts.view(K, 1, 5)
         anchors = anchors.view(1, K * A, 5)
 
         return anchors

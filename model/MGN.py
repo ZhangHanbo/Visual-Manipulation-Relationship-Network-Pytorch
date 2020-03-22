@@ -10,30 +10,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import torch.nn.init as init
-
 from model.utils.config import cfg
-from basenet.resnet import resnet18,resnet34,resnet50,resnet101,resnet152
-
-from roi_pooling.modules.roi_pool import _RoIPooling
-from roi_crop.modules.roi_crop import _RoICrop
-from roi_align.modules.roi_align import RoIAlignAvg
-from rpn.proposal_target_layer_cascade import _ProposalTargetLayer
-from rpn.rpn import _RPN
-
-from model.fcgn.classifier import _Classifier
-from model.fcgn.grasp_proposal_target import _GraspTargetLayer
-from model.fcgn.bbox_transform_grasp import \
-    points2labels,labels2points,grasp_encode, grasp_decode
 from model.rpn.bbox_transform import bbox_overlaps_batch
-
 from model.fcgn.bbox_transform_grasp import points2labels
 from model.utils.net_utils import _smooth_l1_loss, _affine_grid_gen
-
 from model.basenet.resnet import Bottleneck
-
 import numpy as np
-
-from model.fcgn.generate_grasp_anchors import generate_oriented_anchors
 from model.FasterRCNN import fasterRCNN
 from model.FCGN import FCGN
 
@@ -54,7 +36,43 @@ class MGN(fasterRCNN, FCGN):
             self.FCGN_anchors[:, 4:5]
         ], dim=1)
 
+    def _grasp_loss_comp(self, rois, grasp_conf, grasp_loc, grasp_gt, grasp_anchors, fh, fw):
 
+        rois_w = (rois[:, 3] - rois[:, 1]).data.unsqueeze(1).unsqueeze(2)
+        rois_h = (rois[:, 4] - rois[:, 2]).data.unsqueeze(1).unsqueeze(2)
+        # bs*N x 1 x 1
+        fsx = rois_w / fw
+        fsy = rois_h / fh
+        # bs*N x 1 x 1
+        xleft = rois[:, 1].data.unsqueeze(1).unsqueeze(2)
+        ytop = rois[:, 2].data.unsqueeze(1).unsqueeze(2)
+
+        # absolute coords to relative coords
+        grasp_gt[:, :, 0:1] -= xleft
+        grasp_gt[:, :, 0:1] = torch.clamp(grasp_gt[:, :, 0:1], min=0)
+        grasp_gt[:, :, 0:1] = torch.min(grasp_gt[:, :, 0:1], rois_w)
+        grasp_gt[:, :, 1:2] -= ytop
+        grasp_gt[:, :, 1:2] = torch.clamp(grasp_gt[:, :, 1:2], min=0)
+        grasp_gt[:, :, 1:2] = torch.min(grasp_gt[:, :, 1:2], rois_h)
+
+        # inside weights indicate which bounding box should be regressed
+        # outside weights indicate two things:
+        # 1. Which bounding box should contribute for classification loss,
+        # 2. Balance cls loss and bbox loss
+        # grasp training data
+        grasp_loc_label, grasp_conf_label, grasp_iw, grasp_ow = self.FCGN_proposal_target(grasp_conf,
+                                                        grasp_gt, grasp_anchors, xthresh=fsx / 2, ythresh=fsy / 2)
+
+        grasp_keep = Variable(grasp_conf_label.view(-1).ne(-1).nonzero().view(-1))
+        grasp_conf = torch.index_select(grasp_conf.view(-1, 2), 0, grasp_keep.data)
+        grasp_conf_label = torch.index_select(grasp_conf_label.view(-1), 0, grasp_keep.data)
+        grasp_cls_loss = F.cross_entropy(grasp_conf, grasp_conf_label)
+
+        grasp_iw = Variable(grasp_iw)
+        grasp_ow = Variable(grasp_ow)
+        grasp_loc_label = Variable(grasp_loc_label)
+        grasp_bbox_loss = _smooth_l1_loss(grasp_loc, grasp_loc_label, grasp_iw, grasp_ow, dim=[2, 1])
+        return grasp_bbox_loss , grasp_cls_loss, grasp_conf_label
 
     def forward(self, data_batch):
         im_data = data_batch[0]
@@ -97,8 +115,14 @@ class MGN(fasterRCNN, FCGN):
             _, rois_inds = torch.max(rois_overlaps, dim=2)
             rois_inds += 1
             grasp_rois_mask = rois_label.view(-1) > 0
+
             if (grasp_rois_mask > 0).sum().item() > 0:
                 grasp_feat = self._MGN_head_to_tail(pooled_feat[grasp_rois_mask])
+                grasp_rois = rois.view(-1, 5)[grasp_rois_mask]
+                # process grasp ground truth, return: N_{gr_rois} x N_{Gr_gt} x 5
+                grasp_gt_xywhc = points2labels(gt_grasps)
+                grasp_gt_xywhc = self._assign_rois_grasps(grasp_gt_xywhc, gt_grasp_inds, rois_inds)
+                grasp_gt_xywhc = grasp_gt_xywhc[grasp_rois_mask]
             else:
                 # when there are no one positive rois, return dummy results
                 grasp_loc = torch.Tensor([]).type_as(gt_grasps)
@@ -112,76 +136,24 @@ class MGN(fasterRCNN, FCGN):
         else:
             grasp_feat = self._MGN_head_to_tail(pooled_feat)
 
-        # bs*N x W x H x A*5, bs*N x W x H x A*2
+        # N_{gr_rois} x W x H x A*5, N_{gr_rois} x W x H x A*2
         grasp_loc, grasp_conf = self.FCGN_classifier(grasp_feat)
-        # 2. generate anchors
-        if self.training:
-            # bs*N x K*A x 5
-            grasp_all_anchors = self._generate_anchors(grasp_conf.size(1), grasp_conf.size(2),
-                                                       rois.view(-1, 5)[grasp_rois_mask])
-            grasp_all_anchors = grasp_all_anchors.type_as(gt_grasps)
-            # bs*N x 1 x 1
-            rois_w = (rois[:, :, 3] - rois[:, :, 1]).data.view(-1).unsqueeze(1).unsqueeze(2)
-            rois_h = (rois[:, :, 4] - rois[:, :, 2]).data.view(-1).unsqueeze(1).unsqueeze(2)
-            rois_w = rois_w[grasp_rois_mask]
-            rois_h = rois_h[grasp_rois_mask]
-            # bs*N x 1 x 1
-            fsx = rois_w / grasp_conf.size(1)
-            fsy = rois_h / grasp_conf.size(2)
-            # bs*N x 1 x 1
-            xleft = rois[:, :, 1].data.view(-1).unsqueeze(1).unsqueeze(2)
-            ytop = rois[:, :, 2].data.view(-1).unsqueeze(1).unsqueeze(2)
-            xleft = xleft[grasp_rois_mask]
-            ytop = ytop[grasp_rois_mask]
-        else:
-            # bs*N x K*A x 5
-            grasp_all_anchors = self._generate_anchors(grasp_conf.size(1), grasp_conf.size(2),
-                                                       rois.view(-1, 5))
-            grasp_all_anchors = grasp_all_anchors.type_as(gt_grasps)
-
+        feat_height, feat_width = grasp_conf.size(1), grasp_conf.size(2)
         # reshape grasp_loc and grasp_conf
         grasp_loc = grasp_loc.contiguous().view(grasp_loc.size(0), -1, 5)
         grasp_conf = grasp_conf.contiguous().view(grasp_conf.size(0), -1, 2)
-        grasp_batch_size = grasp_loc.size(0)
-        # bs*N x K*A x 2
         grasp_prob = F.softmax(grasp_conf, 2)
 
-        # 3. calculate grasp loss
-        grasp_bbox_loss = 0
-        grasp_cls_loss = 0
-        grasp_conf_label = None
+        # 2. calculate grasp loss
+        grasp_bbox_loss, grasp_cls_loss, grasp_conf_label = 0
         if self.training:
-            # inside weights indicate which bounding box should be regressed
-            # outside weidhts indicate two things:
-            # 1. Which bounding box should contribute for classification loss,
-            # 2. Balance cls loss and bbox loss
-            grasp_gt_xywhc = points2labels(gt_grasps)
-            # bs*N x N_{Gr_gt} x 5
-            grasp_gt_xywhc = self._assign_rois_grasps(grasp_gt_xywhc, gt_grasp_inds, rois_inds)
-            # filter out negative samples
-            grasp_gt_xywhc = grasp_gt_xywhc[grasp_rois_mask]
-
-            # absolute coords to relative coords
-            grasp_gt_xywhc[:, :, 0:1] -= xleft
-            grasp_gt_xywhc[:, :, 0:1] = torch.clamp(grasp_gt_xywhc[:, :, 0:1], min = 0)
-            grasp_gt_xywhc[:, :, 0:1] = torch.min(grasp_gt_xywhc[:, :, 0:1], rois_w)
-            grasp_gt_xywhc[:, :, 1:2] -= ytop
-            grasp_gt_xywhc[:, :, 1:2] = torch.clamp(grasp_gt_xywhc[:, :, 1:2], min = 0)
-            grasp_gt_xywhc[:, :, 1:2] = torch.min(grasp_gt_xywhc[:, :, 1:2], rois_h)
-
-            # grasp training data
-            grasp_loc_label, grasp_conf_label, grasp_iw, grasp_ow = self.FCGN_proposal_target(grasp_conf,
-                                        grasp_gt_xywhc, grasp_all_anchors,xthresh = fsx/2, ythresh = fsy/2)
-
-            grasp_keep = Variable(grasp_conf_label.view(-1).ne(-1).nonzero().view(-1))
-            grasp_conf = torch.index_select(grasp_conf.view(-1, 2), 0, grasp_keep.data)
-            grasp_conf_label = torch.index_select(grasp_conf_label.view(-1), 0, grasp_keep.data)
-            grasp_cls_loss = F.cross_entropy(grasp_conf, grasp_conf_label)
-
-            grasp_iw = Variable(grasp_iw)
-            grasp_ow = Variable(grasp_ow)
-            grasp_loc_label = Variable(grasp_loc_label)
-            grasp_bbox_loss = _smooth_l1_loss(grasp_loc, grasp_loc_label, grasp_iw, grasp_ow, dim = [2,1])
+            # N_{gr_rois} x K*A x 5
+            grasp_all_anchors = self._generate_anchors(feat_height, feat_width, grasp_rois)
+            grasp_bbox_loss, grasp_cls_loss, grasp_conf_label = self._grasp_loss_comp(grasp_rois,
+                grasp_conf, grasp_loc, grasp_gt_xywhc, grasp_all_anchors, feat_height, feat_width)
+        else:
+            # bs*N x K*A x 5
+            grasp_all_anchors = self._generate_anchors(grasp_conf.size(1), grasp_conf.size(2), rois.view(-1, 5))
 
         return rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox, rois_label,\
                grasp_loc, grasp_prob, grasp_bbox_loss , grasp_cls_loss, grasp_conf_label, grasp_all_anchors
@@ -220,7 +192,7 @@ class MGN(fasterRCNN, FCGN):
         )
         # bs*N x W*H x 2
         shifts = torch.cat([torch.from_numpy(shift_x).unsqueeze(3), torch.from_numpy(shift_y).unsqueeze(3)],3)
-        shifts = shifts.contiguous().view(rois.size(0), -1, 2)
+        shifts = shifts.contiguous().view(rois.size(0), -1, 2).type_as(rois)
         # bs*N x W*H x 5
         shifts = torch.cat([
             shifts,
@@ -241,11 +213,11 @@ class MGN(fasterRCNN, FCGN):
             anchor_size = anchor_size * self.FCGN_as[0]
             # bs*N x 1 x 1 x 5
             anchor_size = anchor_size.unsqueeze(2).unsqueeze(3)
-            anchors = torch.zeros(anchor_size.size()[:-1] + (5,))
+            anchors = torch.zeros(anchor_size.size()[:-1] + (5,)).type_as(shifts)
             anchors[:, :, :, :, 2:4] = anchor_size
             # 1 x A x 5
             angle = torch.Tensor(cfg.FCGN.ANCHOR_ANGLES).contiguous().view(1, 1, -1).permute(0, 2, 1).type_as(shifts)
-            anchor_angle = torch.zeros(1, angle.size(1), 5)
+            anchor_angle = torch.zeros(1, angle.size(1), 5).type_as(shifts)
             anchor_angle[:, :, 4:5] = angle
             # bs*N x 1 x 1 x 5 + 1 x A x 5 -> bs*N x 1 x A x 5
             anchors = anchors + anchor_angle
@@ -253,7 +225,7 @@ class MGN(fasterRCNN, FCGN):
             anchors = anchors + shifts.unsqueeze(-2)
         else:
             # bs*N x K x A x 5
-            anchors = self.FCGN_anchors.view(1, A, 5) + shifts.unsqueeze(-2)
+            anchors = self.FCGN_anchors.view(1, A, 5).type_as(shifts) + shifts.unsqueeze(-2)
         # bs*N x K*A x 5
         anchors = anchors.view(rois.size(0), K * A, 5)
 

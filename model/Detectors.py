@@ -30,13 +30,13 @@ class detector(nn.Module):
 class graspDetector(detector):
     __metaclass__ = abc.ABCMeta
     def __init__(self, feat_name='res101', feat_list=('conv4',), pretrained=True):
-        super(graspDetector, self).__init__(feat_name='res101', feat_list=('conv4',), pretrained=True)
+        super(graspDetector, self).__init__(feat_name, feat_list, pretrained)
 
 class objectDetector(detector):
     __metaclass__ = abc.ABCMeta
     def __init__(self, classes, class_agnostic,
                  feat_name = 'res101', feat_list = ('conv4',), pretrained = True):
-        super(objectDetector, self).__init__(feat_name = 'res101', feat_list = ('conv4',), pretrained = True)
+        super(objectDetector, self).__init__(feat_name, feat_list, pretrained)
 
         self.classes = classes
         self.n_classes = len(classes)

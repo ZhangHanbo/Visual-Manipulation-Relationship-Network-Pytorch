@@ -5,24 +5,11 @@
 # Modified from R. B. G.'s faster_rcnn.py
 # --------------------------------------------------------
 
-import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-import torchvision.models as models
-from torch.autograd import Variable
-import numpy as np
 from utils.config import cfg
-from rpn.rpn import _RPN
-from roi_pooling.modules.roi_pool import _RoIPooling
-from roi_crop.modules.roi_crop import _RoICrop
-from roi_align.modules.roi_align import RoIAlignAvg
-from rpn.proposal_target_layer_cascade import _ProposalTargetLayer
-from model.rpn.bbox_transform import bbox_transform_inv, clip_boxes
-from model.nms.nms_wrapper import nms
-import time
-import pdb
 from utils.net_utils import _smooth_l1_loss, _crop_pool_layer, _affine_grid_gen, _affine_theta, set_bn_eval, set_bn_fix
 from utils.net_utils import objdet_inference
 from model.rpn.bbox_transform import bbox_overlaps
