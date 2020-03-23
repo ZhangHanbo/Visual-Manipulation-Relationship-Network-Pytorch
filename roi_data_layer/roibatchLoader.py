@@ -91,7 +91,6 @@ class objdetRoibatchLoader(roibatchLoader):
         blob['im_info'][2:4] = (im_scale['y'], im_scale['x'])
         blob['gt_boxes'][:, :-1][:, 0::2] *= im_scale['x']
         blob['gt_boxes'][:, :-1][:, 1::2] *= im_scale['y']
-        # NOTE: When using torchvision pretrained models, images should be normalized. 
         blob['data'] = image_normalize(blob['data'], mean=cfg.PIXEL_MEANS, std=cfg.PIXEL_STDS)
         return blob
 
@@ -169,7 +168,6 @@ class graspdetRoibatchLoader(roibatchLoader):
         blob['im_info'][2:4] = (im_scale['y'], im_scale['x'])
         blob['gt_grasps'][:, 0::2] *= im_scale['x']
         blob['gt_grasps'][:, 1::2] *= im_scale['y']
-        # NOTE: When using torchvision pretrained models, images should be normalized. 
         blob['data'] = image_normalize(blob['data'], mean=cfg.PIXEL_MEANS, std=cfg.PIXEL_STDS)
         return blob
 
@@ -242,7 +240,6 @@ class vmrdetRoibatchLoader(objdetRoibatchLoader):
         blob['im_info'][2:4] = (im_scale['y'], im_scale['x'])
         blob['gt_boxes'][:, :-1][:, 0::2] *= im_scale['x']
         blob['gt_boxes'][:, :-1][:, 1::2] *= im_scale['y']
-        # NOTE: When using torchvision pretrained models, images should be normalized. 
         blob['data'] = image_normalize(blob['data'], mean=cfg.PIXEL_MEANS, std=cfg.PIXEL_STDS)
         blob['node_inds'] = blob['node_inds'][keep]
         blob['parent_lists'] = [blob['parent_lists'][p_ind] for p_ind in list(keep)]
@@ -648,7 +645,6 @@ class roigdetMulInSizeRoibatchLoader(graspMulInSizeRoibatchLoader, objdetMulInSi
         blob['gt_grasps'][:, 1::2] *= im_scale['y']
         blob['node_inds'] = blob['node_inds'][keep_b]
         blob['gt_grasp_inds'] = blob['gt_grasp_inds'][keep_g]
-        # NOTE: When using torchvision pretrained models, images should be normalized. 
         blob['data'] = image_normalize(blob['data'], mean=cfg.PIXEL_MEANS, std=cfg.PIXEL_STDS)
         return blob
 
@@ -764,7 +760,6 @@ class allInOneMulInSizeRoibatchLoader(vmrdetMulInSizeRoibatchLoader, roigdetMulI
         blob['gt_grasps'][:, 0::2] *= im_scale['x']
         blob['gt_grasps'][:, 1::2] *= im_scale['y']
         blob['gt_grasp_inds'] = blob['gt_grasp_inds'][keep_g]
-        # NOTE: When using torchvision pretrained models, images should be normalized. 
         blob['data'] = image_normalize(blob['data'], mean=cfg.PIXEL_MEANS, std=cfg.PIXEL_STDS)
         blob['node_inds'] = blob['node_inds'][keep_b]
         blob['parent_lists'] = [blob['parent_lists'][p_ind] for p_ind in list(keep_b)]

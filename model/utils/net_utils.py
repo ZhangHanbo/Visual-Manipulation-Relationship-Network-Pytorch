@@ -496,3 +496,22 @@ def objgrasp_inference(o_cls_prob, o_box_output, g_cls_prob, g_box_output, im_in
 
     return all_box, all_grasp
 
+def rel_prob_to_mat(rel_cls_prob, num_obj):
+    if rel_cls_prob.size(0) == 0:
+        return np.array([], dtype=np.int32)
+    rel = torch.argmax(rel_cls_prob, dim = 1) + 1
+    rel_mat = np.zeros((num_obj, num_obj), dtype=np.int32)
+    counter = 0
+    for o1 in range(num_obj):
+        for o2 in range(o1 + 1, num_obj):
+            rel_mat[o1, o2] = rel[counter]
+            counter += 1
+    for o1 in range(num_obj):
+        for o2 in range(o1):
+            if rel_mat[o2, o1] == 3:
+                rel_mat[o1, o2] = rel_mat[o2, o1]
+            elif rel_mat[o2, o1] == 1 or rel_mat[o2, o1] == 2:
+                rel_mat[o1, o2] = 3 - rel_mat[o2, o1]
+            else:
+                assert RuntimeError
+    return rel_mat

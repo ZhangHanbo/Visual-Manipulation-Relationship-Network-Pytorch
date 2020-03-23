@@ -47,7 +47,7 @@ from model.MGN import MGN
 import model.AllinOne as ALL_IN_ONE
 import model.VAM as VAM
 
-from model.utils.net_utils import objdet_inference, grasp_inference, objgrasp_inference
+from model.utils.net_utils import objdet_inference, grasp_inference, objgrasp_inference, rel_prob_to_mat
 from datasets.factory import get_imdb
 
 import warnings
@@ -501,14 +501,22 @@ def evalute_model(Network, namedb, args):
             det_box = objdet_inference(cls_prob[0].data, bbox_pred[0].data, data_batch[1][0].data,
                         box_prior=boxes[0].data, class_agnostic=args.class_agnostic, n_classes=imdb.num_classes, for_vis=False)
             if args.vis:
-                vis_boxes = objdet_inference(cls_prob[0].data, bbox_pred[0].data, data_batch[1][0].data,
-                                 box_prior=boxes[0].data, class_agnostic=args.class_agnostic,
-                                 n_classes=imdb.num_classes, for_vis=True)
-                data_list = [data_batch[0][0], data_batch[1][0], torch.Tensor(vis_boxes)]
+                if args.frame not in {'faster_rcnn_vmrn', 'ssd_vmrn', 'vam'}:
+                    vis_boxes = objdet_inference(cls_prob[0].data, bbox_pred[0].data, data_batch[1][0].data,
+                                     box_prior=boxes[0].data, class_agnostic=args.class_agnostic,
+                                     n_classes=imdb.num_classes, for_vis=True)
+                    data_list = [data_batch[0][0], data_batch[1][0], torch.Tensor(vis_boxes)]
+                else:
+                    det_res = all_rel[-1]
+                    vis_boxes = torch.cat([det_res[0], det_res[1].unsqueeze(1)], dim = 1)
+                    rel_mat = rel_prob_to_mat(det_res[2], vis_boxes.size(0))
+                    data_list = [data_batch[0][0], data_batch[1][0], vis_boxes,
+                                 torch.Tensor([vis_boxes.size(0)]), torch.Tensor(rel_mat)]
             if max_per_image > 0:
                 det_box = detection_filter(det_box, None, max_per_image)
             for j in xrange(1, imdb.num_classes):
                 all_boxes[j][i] = det_box[j]
+
         elif args.frame in {'mgn', 'all_in_one'}:
             det_box, det_grasps = objgrasp_inference(cls_prob[0].data if cls_prob is not None else cls_prob,
                         bbox_pred[0].data if bbox_pred is not None else bbox_pred,

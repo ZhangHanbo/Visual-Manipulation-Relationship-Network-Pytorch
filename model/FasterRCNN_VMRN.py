@@ -5,6 +5,7 @@
 # Modified from R. B. G.'s faster_rcnn.py
 # --------------------------------------------------------
 
+import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -16,9 +17,6 @@ from model.rpn.bbox_transform import bbox_overlaps
 import copy
 
 from FasterRCNN import fasterRCNN
-
-from model.op2l.object_pairing_layer import _ObjPairLayer
-from model.op2l.rois_pair_expanding_layer import  _RoisPairExpandingLayer
 from model.op2l.op2l import _OP2L
 
 class vmrn_rel_classifier(nn.Module):
@@ -38,7 +36,6 @@ class vmrn_rel_classifier(nn.Module):
         x = F.relu(self.bn2(x))
         x = self.outlayer(x)
         return x
-
 
 class fasterRCNN_VMRN(fasterRCNN):
     """ faster RCNN """
@@ -65,6 +62,83 @@ class fasterRCNN_VMRN(fasterRCNN):
                 det_results = torch.cat([det_results, torch.cat([img_ind, obj_boxes], 1)], 0)
 
         return det_results, torch.Tensor(obj_num).type_as(det_results).long()
+
+    def _get_rel_det_rslt(self, base_feat, obj_rois, obj_num):
+        # filter out the detection of only one object instance
+        obj_pair_feat = self.VMRN_rel_op2l(base_feat, obj_rois, self.batch_size, obj_num)
+        obj_pair_feat = obj_pair_feat.detach()
+        obj_pair_feat = self._rel_head_to_tail(obj_pair_feat)
+        rel_cls_score = self.VMRN_rel_cls_score(obj_pair_feat)
+        rel_cls_prob = F.softmax(rel_cls_score)
+        return rel_cls_score, rel_cls_prob
+
+    def _check_rel_mat(self, rel_mat, o1, o2):
+        # some labels are neglected when the dataset was labeled
+        if rel_mat[o1, o2].item() == 0:
+            if rel_mat[o2, o1].item() == 3:
+                rel_mat[o1, o2] = rel_mat[o2, o1]
+            else:
+                rel_mat[o1, o2] = 3 - rel_mat[o2, o1]
+        return rel_mat
+
+    def _generate_rel_labels(self, obj_rois, gt_boxes, obj_num, rel_mat, rel_batch_size):
+
+        obj_pair_rel_label = torch.Tensor(rel_batch_size).type_as(gt_boxes).zero_().long()
+        # generate online data labels
+        cur_pair = 0
+        for i in range(obj_num.size(0)):
+            img_index = i % self.batch_size
+            if obj_num[i] <=1 :
+                continue
+            begin_ind = torch.sum(obj_num[:i])
+            overlaps = bbox_overlaps(obj_rois[begin_ind:begin_ind + obj_num[i]][:, 1:5],
+                                     gt_boxes[img_index][:, 0:4])
+            max_overlaps, max_inds = torch.max(overlaps, 1)
+            for o1ind in range(obj_num[i]):
+                for o2ind in range(o1ind + 1, obj_num[i]):
+                    o1_gt = int(max_inds[o1ind].item())
+                    o2_gt = int(max_inds[o2ind].item())
+                    if o1_gt == o2_gt:
+                        # skip invalid pairs
+                        if self._isex:
+                            cur_pair += 2
+                        else:
+                            cur_pair += 1
+                        continue
+                    # some labels are neglected when the dataset was labeled
+                    rel_mat[img_index] = self._check_rel_mat(rel_mat[img_index], o1_gt, o2_gt)
+                    obj_pair_rel_label[cur_pair] = rel_mat[img_index][o1_gt, o2_gt]
+                    cur_pair += 1
+
+                    if self._isex:
+                        rel_mat[img_index] = self._check_rel_mat(rel_mat[img_index], o2_gt, o1_gt)
+                        obj_pair_rel_label[cur_pair] = rel_mat[img_index][o2_gt, o1_gt]
+                        cur_pair += 1
+
+        return obj_pair_rel_label
+
+    def _rel_det_loss_comp(self, obj_pair_rel_label, rel_cls_score):
+        obj_pair_rel_label = obj_pair_rel_label
+        # filter out all invalid data (e.g. two ROIs are matched to the same ground truth)
+        rel_not_keep = (obj_pair_rel_label == 0)
+        if (rel_not_keep == 0).sum().item() > 0:
+            rel_keep = torch.nonzero(rel_not_keep == 0).view(-1)
+            rel_cls_score = rel_cls_score[rel_keep]
+            obj_pair_rel_label = obj_pair_rel_label[rel_keep]
+            obj_pair_rel_label -= 1
+            VMRN_rel_loss_cls = F.cross_entropy(rel_cls_score, obj_pair_rel_label)
+        return VMRN_rel_loss_cls
+
+    def _rel_cls_prob_post_process(self, rel_cls_prob):
+        if (not cfg.TEST.VMRN.ISEX) and cfg.TRAIN.VMRN.ISEX:
+            rel_cls_prob = rel_cls_prob[::2, :]
+        elif cfg.TEST.VMRN.ISEX and cfg.TRAIN.VMRN.ISEX:
+            rel_cls_prob_1 = rel_cls_prob[0::2, :]
+            rel_cls_prob_2 = rel_cls_prob[1::2, :]
+            rel_cls_prob[:, 0] = (rel_cls_prob_1[:, 0] + rel_cls_prob_2[:, 1]) / 2
+            rel_cls_prob[:, 1] = (rel_cls_prob_1[:, 1] + rel_cls_prob_2[:, 0]) / 2
+            rel_cls_prob[:, 2] = (rel_cls_prob_1[:, 2] + rel_cls_prob_2[:, 2]) / 2
+        return rel_cls_prob
 
     def forward(self, data_batch):
         im_data = data_batch[0]
@@ -110,116 +184,44 @@ class fasterRCNN_VMRN(fasterRCNN):
             od_cls_prob = cls_prob.data
             od_bbox_pred = bbox_pred.data
 
+        # generate object RoIs.
+        obj_rois, obj_num = torch.Tensor([]).type_as(rois), torch.Tensor([]).type_as(num_boxes)
         # online data
-        obj_rois, obj_num = self._object_detection(od_rois, od_cls_prob, od_bbox_pred, self.batch_size, im_info.data)
-
+        if not self.training or (cfg.TRAIN.VMRN.TRAINING_DATA == 'all' or 'online'):
+            obj_rois, obj_num = self._object_detection(od_rois, od_cls_prob, od_bbox_pred, self.batch_size, im_info.data)
         # offline data
-        if self.training:
+        if self.training and (cfg.TRAIN.VMRN.TRAINING_DATA == 'all' or 'offline'):
             for i in range(self.batch_size):
                 img_ind = (i * torch.ones(num_boxes[i].item(),1)).type_as(gt_boxes)
                 obj_rois = torch.cat([obj_rois, torch.cat([img_ind, (gt_boxes[i][:num_boxes[i]])],1)])
-                obj_num = torch.cat([obj_num,torch.Tensor([num_boxes[i]]).type_as(obj_num)])
+            obj_num = torch.cat([obj_num, num_boxes])
 
         obj_labels = torch.Tensor([]).type_as(gt_boxes).long()
         if obj_rois.size(0) > 0:
             obj_labels = obj_rois[:, 5]
             obj_rois = obj_rois[:, :5]
 
+        VMRN_rel_loss_cls = 0
         if (obj_num > 1).sum().item() > 0:
-            # filter out the detection of only one object instance
-            obj_pair_feat = self.VMRN_rel_op2l(base_feat, obj_rois, self.batch_size, obj_num)
-            obj_pair_feat = obj_pair_feat.detach()
-            obj_pair_feat = self._rel_head_to_tail(obj_pair_feat)
-            rel_cls_score = self.VMRN_rel_cls_score(obj_pair_feat)
-
-            rel_cls_prob = F.softmax(rel_cls_score)
-
-            VMRN_rel_loss_cls = 0
+            rel_cls_score, rel_cls_prob = self._get_rel_det_rslt(base_feat, obj_rois, obj_num)
             if self.training:
-                self.rel_batch_size = rel_cls_prob.size(0)
-
-                obj_pair_rel_label = self._generate_rel_labels(obj_rois, gt_boxes, obj_num, rel_mat)
-                obj_pair_rel_label = obj_pair_rel_label.type_as(gt_boxes).long()
-
-                rel_not_keep = (obj_pair_rel_label == 0)
-
-                # no relationship is kept
-                if (rel_not_keep == 0).sum().item() > 0:
-                    rel_keep = torch.nonzero(rel_not_keep == 0).view(-1)
-
-                    rel_cls_score = rel_cls_score[rel_keep]
-                    obj_pair_rel_label = obj_pair_rel_label[rel_keep]
-
-                    obj_pair_rel_label -= 1
-
-                    VMRN_rel_loss_cls = F.cross_entropy(rel_cls_score, obj_pair_rel_label)
+                obj_pair_rel_label = self._generate_rel_labels(obj_rois, gt_boxes, obj_num, rel_mat, rel_cls_prob.size(0))
+                VMRN_rel_loss_cls = self._rel_det_loss_comp(obj_pair_rel_label.type_as(gt_boxes).long(), rel_cls_score)
             else:
-                if (not cfg.TEST.VMRN.ISEX) and cfg.TRAIN.VMRN.ISEX:
-                    rel_cls_prob = rel_cls_prob[::2,:]
-
+                rel_cls_prob = self._rel_cls_prob_post_process(rel_cls_prob)
         else:
-            VMRN_rel_loss_cls = 0
-            # no detected relationships
-            rel_cls_prob = Variable(torch.Tensor([]).type_as(cls_prob))
+            rel_cls_prob = torch.Tensor([]).type_as(cls_prob)
 
         rel_result = None
         if not self.training:
             if obj_rois.numel() > 0:
                 pred_boxes = obj_rois.data[:,1:5]
-                pred_boxes[:, 0::2] /= im_info[0][3].item()
-                pred_boxes[:, 1::2] /= im_info[0][2].item()
                 rel_result = (pred_boxes, obj_labels, rel_cls_prob.data)
             else:
                 rel_result = (obj_rois.data, obj_labels, rel_cls_prob.data)
 
         return rois, cls_prob, bbox_pred, rel_result, rpn_loss_cls, rpn_loss_bbox, \
                RCNN_loss_cls, RCNN_loss_bbox, VMRN_rel_loss_cls, rois_label
-
-    def _generate_rel_labels(self, obj_rois, gt_boxes, obj_num, rel_mat):
-
-        obj_pair_rel_label = torch.Tensor(self.rel_batch_size).type_as(gt_boxes).zero_().long()
-        # generate online data labels
-        cur_pair = 0
-        for i in range(obj_num.size(0)):
-            img_index = i % self.batch_size
-            if obj_num[i] <=1 :
-                continue
-            begin_ind = torch.sum(obj_num[:i])
-            overlaps = bbox_overlaps(obj_rois[begin_ind:begin_ind + obj_num[i]][:, 1:5],
-                                     gt_boxes[img_index][:, 0:4])
-            max_overlaps, max_inds = torch.max(overlaps, 1)
-            for o1ind in range(obj_num[i]):
-                for o2ind in range(o1ind + 1, obj_num[i]):
-                    o1_gt = int(max_inds[o1ind].item())
-                    o2_gt = int(max_inds[o2ind].item())
-                    if o1_gt == o2_gt:
-                        # skip invalid pairs
-                        if self._isex:
-                            cur_pair += 2
-                        else:
-                            cur_pair += 1
-                        continue
-                    # some labels are leaved out when labeling
-                    if rel_mat[img_index][o1_gt, o2_gt].item() == 0:
-                        if rel_mat[img_index][o2_gt, o1_gt].item() == 3:
-                            rel_mat[img_index][o1_gt, o2_gt] = rel_mat[img_index][o2_gt, o1_gt]
-                        else:
-                            rel_mat[img_index][o1_gt, o2_gt] = 3 - rel_mat[img_index][o2_gt, o1_gt]
-                    obj_pair_rel_label[cur_pair] = rel_mat[img_index][o1_gt, o2_gt]
-
-                    cur_pair += 1
-                    if self._isex:
-                        # some labels are leaved out when labeling
-                        if rel_mat[img_index][o2_gt, o1_gt].item() == 0:
-                            if rel_mat[img_index][o1_gt, o2_gt].item() == 3:
-                                rel_mat[img_index][o2_gt, o1_gt] = rel_mat[img_index][o1_gt, o2_gt]
-                            else:
-                                rel_mat[img_index][o2_gt, o1_gt] = 3 - rel_mat[img_index][o1_gt, o2_gt]
-                        obj_pair_rel_label[cur_pair] = rel_mat[img_index][o2_gt, o1_gt]
-                        cur_pair += 1
-
-        return obj_pair_rel_label
-
 
     def _init_weights(self):
         fasterRCNN._init_weights(self)

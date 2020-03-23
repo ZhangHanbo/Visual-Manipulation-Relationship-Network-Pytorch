@@ -284,6 +284,7 @@ class pascal_voc(imdb):
         status = subprocess.call(cmd, shell=True)
 
     def evaluate_detections(self, all_boxes, output_dir):
+        output_dir = os.path.join(output_dir, 'Precesion_Recall')
         self._write_voc_results_file(all_boxes)
         map = self._do_python_eval(output_dir)
         if self.config['matlab_eval']:

@@ -142,6 +142,8 @@ class dataViewer(object):
         return im
 
     def draw_mrt(self, img, rel_mat):
+        if rel_mat.shape[0] == 0:
+            return img
 
         mrt = nx.DiGraph()
 

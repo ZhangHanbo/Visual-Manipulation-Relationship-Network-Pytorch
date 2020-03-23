@@ -38,7 +38,8 @@ from basenet.resnet import resnet18,resnet34,resnet50,resnet101,resnet152
 from model.rpn.bbox_transform import bbox_overlaps, bbox_overlaps_batch
 import copy
 
-import FasterRCNN
+from MGN import MGN
+from FasterRCNN_VMRN import fasterRCNN_VMRN
 
 from model.op2l.object_pairing_layer import _ObjPairLayer
 from model.op2l.rois_pair_expanding_layer import  _RoisPairExpandingLayer
