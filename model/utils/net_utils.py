@@ -306,7 +306,19 @@ def box_filter(box, box_scores, thresh, use_nms = True):
         order = np.array([], dtype=np.int32)
     return cls_dets, cls_scores, (inds.cpu().numpy())[order]
 
-def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agnostic = True, n_classes = None, for_vis = False):
+def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agnostic = True, n_classes = None,
+                     for_vis = False, recover_imscale = True):
+    """
+    :param cls_prob: predicted class info
+    :param box_output: predicted bounding boxes (for anchor-based detection, it indicates deltas of boxes).
+    :param im_info: image scale information, for recovering the original bounding box scale before image resizing.
+    :param box_prior: anchors, RoIs, e.g.
+    :param class_agnostic: whether the boxes are class-agnostic. For faster RCNN, it is class-specific by default.
+    :param n_classes: number of object classes
+    :param for_vis: the results are for visualization or validation.
+    :param recover_imscale: whether the predicted bounding boxes are recovered to the original scale.
+    :return: a list of bounding boxes, one class corresponding to one element. If for_vis, they will be concatenated.
+    """
     assert box_output.dim() == 2, "Multi-instance batch inference has not been implemented."
 
     if for_vis:
@@ -331,7 +343,8 @@ def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agno
 
     scores = scores.squeeze()
     pred_boxes = pred_boxes.squeeze()
-    pred_boxes = box_recover_scale_torch(pred_boxes, im_info[3], im_info[2])
+    if recover_imscale:
+        pred_boxes = box_recover_scale_torch(pred_boxes, im_info[3], im_info[2])
 
     all_box = [[]]
     for j in xrange(1, n_classes):
@@ -348,7 +361,7 @@ def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agno
         return np.concatenate(all_box[1:], axis = 0)
     return all_box
 
-def grasp_inference(cls_prob, box_output, im_info, box_prior = None, topN = False):
+def grasp_inference(cls_prob, box_output, im_info, box_prior = None, topN = False, recover_imscale = True):
     assert box_output.dim() == 2, "Multi-instance batch inference has not been implemented."
     if not topN:
         thresh = 0.5
@@ -375,7 +388,8 @@ def grasp_inference(cls_prob, box_output, im_info, box_prior = None, topN = Fals
 
     scores = scores.squeeze()
     pred_boxes = pred_boxes.squeeze()
-    pred_boxes = box_recover_scale_torch(pred_boxes, im_info[3], im_info[2])
+    if recover_imscale:
+        pred_boxes = box_recover_scale_torch(pred_boxes, im_info[3], im_info[2])
 
     grasps, scores, _ = box_filter(pred_boxes, scores[:, 1], thresh, use_nms = False)
     grasps = np.concatenate((grasps, np.expand_dims(scores, -1)), axis=-1)
@@ -384,7 +398,8 @@ def grasp_inference(cls_prob, box_output, im_info, box_prior = None, topN = Fals
     return grasps
 
 def objgrasp_inference(o_cls_prob, o_box_output, g_cls_prob, g_box_output, im_info, rois = None,
-                       class_agnostic = True, n_classes = None, g_box_prior = None, for_vis = False, topN_g = False):
+                       class_agnostic = True, n_classes = None, g_box_prior = None, for_vis = False, topN_g = False,
+                       recover_imscale = True):
     """
     :param o_cls_prob: N x N_cls tensor
     :param o_box_output: N x 4 tensor
@@ -469,8 +484,9 @@ def objgrasp_inference(o_cls_prob, o_box_output, g_cls_prob, g_box_output, im_in
     else:
         pred_boxes = rois.clone()
 
-    pred_boxes = box_recover_scale_torch(pred_boxes, im_info[3], im_info[2])
-    grasp_pred_boxes = box_recover_scale_torch(grasp_pred_boxes, im_info[3], im_info[2])
+    if recover_imscale:
+        pred_boxes = box_recover_scale_torch(pred_boxes, im_info[3], im_info[2])
+        grasp_pred_boxes = box_recover_scale_torch(grasp_pred_boxes, im_info[3], im_info[2])
 
     all_box = [[]]
     all_grasp = [[]]

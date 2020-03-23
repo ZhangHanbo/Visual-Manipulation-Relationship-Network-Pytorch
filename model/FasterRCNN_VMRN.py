@@ -54,7 +54,7 @@ class fasterRCNN_VMRN(fasterRCNN):
         for i in range(batch_size):
             obj_boxes = torch.Tensor(objdet_inference(cls_prob[i], bbox_pred[i], im_info[i], rois[i][:, 1:5],
                                                       class_agnostic = self.class_agnostic, n_classes = self.n_classes,
-                                                      for_vis = True)).type_as(det_results)
+                                                      for_vis = True, recover_imscale=False)).type_as(det_results)
             obj_num.append(obj_boxes.size(0))
             if obj_num[-1] > 0 :
                 # add image index
@@ -216,6 +216,8 @@ class fasterRCNN_VMRN(fasterRCNN):
         if not self.training:
             if obj_rois.numel() > 0:
                 pred_boxes = obj_rois.data[:,1:5]
+                pred_boxes[:, 0::2] /= im_info[0][3].item()
+                pred_boxes[:, 1::2] /= im_info[0][2].item()
                 rel_result = (pred_boxes, obj_labels, rel_cls_prob.data)
             else:
                 rel_result = (obj_rois.data, obj_labels, rel_cls_prob.data)

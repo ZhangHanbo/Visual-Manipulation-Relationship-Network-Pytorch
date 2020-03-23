@@ -53,7 +53,6 @@ class Compose(object):
             while (data is None):
                 data = t(image, boxes, grasps, boxes_keep, grasps_keep)
             image, boxes, grasps, boxes_keep, grasps_keep = data
-
         return image, boxes, grasps, boxes_keep, grasps_keep
 
 
@@ -394,6 +393,12 @@ class RandomCropKeepBoxes(object):
             ymin = min(np.min(gr[:, 1::2]), ymin)
             ymax = max(np.max(gr[:, 1::2]), ymax)
 
+        # some grasp labels are out of the range of the image.
+        xmin = max(xmin, 0)
+        ymin = max(ymin, 0)
+        xmax = min(xmax, width)
+        ymax = min(ymax, height)
+
         for i in range(100):
             # Get top left corner's coordinate of the crop box
             x_start = int(random.uniform(0, xmin))
@@ -416,7 +421,6 @@ class RandomCropKeepBoxes(object):
                     y_end = x_end - x_start + y_start
                     break
 
-        # Crop the image
         im = im[y_start:y_end, x_start:x_end]
         if bs is not None:
             # Adjust the bboxes to fit the cropped image

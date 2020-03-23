@@ -8,7 +8,7 @@ TRAIN:
     SNAPSHOT_ITERS: 2000
     IMS_PER_BATCH : 2
     MAX_EPOCH: 40
-    AUGMENTATION : True # When this is True, remember to go to utils/augmantation.py to config augmentation.
+    AUGMENTATION : True
     BBOX_NORMALIZE_TARGETS_PRECOMPUTED: True
     DISPLAY : 20
     WEIGHT_DECAY: 0.0005

@@ -217,7 +217,7 @@ class vmrdetRoibatchLoader(objdetRoibatchLoader):
             self.augObjdet = Compose([
                 RandomVerticalRotate(),
                 RandomMirror(),
-                Expand(mean = cfg.PIXEL_MEANS),
+                # Expand(mean = cfg.PIXEL_MEANS),
                 # TODO: allow to damage bounding boxes while prevent deleting them when doing random crop
                 RandomCropKeepBoxes(),
             ])

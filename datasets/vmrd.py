@@ -489,7 +489,10 @@ class vmrd(pascal_voc):
             for i in range(len(all_boxes[cls])):
                 if len(all_boxes[cls][i]):
                     cls_dets.append(all_boxes[cls][i])
-            cls_dets = np.concatenate(cls_dets, axis = 0)
+            if len(cls_dets) == 0:
+                cls_dets = np.zeros((0, 6), dtype=np.float32)
+            else:
+                cls_dets = np.concatenate(cls_dets, axis = 0)
             cls_dets_all.append(cls_dets)
             GTall += GT
             sort_inds = np.argsort(cls_dets[:, -2])
@@ -499,7 +502,10 @@ class vmrd(pascal_voc):
             TP = np.cumsum(TP)
             Miss = GT - TP
             rec = TP / GT
-            prec = TP / (TP + FP)
+            if TP.shape[0] > 0:
+                prec = TP / (TP + FP)
+            else:
+                prec = np.array([])
             mrec = np.concatenate(([0.], rec, [1.]))
             mpre = np.concatenate(([0.], prec, [0.]))
             # compute the precision envelope

@@ -44,7 +44,7 @@ from model.FasterRCNN_VMRN import fasterRCNN_VMRN
 from model.FCGN import FCGN
 import model.SSD_VMRN as SSD_VMRN
 from model.MGN import MGN
-import model.AllinOne as ALL_IN_ONE
+from model.AllinOne import All_in_One
 import model.VAM as VAM
 
 from model.utils.net_utils import objdet_inference, grasp_inference, objgrasp_inference, rel_prob_to_mat
@@ -282,11 +282,9 @@ def init_network(args, n_cls):
         Network = MGN(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
                                   feat_list=('conv' + conv_num,), pretrained=True)
     elif args.frame == 'all_in_one':
-        if args.net == 'res101':
-            Network = ALL_IN_ONE.resnet(n_cls, 101, pretrained=True, class_agnostic=args.class_agnostic)
-        else:
-            print("network is not defined")
-            pdb.set_trace()
+        conv_num = str(int(np.log2(cfg.RCNN_COMMON.FEAT_STRIDE[0])))
+        Network = All_in_One(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
+                      feat_list=('conv' + conv_num,), pretrained=True)
     elif args.frame == 'ssd':
         Network = SSD(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
                       feat_list=('conv3', 'conv4'), pretrained=True)
@@ -567,17 +565,7 @@ def evalute_model(Network, namedb, args):
     else:
         result = imdb.evaluate_detections(all_boxes, output_dir)
 
-    if args.frame in {"faster_rcnn_vmrn", "ssd_vmrn"}:
-        print('Evaluating relationships')
-        orec, oprec, imgprec, imgprec_difobjnum = imdb.evaluate_relationships(all_rel)
-        print("object recall:   \t%.4f" % orec)
-        print("object precision:\t%.4f" % oprec)
-        print("image acc:       \t%.4f" % imgprec)
-        print("image acc for images with different object numbers (2,3,4,5):")
-        print("%s\t%s\t%s\t%s\t" % tuple(imgprec_difobjnum))
-        result = imgprec
-
-    if args.frame == 'mgn':
+    if args.frame in {'mgn', "all_in_one"}:
         # when using mgn in single-object grasp dataset, we only use accuracy to measure the performance instead of mAP.
         if 'cornell' in args.dataset or 'jacquard' in args.dataset:
             pass
@@ -586,6 +574,16 @@ def evalute_model(Network, namedb, args):
             grasp_MRFPPI, mean_MRFPPI, key_point_MRFPPI, mAPgrasp = imdb.evaluate_multigrasp_detections(all_boxes, all_grasp)
             print('Mean Log-Average Miss Rate: %.4f' % np.mean(np.array(mean_MRFPPI)))
             result = mAPgrasp
+
+    if args.frame in {"faster_rcnn_vmrn", "ssd_vmrn", "all_in_one"}:
+        print('Evaluating relationships')
+        orec, oprec, imgprec, imgprec_difobjnum = imdb.evaluate_relationships(all_rel)
+        print("object recall:   \t%.4f" % orec)
+        print("object precision:\t%.4f" % oprec)
+        print("image acc:       \t%.4f" % imgprec)
+        print("image acc for images with different object numbers (2,3,4,5):")
+        print("%s\t%s\t%s\t%s\t" % tuple(imgprec_difobjnum))
+        result = imgprec
 
     # TODO: implement all_in_one's metric for evaluation
 
