@@ -94,8 +94,6 @@ class dataViewer(object):
         if dets.shape[0] == 0:
             return im
 
-        if g_inds is not None:
-            g_inds = g_inds[dets[:,0] > 0]
         dets = dets[dets[:, 0] > 0].astype(np.int)
         num_grasp = dets.shape[0]
         for i in range(num_grasp):
@@ -113,8 +111,6 @@ class dataViewer(object):
         if dets.shape[0] == 0:
             return im
 
-        if o_inds is not None:
-            o_inds = o_inds[dets[:,0] > 0]
         dets = dets[dets[:,0] > 0].astype(np.int)
         num_grasp = dets.shape[0]
 
@@ -166,7 +162,7 @@ class dataViewer(object):
         rel_img = fig2data(fig)
 
         rel_img = cv2.resize(rel_img[:,:,:3], (250, 250), interpolation=cv2.INTER_LINEAR)
-        img = cv2.resize(img, (1000, 1000), interpolation=cv2.INTER_LINEAR)
+        # img = cv2.resize(img, (1000, 1000), interpolation=cv2.INTER_LINEAR)
         img[:250, :250] = rel_img
         plt.close(0)
 

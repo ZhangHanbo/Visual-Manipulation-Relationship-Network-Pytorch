@@ -376,11 +376,13 @@ def detection_filter(all_boxes, all_grasp = None, max_per_image = 100):
     else:
         return all_boxes
 
-def vis_gt(data_list, visualizer, frame):
+def vis_gt(data_list, visualizer, frame, train_mode = False):
     im_vis = image_unnormalize(data_list[0].permute(1, 2, 0).cpu().numpy(),
                                mean=cfg.PIXEL_MEANS, std=cfg.PIXEL_STDS)
-    im_vis = cv2.resize(im_vis, None, None, fx=1. / data_list[1][3].item(), fy=1. / data_list[1][2].item(),
-                    interpolation=cv2.INTER_LINEAR)
+    # whether to visualize training data
+    if not train_mode:
+        im_vis = cv2.resize(im_vis, None, None, fx=1. / data_list[1][3].item(), fy=1. / data_list[1][2].item(),
+                        interpolation=cv2.INTER_LINEAR)
     if frame in {"fpn", "faster_rcnn", "ssd"}:
         im_vis = visualizer.draw_objdet(im_vis, data_list[2].cpu().numpy())
     elif frame in {"ssd_vmrn", "vam", "faster_rcnn_vmrn"}:
@@ -506,7 +508,10 @@ def evalute_model(Network, namedb, args):
                     data_list = [data_batch[0][0], data_batch[1][0], torch.Tensor(vis_boxes)]
                 else:
                     det_res = all_rel[-1]
-                    vis_boxes = torch.cat([det_res[0], det_res[1].unsqueeze(1)], dim = 1)
+                    if det_res[0].shape[0] > 0:
+                        vis_boxes = torch.cat([det_res[0], det_res[1].unsqueeze(1)], dim = 1)
+                    else:
+                        vis_boxes = torch.Tensor([])
                     rel_mat = rel_prob_to_mat(det_res[2], vis_boxes.size(0))
                     data_list = [data_batch[0][0], data_batch[1][0], vis_boxes,
                                  torch.Tensor([vis_boxes.size(0)]), torch.Tensor(rel_mat)]
@@ -682,7 +687,7 @@ def train():
             if args.vis:
                 for i in range(data_batch[0].size(0)):
                     data_list = [data_batch[d][i] for d in range(len(data_batch))]
-                    im_vis = vis_gt(data_list, visualizer, args.frame)
+                    im_vis = vis_gt(data_list, visualizer, args.frame, train_mode=True)
                     img_name = id_number_to_name[data_batch[1][i][4].item()].split("/")[-1]
                     # When using cv2.imwrite, channel order should be BGR
                     cv2.imwrite(os.path.join(data_vis_dir, img_name), im_vis[:, :, ::-1])
