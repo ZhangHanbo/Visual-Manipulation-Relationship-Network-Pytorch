@@ -29,10 +29,12 @@ python main.py --test --dataset vmrdcompv1 --frame all_in_one --net res101 --cud
 We want to re-implement the SOTA performance of the related algorithms. Some performance is shown below and it will be updated continuously.
 
 ### Object Detection Performance
-Algorithm | Backbone | Training | Testing | mAP
--|-|-|-|-
-Faster R-CNN | ResNet-101 | VOC2007trainval | VOC2007test | 71.5 |
-FPN | ResNet-101 | VOC2007trainval | VOC2007test | 73.9 |
+Algorithm | Backbone | Training | Testing | mAP | mAP-G | Rel-IA
+-|-|-|-|-|-|-
+Faster R-CNN | ResNet-101 | VOC2007trainval | VOC2007test | 71.5 | - | -
+FPN | ResNet-101 | VOC2007trainval | VOC2007test | 73.9 | - | -
+MGN | ResNet-101 | VMRDtrainval | VMRDtest | 94.5 | 75.7 | -
+
 
 
 ## Noteable Things
@@ -56,3 +58,4 @@ FPN | ResNet-101 | VOC2007trainval | VOC2007test | 73.9 |
 1. [Solved] When setting batch_size of Faster RCNN to 1 and augmentation to True, we want to use SSD-like augmentation to generate more training data. However, it will cause NaN error.
 2. There are some grasp and relation label errors in VMRD. However, we find that they do not affect the detection performance much. We will fix this problem as soon as possible.
 3. This package only supports pytorch 0.4.0. When using 0.4.1, there will be segmentation fault (reason not found).
+4. When training VMRN, the batchsize should be at least 2. Otherwise the network will not reach convergence.

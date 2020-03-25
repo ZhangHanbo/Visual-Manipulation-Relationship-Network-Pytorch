@@ -130,6 +130,21 @@ class SSD(objectDetector):
 
         self.iter_counter = 0
 
+    def _get_bbox_candidates(self, sources):
+        loc = []
+        conf = []
+        # apply multibox head to source layers
+        for (x, l, c) in zip(sources, self.loc, self.conf):
+            loc.append(l(x).permute(0, 2, 3, 1).contiguous())
+            conf.append(c(x).permute(0, 2, 3, 1).contiguous())
+
+        loc = torch.cat([o.view(o.size(0), -1) for o in loc], 1)
+        conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)
+
+        loc = loc.view(loc.size(0), -1, 4)
+        conf = conf.view(conf.size(0), -1, self.num_classes)
+        return loc, conf
+
     def forward(self, data_batch):
         """Applies network layers and ops on input image(s) x.
         Args:
@@ -155,11 +170,8 @@ class SSD(objectDetector):
             self.iter_counter += 1
 
         sources = []
-        loc = []
-        conf = []
 
         s0, x = self.FeatExt(x)
-
         s0 = self.L2Norm(s0)
         sources.append(s0)
 
@@ -167,39 +179,39 @@ class SSD(objectDetector):
             x = m(x)
             sources.append(x)
 
-        # apply multibox head to source layers
-        for (x, l, c) in zip(sources, self.loc, self.conf):
-            loc.append(l(x).permute(0, 2, 3, 1).contiguous())
-            conf.append(c(x).permute(0, 2, 3, 1).contiguous())
-
-        loc = torch.cat([o.view(o.size(0), -1) for o in loc], 1)
-        conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)
-
-        loc = loc.view(loc.size(0), -1, 4)
-        conf = conf.view(conf.size(0), -1, self.num_classes)
-
+        loc, conf = self._get_bbox_candidates(sources)
+        SSD_loss_cls, SSD_loss_bbox = 0, 0
         if self.training:
             predictions = (
                 loc,
                 conf,
                 self.priors.type_as(loc)
             )
-            # targets = torch.cat([gt_boxes[:,:,:4] / self.size, gt_boxes[:,:,4:5]],dim=2)
-            targets = gt_boxes
-            SSD_loss_bbox, SSD_loss_cls = self.criterion(predictions, targets, num_boxes)
-        else:
-            SSD_loss_cls = 0
-            SSD_loss_bbox = 0
-
+            SSD_loss_bbox, SSD_loss_cls = self.criterion(predictions, gt_boxes, num_boxes)
         conf = self.softmax(conf)
 
         return loc, conf, SSD_loss_bbox, SSD_loss_cls
 
     def create_architecture(self):
+        self._init_modules()
+        self._init_weights()
+
+    def _init_modules(self):
+        pass
+
+    def _init_weights(self):
+        def weights_init(m):
+            def xavier(param):
+                init.xavier_uniform(param)
+
+            if isinstance(m, nn.Conv2d):
+                xavier(m.weight.data)
+                m.bias.data.zero_()
+
         # initialize newly added layers' weights with xavier method
-        self.extra_conv.apply(weights_xavier_init)
-        self.loc.apply(weights_xavier_init)
-        self.conf.apply(weights_xavier_init)
+        self.extras.apply(weights_init)
+        self.loc.apply(weights_init)
+        self.conf.apply(weights_init)
 
     def _init_prior_cfg(self):
         prior_cfg = {

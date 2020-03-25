@@ -6,46 +6,19 @@
 # --------------------------------------------------------
 
 
-import random
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
-import torchvision.models as models
-from torch.autograd import Variable
-import torch.nn.init as init
+from torch import nn
 
-import numpy as np
 from utils.config import cfg
-from rpn.rpn import _RPN
-from roi_pooling.modules.roi_pool import _RoIPooling
-from roi_crop.modules.roi_crop import _RoICrop
-from roi_align.modules.roi_align import RoIAlignAvg
-from rpn.proposal_target_layer_cascade import _ProposalTargetLayer
-from model.rpn.bbox_transform import bbox_transform_inv, clip_boxes
 from model.fcgn.bbox_transform_grasp import points2labels
-from model.nms.nms_wrapper import nms
-from model.basenet.resnet import Bottleneck
 
-from model.fcgn.classifier import _Classifier
-from model.fcgn.grasp_proposal_target import _GraspTargetLayer
-from model.fcgn.generate_grasp_anchors import generate_oriented_anchors
-
-import time
-import pdb
-from utils.net_utils import _smooth_l1_loss, _crop_pool_layer, _affine_grid_gen, _affine_theta
-from basenet.resnet import resnet18,resnet34,resnet50,resnet101,resnet152
 from model.rpn.bbox_transform import bbox_overlaps, bbox_overlaps_batch
-import copy
 
 from MGN import MGN
-from FasterRCNN_VMRN import fasterRCNN_VMRN
+from Detectors import VMRN
 
-from model.op2l.object_pairing_layer import _ObjPairLayer
-from model.op2l.rois_pair_expanding_layer import  _RoisPairExpandingLayer
-from model.op2l.op2l import _OP2L
-
-class All_in_One(fasterRCNN_VMRN, MGN):
+class All_in_One(MGN, VMRN):
     """ faster RCNN """
     def __init__(self, classes, class_agnostic, feat_name, feat_list=('conv4',), pretrained = True):
         super(All_in_One, self).__init__(classes, class_agnostic, feat_name, feat_list, pretrained)
@@ -190,10 +163,15 @@ class All_in_One(fasterRCNN_VMRN, MGN):
         self._init_modules()
         self._init_weights()
 
-    def _init_weights(self):
-        fasterRCNN_VMRN._init_weights(self)
-        MGN._init_weights(self)
-
     def _init_modules(self):
-        fasterRCNN_VMRN._init_modules(self)
         MGN._init_modules(self)
+        VMRN._init_modules(self)
+
+    def _init_weights(self):
+        MGN._init_weights(self)
+        VMRN._init_weights(self)
+
+    def train(self, mode=True):
+        # Override train so that the training mode is set as we want
+        nn.Module.train(self, mode)
+        VMRN.train(self, mode)

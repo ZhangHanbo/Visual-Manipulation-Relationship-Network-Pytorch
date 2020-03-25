@@ -259,6 +259,14 @@ class MGN(fasterRCNN, FCGN):
         self._init_modules()
         self._init_weights()
 
+    def _init_modules(self):
+        fasterRCNN._init_modules(self)
+        self.MGN_top = nn.Sequential(
+            Bottleneck(self.dout_base_model, self.dout_base_model / 4),
+            Bottleneck(self.dout_base_model, self.dout_base_model / 4),
+            Bottleneck(self.dout_base_model, self.dout_base_model / 4)
+        )
+
     def _init_weights(self):
         fasterRCNN._init_weights(self)
         FCGN._init_weights(self)
@@ -269,14 +277,6 @@ class MGN(fasterRCNN, FCGN):
             if isinstance(m, nn.Conv2d):
                 xavier(m.weight.data)
         self.MGN_top.apply(kaiming_init)
-
-    def _init_modules(self):
-        fasterRCNN._init_modules(self)
-        self.MGN_top = nn.Sequential(
-            Bottleneck(self.dout_base_model, self.dout_base_model / 4),
-            Bottleneck(self.dout_base_model, self.dout_base_model / 4),
-            Bottleneck(self.dout_base_model, self.dout_base_model / 4)
-        )
 
     def _MGN_head_to_tail(self, feats):
         return self.MGN_top(feats)
