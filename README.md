@@ -28,14 +28,18 @@ python main.py --test --dataset vmrdcompv1 --frame all_in_one --net res101 --cud
 
 We want to re-implement the SOTA performance of the related algorithms. Some performance is shown below and it will be updated continuously.
 
-### Object Detection Performance
+*mAP*: mean Average Precision
+
+*mAP-G*: mean Average Precision with Grasp Detection
+
+*Rel-IA*: Image Accuracy of Relationship Detection
+
+### Performance
 Algorithm | Backbone | Training | Testing | mAP | mAP-G | Rel-IA
 -|-|-|-|-|-|-
 Faster R-CNN | ResNet-101 | VOC2007trainval | VOC2007test | 71.5 | - | -
 FPN | ResNet-101 | VOC2007trainval | VOC2007test | 73.9 | - | -
-MGN | ResNet-101 | VMRDtrainval | VMRDtest | 94.5 | 75.7 | -
-
-
+ROI-GD | ResNet-101 | VMRDtrainval | VMRDtest | 94.5 | 75.7 | -
 
 ## Noteable Things
 1. To train the network, you have to pre-download the pretrained models and put them in "data/pretrained_model" and name them the same as the usage in codes.
