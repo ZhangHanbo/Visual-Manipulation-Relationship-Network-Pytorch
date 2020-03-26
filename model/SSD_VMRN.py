@@ -71,7 +71,7 @@ class SSD_VMRN(SSD, VMRN):
             x = m(x)
             sources.append(x)
 
-        loc, conf = self._get_bbox_candidates(sources)
+        loc, conf = self._get_obj_det_result(sources)
         SSD_loss_cls, SSD_loss_bbox = 0, 0
         if self.training:
             predictions = (
@@ -102,7 +102,7 @@ class SSD_VMRN(SSD, VMRN):
 
         VMRN_rel_loss_cls = 0
         if (obj_num > 1).sum().item() > 0:
-            rel_cls_score, rel_cls_prob = self._get_rel_det_rslt(base_feat, obj_rois, obj_num)
+            rel_cls_score, rel_cls_prob = self._get_rel_det_result(base_feat, obj_rois, obj_num)
             if self.training:
                 obj_pair_rel_label = self._generate_rel_labels(obj_rois, gt_boxes, obj_num, rel_mat,
                                                                rel_cls_prob.size(0))

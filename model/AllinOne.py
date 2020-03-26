@@ -53,11 +53,11 @@ class All_in_One(MGN, VMRN):
         pooled_feat = self._roi_pooling(base_feat, rois)
 
         ### OBJECT DETECTION
-        cls_score, cls_prob, bbox_pred = self._get_det_rslt(pooled_feat)
+        cls_score, cls_prob, bbox_pred = self._get_obj_det_result(pooled_feat)
         RCNN_loss_bbox, RCNN_loss_cls = 0, 0
         if self.training:
-            RCNN_loss_bbox, RCNN_loss_cls = self._loss_comp(cls_score, cls_prob, bbox_pred, rois_label, rois_target,
-                                                            rois_inside_ws, rois_outside_ws)
+            RCNN_loss_bbox, RCNN_loss_cls = self._obj_det_loss_comp(cls_score, cls_prob, bbox_pred, rois_label, rois_target,
+                                                                    rois_inside_ws, rois_outside_ws)
         cls_prob = cls_prob.contiguous().view(self.batch_size, rois.size(1), -1)
         bbox_pred = bbox_pred.contiguous().view(self.batch_size, rois.size(1), -1)
 
@@ -89,7 +89,7 @@ class All_in_One(MGN, VMRN):
 
         VMRN_rel_loss_cls = 0
         if (obj_num > 1).sum().item() > 0:
-            rel_cls_score, rel_cls_prob = self._get_rel_det_rslt(base_feat, obj_rois, obj_num)
+            rel_cls_score, rel_cls_prob = self._get_rel_det_result(base_feat, obj_rois, obj_num)
             if self.training:
                 obj_pair_rel_label = self._generate_rel_labels(obj_rois, gt_boxes, obj_num, rel_mat, rel_cls_prob.size(0))
                 VMRN_rel_loss_cls = self._rel_det_loss_comp(obj_pair_rel_label.type_as(gt_boxes).long(), rel_cls_score)

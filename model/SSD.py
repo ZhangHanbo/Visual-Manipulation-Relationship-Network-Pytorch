@@ -41,21 +41,6 @@ class L2Norm(nn.Module):
         return out
 
 class SSD(objectDetector):
-    """Single Shot Multibox Architecture
-    The network is composed of a base VGG network followed by the
-    added multibox conv layers.  Each multibox layer branches into
-        1) conv2d for class conf scores
-        2) conv2d for localization predictions
-        3) associated priorbox layer to produce default bounding
-           boxes specific to the layer's feature map size.
-    See: https://arxiv.org/pdf/1512.02325.pdf for more details.
-    Args:
-        phase: (string) Can be "test" or "train"
-        size: input image size
-        base: VGG16 layers for input, size of either 300 or 500
-        extras: extra layers that feed to multibox loc and conf layers
-        head: "multibox head" consists of loc and conf conv layers
-    """
 
     def __init__(self, classes, class_agnostic, feat_name, feat_list=('conv3', 'conv4'), pretrained = True):
         super(SSD, self).__init__(classes, class_agnostic, feat_name, feat_list, pretrained)
@@ -130,7 +115,7 @@ class SSD(objectDetector):
 
         self.iter_counter = 0
 
-    def _get_bbox_candidates(self, sources):
+    def _get_obj_det_result(self, sources):
         loc = []
         conf = []
         # apply multibox head to source layers
@@ -179,7 +164,7 @@ class SSD(objectDetector):
             x = m(x)
             sources.append(x)
 
-        loc, conf = self._get_bbox_candidates(sources)
+        loc, conf = self._get_obj_det_result(sources)
         SSD_loss_cls, SSD_loss_bbox = 0, 0
         if self.training:
             predictions = (

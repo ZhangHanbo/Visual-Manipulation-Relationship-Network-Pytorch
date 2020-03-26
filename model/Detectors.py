@@ -90,7 +90,7 @@ class VMRN(nn.Module):
 
         return det_results, torch.Tensor(obj_num).type_as(det_results).long()
 
-    def _get_rel_det_rslt(self, base_feat, obj_rois, obj_num):
+    def _get_rel_det_result(self, base_feat, obj_rois, obj_num):
         # filter out the detection of only one object instance
         obj_pair_feat = self.VMRN_rel_op2l(base_feat, obj_rois, self.batch_size, obj_num)
         obj_pair_feat = obj_pair_feat.detach()
@@ -232,16 +232,6 @@ class VMRN(nn.Module):
 
         self.VMRN_rel_cls_score = vmrn_rel_classifier(64 * 7 * 7 * 3)
 
-    def train(self, mode=True):
-        # nn.Module.train(self, mode)
-        if mode and self.feat_name[:3] == 'res':
-            if cfg.VMRN.SHARE_WEIGHTS:
-                self.VMRN_rel_top.apply(set_bn_eval)
-            else:
-                self.VMRN_rel_top_o1.apply(set_bn_eval)
-                self.VMRN_rel_top_o2.apply(set_bn_eval)
-                self.VMRN_rel_top_union.apply(set_bn_eval)
-
     def _init_weights(self):
         def normal_init(m, mean, stddev, truncated=False):
             """
@@ -257,3 +247,12 @@ class VMRN(nn.Module):
         normal_init(self.VMRN_rel_cls_score.fc1, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
         normal_init(self.VMRN_rel_cls_score.fc2, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
         normal_init(self.VMRN_rel_cls_score.outlayer, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
+
+    def train(self, mode=True):
+        if mode and self.feat_name[:3] == 'res':
+            if cfg.VMRN.SHARE_WEIGHTS:
+                self.VMRN_rel_top.apply(set_bn_eval)
+            else:
+                self.VMRN_rel_top_o1.apply(set_bn_eval)
+                self.VMRN_rel_top_o2.apply(set_bn_eval)
+                self.VMRN_rel_top_union.apply(set_bn_eval)

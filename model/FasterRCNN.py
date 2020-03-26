@@ -83,24 +83,24 @@ class fasterRCNN(objectDetector):
             pooled_feat = self.RCNN_roi_pool(base_feat, rois.view(-1, 5))
         return pooled_feat
 
-    def _head_to_tail(self, pool5):
+    def _obj_head_to_tail(self, pool5):
         if self.feat_name[:3] == 'res':
-            return self._head_to_tail_resnet(pool5)
+            return self._obj_head_to_tail_resnet(pool5)
         elif self.feat_name[:3] == 'vgg':
-            return self._head_to_tail_vgg(pool5)
+            return self._obj_head_to_tail_vgg(pool5)
 
-    def _head_to_tail_resnet(self, pool5):
+    def _obj_head_to_tail_resnet(self, pool5):
         fc7 = self.FeatExt.layer4(pool5).mean(3).mean(2)
         return fc7
 
-    def _head_to_tail_vgg(self, pool5):
+    def _obj_head_to_tail_vgg(self, pool5):
         pool5_flat = pool5.view(pool5.size(0), -1)
         fc7 = self.FeatExt["fc"](pool5_flat)
         return fc7
 
-    def _get_det_rslt(self, pooled_feat):
+    def _get_obj_det_result(self, pooled_feat):
         # feed pooled features to top model
-        pooled_feat = self._head_to_tail(pooled_feat)
+        pooled_feat = self._obj_head_to_tail(pooled_feat)
         # compute object classification probability
         cls_score = self.RCNN_cls_score(pooled_feat)
         cls_prob = F.softmax(cls_score)
@@ -108,7 +108,7 @@ class fasterRCNN(objectDetector):
         bbox_pred = self.RCNN_bbox_pred(pooled_feat)
         return cls_score, cls_prob, bbox_pred
 
-    def _loss_comp(self, cls_score, cls_prob, bbox_pred, rois_label, rois_target, rois_inside_ws, rois_outside_ws):
+    def _obj_det_loss_comp(self, cls_score, cls_prob, bbox_pred, rois_label, rois_target, rois_inside_ws, rois_outside_ws):
         # classification loss
         if cfg.TRAIN.COMMON.USE_FOCAL_LOSS:
             RCNN_loss_cls = F.cross_entropy(cls_score, rois_label, reduce=False)
@@ -198,11 +198,11 @@ class fasterRCNN(objectDetector):
             rois_label, rois_target, rois_inside_ws, rois_outside_ws = None, None, None, None
 
         pooled_feat = self._roi_pooling(base_feat, rois)
-        cls_score, cls_prob, bbox_pred = self._get_det_rslt(pooled_feat)
+        cls_score, cls_prob, bbox_pred = self._get_obj_det_result(pooled_feat)
 
         RCNN_loss_bbox, RCNN_loss_cls = 0, 0
         if self.training:
-            RCNN_loss_bbox, RCNN_loss_cls = self._loss_comp(cls_score, cls_prob, bbox_pred, rois_label, rois_target, rois_inside_ws, rois_outside_ws)
+            RCNN_loss_bbox, RCNN_loss_cls = self._obj_det_loss_comp(cls_score, cls_prob, bbox_pred, rois_label, rois_target, rois_inside_ws, rois_outside_ws)
 
         cls_prob = cls_prob.view(batch_size, rois.size(1), -1)
         bbox_pred = bbox_pred.view(batch_size, rois.size(1), -1)

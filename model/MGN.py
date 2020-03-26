@@ -122,10 +122,10 @@ class MGN(fasterRCNN, FCGN):
             None, None, torch.Tensor([0]).type_as(rois), torch.Tensor([0]).type_as(rois)
         if self.use_objdet_branch:
             # object detection branch
-            cls_score, cls_prob, bbox_pred = self._get_det_rslt(pooled_feat)
+            cls_score, cls_prob, bbox_pred = self._get_obj_det_result(pooled_feat)
             if self.training:
-                RCNN_loss_bbox, RCNN_loss_cls = self._loss_comp(cls_score, cls_prob, bbox_pred, rois_label, rois_target,
-                                                                rois_inside_ws, rois_outside_ws)
+                RCNN_loss_bbox, RCNN_loss_cls = self._obj_det_loss_comp(cls_score, cls_prob, bbox_pred, rois_label, rois_target,
+                                                                        rois_inside_ws, rois_outside_ws)
             cls_prob = cls_prob.view(batch_size, rois.size(1), -1)
             bbox_pred = bbox_pred.view(batch_size, rois.size(1), -1)
         else:
