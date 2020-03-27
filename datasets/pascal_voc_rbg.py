@@ -183,7 +183,6 @@ class pascal_voc(imdb):
     return {'boxes': boxes,
             'gt_classes': gt_classes,
             'gt_overlaps': overlaps,
-            'flipped': False,
             'seg_areas': seg_areas,
             'rotated': 0}
 

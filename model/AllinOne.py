@@ -163,9 +163,13 @@ class All_in_One(MGN, VMRN):
         self._init_modules()
         self._init_weights()
 
-    def _init_modules(self):
-        MGN._init_modules(self)
-        VMRN._init_modules(self)
+    def _init_modules_resnet(self):
+        MGN._init_modules_resnet(self)
+        VMRN._init_modules_resnet(self)
+
+    def _init_modules_vgg(self):
+        MGN._init_modules_vgg(self)
+        VMRN._init_modules_vgg(self)
 
     def _init_weights(self):
         MGN._init_weights(self)

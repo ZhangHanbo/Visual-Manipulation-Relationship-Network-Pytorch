@@ -97,6 +97,7 @@ def _get_image_blob(roidb):
 
     # remember: cv2.imread will load picture in the order of BGR
     im = cv2.imread(roidb['image'])
+    im = np.rot90(im, roidb['rotated'])
 
     if len(im.shape) == 2:
         im = im[:,:,np.newaxis]

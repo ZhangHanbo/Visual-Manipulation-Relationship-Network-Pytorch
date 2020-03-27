@@ -22,6 +22,7 @@ import xml.etree.ElementTree as ET
 import scipy
 import cv2
 import pdb
+import copy
 
 # TODO: make fast_rcnn irrelevant
 # >>>> obsolete, because it depends on sth outside of this project
@@ -89,15 +90,81 @@ class vmrd(pascal_voc):
             with open(cache_file, 'rb') as fid:
                 roidb = pickle.load(fid)
             print('{} gt roidb loaded from {}'.format(self.name, cache_file))
+
+            if self._image_set == "trainval":
+                widths, heights = self.widths, self.heights
+                self._image_index = self._image_index * 4
+                self._widths, self._heights = \
+                    (widths + heights) * 2, (heights + widths) * 2
+
             return roidb
 
         gt_roidb = [dict(self._load_vmrd_annotation(index).items() +
                          self._load_grasp_annotation(index).items())
                     for index in self.image_index]
+        if self._image_set == "trainval":
+            gt_roidb = self._append_rotated_images(gt_roidb)
 
         with open(cache_file, 'wb') as fid:
             pickle.dump(gt_roidb, fid, pickle.HIGHEST_PROTOCOL)
         print('wrote gt roidb to {}'.format(cache_file))
+
+        return gt_roidb
+
+    def _append_rotated_images(self, gt_roidb):
+        num_images = self.num_images
+        widths = self.widths
+        heights = self.heights
+
+        # rotate coordinates of bounding boxes and grasps
+        def rotcoords(coords, rot, w, h, isbbox=False):
+            new_coords = np.zeros(coords.shape)
+            # (y, w-x)
+            if rot == 1:
+                new_coords[:, 0::2] = coords[:, 1::2]
+                new_coords[:, 1::2] = w - coords[:, 0::2] - 1
+            # (w-x, h-y)
+            elif rot == 2:
+                new_coords[:, 0::2] = w - coords[:, 0::2] - 1
+                new_coords[:, 1::2] = h - coords[:, 1::2] - 1
+            # (h-y,x)
+            elif rot == 3:
+                new_coords[:, 0::2] = h - coords[:, 1::2] - 1
+                new_coords[:, 1::2] = coords[:, 0::2]
+            if isbbox:
+                new_coords = np.concatenate(
+                    (np.minimum(new_coords[:, 0:1], new_coords[:, 2:3]),
+                     np.minimum(new_coords[:, 1:2], new_coords[:, 3:4]),
+                     np.maximum(new_coords[:, 0:1], new_coords[:, 2:3]),
+                     np.maximum(new_coords[:, 1:2], new_coords[:, 3:4]))
+                    , axis=1)
+            return new_coords
+
+        # totally 3 rotation angles
+        for r in range(1, 4):
+            for i in range(num_images):
+                entry = {}
+                entry['rotated'] = r
+                boxes = gt_roidb[i]['boxes'].copy()
+                boxes = rotcoords(boxes, r, widths[i], heights[i], True)
+                assert (boxes[:, 2] >= boxes[:, 0]).all()
+                entry['boxes'] = boxes
+                entry['gt_classes'] = gt_roidb[i]['gt_classes']
+                grasps = gt_roidb[i]['grasps'].copy()
+                if grasps.size > 0:
+                    grasps = rotcoords(grasps, r, widths[i], heights[i], False)
+                entry['grasps'] = grasps
+                entry['grasp_inds'] = gt_roidb[i]['grasp_inds']
+                entry['gt_overlaps'] = gt_roidb[i]['gt_overlaps']
+                # vmrd data entry
+                entry['node_inds'] = gt_roidb[i]['node_inds'].copy()
+                entry['parent_lists'] = copy.deepcopy(gt_roidb[i]['parent_lists'])
+                entry['child_lists'] = copy.deepcopy(gt_roidb[i]['child_lists'])
+                gt_roidb.append(entry)
+
+        self._image_index = self._image_index * 4
+        self._widths, self._heights = \
+            (self._widths + self._heights) * 2, (self._heights + self._widths) * 2
 
         return gt_roidb
 
@@ -177,7 +244,6 @@ class vmrd(pascal_voc):
                 'gt_classes': gt_classes,
                 'gt_ishard': ishards,
                 'gt_overlaps': overlaps,
-                'flipped': False,
                 'seg_areas': seg_areas,
                 'node_inds': nodeinds,
                 'parent_lists': parent_list,

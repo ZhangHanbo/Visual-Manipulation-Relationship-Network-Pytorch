@@ -14,9 +14,9 @@ from torch.autograd import Variable
 import numpy as np
 import torch.nn.init as init
 
-from header import _RCNN_header
+from header import header
 
-class _RFCN_header(_RCNN_header):
+class _RFCN_header(header):
     def __init__(self, input_dim, n_classes, class_ag, k = 3):
         """
         :param input_dim: feature map channel number

@@ -35,8 +35,6 @@ class imdb(object):
     self._roidb = None
     self._widths = None
     self._heights = None
-    self._num_origin = None
-    self._origin_flag = True
     self._roidb_handler = self.default_roidb
     # Use this dict for storing dataset specific config options
     self.config = {}
@@ -125,14 +123,6 @@ class imdb(object):
       return self._heights
     self._heights = self._get_heights()
     return self._heights
-
-  @property
-  def num_origin(self):
-    if self._num_origin is not None:
-      return self._num_origin
-    assert self._origin_flag, "image index has been changed before calling num_origin."
-    self._num_origin = self.num_images
-    return self._num_origin
 
   def _get_heights(self):
     return [PIL.Image.open(self.image_path_at(i)).size[1]

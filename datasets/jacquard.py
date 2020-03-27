@@ -197,7 +197,6 @@ class jacquard(imdb):
         # self._show_label(index, grasps)
         return {'grasps': grasps,
                 'boxes': boxes,
-                'flipped': False,
                 'rotated': 0}
 
     def evaluate_detections(self, all_boxes, output_dir=None):

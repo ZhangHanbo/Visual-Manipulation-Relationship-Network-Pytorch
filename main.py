@@ -10,21 +10,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import _init_path
-import os
 import sys
-import numpy as np
 import argparse
 import pprint
-import pdb
 import time
-
-import torch
-from torch.autograd import Variable
 import torch.nn as nn
-import torch.optim as optim
 
-import torchvision.transforms as transforms
 from torch.utils.data.sampler import Sampler
 import matplotlib
 matplotlib.use('Agg')
@@ -60,17 +51,17 @@ LEGAL_FRAMES = {"faster_rcnn", "ssd", "fpn", "faster_rcnn_vmrn", "ssd_vmrn", "al
 class sampler(Sampler):
     def __init__(self, train_size, batch_size):
         self.num_data = train_size
-        self.num_per_batch = int(train_size / batch_size)
+        self.num_batch = int(train_size / batch_size)
         self.batch_size = batch_size
         self.range = torch.arange(0,batch_size).view(1, batch_size).long()
         self.leftover_flag = False
         if train_size % batch_size:
-            self.leftover = torch.arange(self.num_per_batch*batch_size, train_size).long()
+            self.leftover = torch.arange(self.num_batch*batch_size, train_size).long()
             self.leftover_flag = True
 
     def __iter__(self):
-        rand_num = torch.randperm(self.num_per_batch).view(-1,1) * self.batch_size
-        self.rand_num = rand_num.expand(self.num_per_batch, self.batch_size) + self.range
+        rand_num = torch.randperm(self.num_batch).view(-1,1) * self.batch_size
+        self.rand_num = rand_num.expand(self.num_batch, self.batch_size) + self.range
 
         self.rand_num_view = self.rand_num.view(-1)
 
@@ -205,6 +196,10 @@ def read_cfgs():
         args.imdb_name = "vmrd_compv1_trainval"
         args.imdbval_name = "vmrd_compv1_test"
         args.set_cfgs = ['MAX_NUM_GT_BOXES', '20']
+    elif args.dataset == "vg_vmrd":
+        args.imdb_name = "vmrd_compv1_trainval+vg_150-50-50_minitrain"
+        args.imdbval_name = "vmrd_compv1_test"
+        args.set_cfgs = ['MAX_NUM_GT_BOXES', '50']
     elif args.dataset == 'bdds':
         args.imdb_name = "bdds_trainval"
         args.imdbval_name = "bdds_test"

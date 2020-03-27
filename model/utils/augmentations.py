@@ -368,9 +368,9 @@ class RandomSampleCrop(object):
 # WARNING: When using this crop method, the image's height-width ratio will change and may cause some problems for
 #          training grasp detector.
 class RandomCropKeepBoxes(object):
-    def __init__(self, need_square = False):
+    def __init__(self, keep_shape = False):
         # whether the cropped image need to be square
-        self.need_square = need_square
+        self.keep_shape = keep_shape
 
     def __call__(self, im, bs=None, gr=None, bk=None, gk=None):
 
@@ -399,27 +399,37 @@ class RandomCropKeepBoxes(object):
         xmax = min(xmax, width)
         ymax = min(ymax, height)
 
+        success_flag = False
         for i in range(100):
             # Get top left corner's coordinate of the crop box
             x_start = int(random.uniform(0, xmin))
             y_start = int(random.uniform(0, ymin))
             # Get lower right corner corner's coordinate of the crop box
-            if not self.need_square:
+            if not self.keep_shape:
                 x_end = int(random.uniform(xmax, width))
                 y_end = int(random.uniform(ymax, height))
+                success_flag = True
+                break
             else:
+                original_ratio = float(width) / float(height)
                 # check if there is legal end point.
                 p_end_upper_right = (width, ymax)
                 p_end_down_left = (xmax, height)
                 r1_wh_ratio = (p_end_down_left[0] - x_start) / (p_end_down_left[1] - y_start)
                 r2_wh_ratio = (p_end_upper_right[0] - x_start) / (p_end_upper_right[1] - y_start)
-                if not (r1_wh_ratio < 1 and r2_wh_ratio > 1):
+                if not (r1_wh_ratio < original_ratio and r2_wh_ratio > original_ratio):
                     continue
                 else:
-                    x_end_max = min(height - y_start + x_start, width)
+                    x_end_max = int(min(np.floor(float(height - y_start) * original_ratio + x_start), width))
                     x_end = int(random.uniform(xmax, x_end_max))
-                    y_end = x_end - x_start + y_start
+                    y_end = int(max(np.floor((x_end - x_start) / original_ratio + y_start), ymax))
+                    success_flag = True
                     break
+
+        # fail to search for a solution.
+        if not success_flag:
+            print("Augmentor cannot find a proper cropping configuration for current training data. Using original data instead.")
+            return im, bs, gr, bk, gk
 
         im = im[y_start:y_end, x_start:x_end]
         if bs is not None:
@@ -430,6 +440,17 @@ class RandomCropKeepBoxes(object):
             # Adjust the grasp boxes to fit the cropped image
             gr[:, 0::2] -= x_start
             gr[:, 1::2] -= y_start
+
+        # resize
+        im = cv2.resize(im,(width, height))
+        scaler_y = float((y_end - y_start)) / float(height)
+        scaler_x = float((x_end - x_start)) / float(width)
+        if bs is not None:
+            bs[:, :-1][:, 0::2] /= scaler_x
+            bs[:, :-1][:, 1::2] /= scaler_y
+        if gr is not None:
+            gr[:, 0::2] /= scaler_x
+            gr[:, 1::2] /= scaler_y
 
         return im, bs, gr, bk, gk
 
@@ -615,9 +636,16 @@ class Expand(object):
         left = random.uniform(0, width * ratio - width)
         top = random.uniform(0, height * ratio - height)
 
-        expand_image = np.zeros(
-            (int(height * ratio), int(width * ratio), depth),
-            dtype=image.dtype)
+        # to ensure that when using expanding in Faster_RCNN, the image size should fit the padding data.
+        if height > width:
+            expand_image = np.zeros(
+                (int(np.floor(height * ratio)), int(np.ceil(width * ratio)), depth),
+                dtype=image.dtype)
+        else:
+            expand_image = np.zeros(
+                (int(np.ceil(height * ratio)), int(np.floor(width * ratio)), depth),
+                dtype=image.dtype)
+
         expand_image[:, :, :] = self.mean
         expand_image[int(top):int(top + height),
         int(left):int(left + width)] = image
@@ -650,15 +678,4 @@ class RandomMirror(object):
                 grasps[:, 0::2] = width - grasps[:, 0::2] - 1
 
         return image, boxes, grasps, boxes_keep, grasps_keep
-
-# class Augmentation_Grasp_Test(object):
-#     def __init__(self, mean=(104, 117, 123)):
-#         self.mean = mean
-#         self.augment = Compose([
-#             FixedSizeCrop(100, 100, 101, 101, 320, 320),
-#         ])
-#
-#     def __call__(self, img, boxes=None, labels=None, grasps=None,
-#                  boxes_keep=None, grasps_keep=None):
-#         return self.augment(img, boxes, labels, grasps, boxes_keep, grasps_keep)
 

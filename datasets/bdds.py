@@ -100,7 +100,6 @@ class bdds(pascal_voc):
                 'gt_classes': gt_classes,
                 'gt_ishard': ishards,
                 'gt_overlaps': overlaps,
-                'flipped': False,
                 'seg_areas': seg_areas,
                 'rotated': 0}
 
@@ -121,29 +120,6 @@ class bdds(pascal_voc):
                                 format(index, dets[k, -1],
                                        dets[k, 0], dets[k, 1],
                                        dets[k, 2], dets[k, 3]))
-
-    def append_flipped_images(self):
-        num_images = self.num_images
-        widths = self._get_widths()
-        for i in range(num_images):
-            boxes = self.roidb[i]['boxes'].copy()
-            oldx1 = boxes[:, 0].copy()
-            oldx2 = boxes[:, 2].copy()
-            boxes[:, 0] = widths[i] - oldx2
-            boxes[:, 2] = widths[i] - oldx1
-            assert (boxes[:, 2] >= boxes[:, 0]).all()
-            entry = {'boxes': boxes,
-                     'gt_overlaps': self.roidb[i]['gt_overlaps'],
-                     'gt_classes': self.roidb[i]['gt_classes'],
-                     'flipped': True}
-            # vmrd data entry
-            if 'nodeinds' in self.roidb[i]:
-                entry['nodeinds'] = self.roidb[i]['nodeinds'].copy()
-                entry['fathers'] = copy.deepcopy(self.roidb[i]['fathers'])
-                entry['children'] = copy.deepcopy(self.roidb[i]['children'])
-
-            self.roidb.append(entry)
-        self._image_index = self._image_index * 2
 
     def _get_voc_results_file_template(self):
         # VOCdevkit/results/VOC2007/Main/<comp_id>_det_test_aeroplane.txt

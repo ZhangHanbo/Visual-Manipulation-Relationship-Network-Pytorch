@@ -186,7 +186,6 @@ class pascal_voc(imdb):
                 'gt_classes': gt_classes,
                 'gt_ishard': ishards,
                 'gt_overlaps': overlaps,
-                'flipped': False,
                 'seg_areas': seg_areas,
                 'rotated': 0}
 

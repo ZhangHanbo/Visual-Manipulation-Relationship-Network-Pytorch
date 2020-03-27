@@ -259,13 +259,37 @@ class MGN(fasterRCNN, FCGN):
         self._init_modules()
         self._init_weights()
 
-    def _init_modules(self):
-        fasterRCNN._init_modules(self)
+    def _init_modules_resnet(self):
+        fasterRCNN._init_modules_resnet(self)
         self.MGN_top = nn.Sequential(
             Bottleneck(self.dout_base_model, self.dout_base_model / 4),
             Bottleneck(self.dout_base_model, self.dout_base_model / 4),
             Bottleneck(self.dout_base_model, self.dout_base_model / 4)
         )
+
+    def _init_modules_vgg(self):
+        fasterRCNN._init_modules_vgg(self)
+        if 'bn' in self.feat_name:
+            self.MGN_top = nn.Sequential(
+                nn.Conv2d(self.dout_base_model, self.dout_base_model, kernel_size=3, padding=1),
+                nn.BatchNorm2d(self.dout_base_model),
+                nn.ReLU(),
+                nn.Conv2d(self.dout_base_model, self.dout_base_model, kernel_size=3, padding=1),
+                nn.BatchNorm2d(self.dout_base_model),
+                nn.ReLU(),
+                nn.Conv2d(self.dout_base_model, self.dout_base_model, kernel_size=3, padding=1),
+                nn.BatchNorm2d(self.dout_base_model),
+                nn.ReLU(),
+            )
+        else:
+            self.MGN_top = nn.Sequential(
+                nn.Conv2d(self.dout_base_model, self.dout_base_model, kernel_size=3, padding=1),
+                nn.ReLU(),
+                nn.Conv2d(self.dout_base_model, self.dout_base_model, kernel_size=3, padding=1),
+                nn.ReLU(),
+                nn.Conv2d(self.dout_base_model, self.dout_base_model, kernel_size=3, padding=1),
+                nn.ReLU(),
+            )
 
     def _init_weights(self):
         fasterRCNN._init_weights(self)

@@ -206,7 +206,6 @@ class imagenet(imdb):
         return {'boxes' : boxes,
                 'gt_classes': gt_classes,
                 'gt_overlaps' : overlaps,
-                'flipped' : False,
                 'rotated': 0}
 
 if __name__ == '__main__':

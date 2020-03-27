@@ -14,11 +14,11 @@ from torch.autograd import Variable
 import numpy as np
 import torch.nn.init as init
 
-from header import _RCNN_header
+from header import header
 
-class _RCNN_fc_header(_RCNN_header):
+class fc_header(header):
     def __init__(self, input_dim, n_classes, class_ag, hidden_number = (1024,1024,1024), include_bn = False):
-        super(_RCNN_fc_header,self).__init__(input_dim, n_classes, class_ag)
+        super(fc_header, self).__init__(input_dim, n_classes, class_ag)
 
         self.layer_number = len(hidden_number)
         self.bottoms = [input_dim,] + hidden_number[:-1]
