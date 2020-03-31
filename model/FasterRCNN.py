@@ -95,7 +95,7 @@ class fasterRCNN(objectDetector):
 
     def _obj_head_to_tail_vgg(self, pool5):
         pool5_flat = pool5.view(pool5.size(0), -1)
-        fc7 = self.FeatExt["fc"](pool5_flat)
+        fc7 = self.FeatExt.feat_layer["fc"](pool5_flat)
         return fc7
 
     def _get_obj_det_result(self, pooled_feat):

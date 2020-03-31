@@ -30,31 +30,64 @@ def load_net(fname, net):
         param = torch.from_numpy(np.asarray(h5f[k]))
         v.copy_(param)
 
-def weights_normal_init(model, dev=0.01):
-    if isinstance(model, list):
-        for m in model:
+def weights_normal_init(module, dev=0.01, bias = 0):
+    if isinstance(module, list):
+        for m in module:
             weights_normal_init(m, dev)
     else:
-        for m in model.modules():
-            if isinstance(m, nn.Conv2d):
-                m.weight.data.normal_(0.0, dev)
-                m.bias.data.zero_()
-            elif isinstance(m, nn.Linear):
-                m.weight.data.normal_(0.0, dev)
-                m.bias.data.zero_()
+        for m in module.modules():
+            if hasattr(m, 'weight'):
+                nn.init.normal_(m.weight, 0.0, dev)
+            if hasattr(m, 'bias') and m.bias is not None:
+                nn.init.constant_(m.bias, bias)
 
-def weights_xavier_init(model):
-    def xavier(param):
-        init.xavier_uniform(param)
-
-    if isinstance(model, list):
-        for m in model:
+def weights_xavier_init(module, gain=1, bias=0, distribution='normal'):
+    if isinstance(module, list):
+        for m in module:
             weights_xavier_init(m)
     else:
-        for m in model.modules():
-            if isinstance(m, nn.Conv2d):
-                xavier(m.weight.data)
-                m.bias.data.zero_()
+        assert distribution in ['uniform', 'normal']
+        for m in module.modules():
+            if hasattr(m, 'weight'):
+                if distribution == 'uniform':
+                    nn.init.xavier_uniform_(m.weight, gain=gain)
+                else:
+                    nn.init.xavier_normal_(m.weight, gain=gain)
+            if hasattr(m, 'bias') and m.bias is not None:
+                nn.init.constant_(m.bias, bias)
+
+def weights_uniform_init(module, a=0, b=1, bias=0):
+    if isinstance(module, list):
+        for m in module:
+            weights_uniform_init(m, a, b)
+    else:
+        for m in module.modules():
+            if hasattr(m, 'weight'):
+                nn.init.uniform_(m.weight, a, b)
+            if hasattr(m, 'bias') and m.bias is not None:
+                nn.init.constant_(m.bias, bias)
+
+def weight_kaiming_init(module, mode='fan_out', nonlinearity='relu', bias=0, distribution='normal'):
+    if isinstance(module, list):
+        for m in module:
+            weight_kaiming_init(m, mode, nonlinearity, bias, distribution)
+    else:
+        assert distribution in ['uniform', 'normal']
+        for m in module.modules():
+            if hasattr(m, 'weight'):
+                if distribution == 'uniform':
+                    nn.init.kaiming_uniform_(
+                        m.weight, mode=mode, nonlinearity=nonlinearity)
+                else:
+                    nn.init.kaiming_normal_(
+                        m.weight, mode=mode, nonlinearity=nonlinearity)
+            if hasattr(m, 'bias') and m.bias is not None:
+                nn.init.constant_(m.bias, bias)
+
+def bias_init_with_prob(prior_prob):
+    """ initialize conv/fc bias value according to giving probablity"""
+    bias_init = float(-np.log((1 - prior_prob) / prior_prob))
+    return bias_init
 
 def set_bn_fix(m):
     classname = m.__class__.__name__
@@ -103,6 +136,25 @@ def _smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_w
       loss_box = loss_box.sum(i)
     loss_box = loss_box.mean()
     return loss_box
+
+def _focal_loss(cls_prob, labels, alpha = 0.25, gamma = 2):
+
+    labels = labels.view(-1)
+    final_prob = torch.gather(cls_prob.view(-1, cls_prob.size(-1)), 1, labels.unsqueeze(1))
+    loss_cls = - torch.log(final_prob)
+
+    # setting focal weights
+    focal_weights = torch.pow((1. - final_prob), gamma)
+
+    # setting the coefficient to balance pos and neg samples.
+    alphas = torch.Tensor(focal_weights.shape).zero_().type_as(focal_weights)
+    alphas[labels == 0] = 1. - alpha
+    alphas[labels > 0] = alpha
+
+    loss_cls = (loss_cls * focal_weights * alphas).sum() / torch.sum(labels > 0).float()
+    # loss_cls = (loss_cls * focal_weights * alphas).mean()
+
+    return loss_cls
 
 def _crop_pool_layer(bottom, rois, max_pool=True):
     # code modified from 

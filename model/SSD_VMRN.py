@@ -33,8 +33,8 @@ class SSD_VMRN(SSD, VMRN):
         head: "multibox head" consists of loc and conf conv layers
     """
 
-    def __init__(self, classes):
-        super(SSD_VMRN, self).__init__()
+    def __init__(self, classes, class_agnostic, feat_name, feat_list=('conv3', 'conv4'), pretrained = True):
+        super(SSD_VMRN, self).__init__(classes, class_agnostic, feat_name, feat_list, pretrained)
 
     def forward(self, data_batch):
         """Applies network layers and ops on input image(s) x.

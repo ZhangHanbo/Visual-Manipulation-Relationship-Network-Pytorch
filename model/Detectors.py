@@ -9,6 +9,7 @@ import abc
 
 from basenet.resnet import resnet_initializer
 from basenet.vgg import vgg_initializer
+from basenet.efficientnet import EfficientNet
 from model.op2l.op2l import _OP2L
 from model.rpn.bbox_transform import bbox_overlaps
 from utils.net_utils import objdet_inference
@@ -28,10 +29,15 @@ class detector(nn.Module):
 
     def _init_feature_extractor(self):
         # init resnet feature extractor
-        if self.feat_name in {'res18', 'res34', 'res50', 'res101', 'res152'}:
+        if 'res' in self.feat_name:
             return resnet_initializer(self.feat_name, self.feat_list, self.pretrained)
-        elif self.feat_name in {'vgg11', 'vgg13', 'vgg16', 'vgg19'}:
+        elif 'vgg' in self.feat_name:
             return vgg_initializer(self.feat_name, self.feat_list, self.pretrained)
+        elif 'efficientnet' in self.feat_name:
+            if self.pretrained:
+                return EfficientNet.from_pretrained(self.feat_name, feat_list = self.feat_list)
+            else:
+                return EfficientNet.from_name(self.feat_name, override_params={'feat_list': self.feat_list})
 
 class graspDetector(detector):
     __metaclass__ = abc.ABCMeta
@@ -93,7 +99,8 @@ class VMRN(nn.Module):
     def _get_rel_det_result(self, base_feat, obj_rois, obj_num):
         # filter out the detection of only one object instance
         obj_pair_feat = self.VMRN_rel_op2l(base_feat, obj_rois, self.batch_size, obj_num)
-        obj_pair_feat = obj_pair_feat.detach()
+        if not cfg.TRAIN.VMRN.USE_REL_GRADIENTS:
+            obj_pair_feat = obj_pair_feat.detach()
         obj_pair_feat = self._rel_head_to_tail(obj_pair_feat)
         rel_cls_score = self.VMRN_rel_cls_score(obj_pair_feat)
         rel_cls_prob = F.softmax(rel_cls_score)

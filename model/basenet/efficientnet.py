@@ -20,7 +20,7 @@ from torch.utils import model_zoo
 GlobalParams = collections.namedtuple('GlobalParams', [
     'batch_norm_momentum', 'batch_norm_epsilon', 'dropout_rate',
     'num_classes', 'width_coefficient', 'depth_coefficient',
-    'depth_divisor', 'min_depth', 'drop_connect_rate', 'image_size'])
+    'depth_divisor', 'min_depth', 'drop_connect_rate', 'image_size', 'feat_list'])
 
 # Parameters for an individual model block
 BlockArgs = collections.namedtuple('BlockArgs', [
@@ -147,7 +147,7 @@ class Conv2dStaticSamePadding(nn.Conv2d):
                     (kw - 1) * self.dilation[1] + 1 - iw, 0)
         if pad_h > 0 or pad_w > 0:
             self.static_padding = nn.ZeroPad2d(
-                (pad_w // 2, pad_w - pad_w // 2, pad_h // 2, pad_h - pad_h // 2))
+                (int(pad_w // 2), int(pad_w - pad_w // 2), int(pad_h // 2), int(pad_h - pad_h // 2)))
         else:
             self.static_padding = Identity()
 
@@ -284,6 +284,7 @@ def efficientnet(width_coefficient=None, depth_coefficient=None, dropout_rate=0.
         depth_divisor=8,
         min_depth=None,
         image_size=image_size,
+        feat_list = ['conv' + str(i) for i in range(1, 8)],
     )
 
     return blocks_args, global_params
@@ -316,10 +317,20 @@ url_map = {
     'efficientnet-b7': 'http://storage.googleapis.com/public-models/efficientnet/efficientnet-b7-dcc49843.pth',
 }
 
+local_model_paths = {
+    'efficientnet-b0': 'data/pretrained_model/efficientnet-b0-355c32eb.pth',
+    'efficientnet-b1': 'data/pretrained_model/efficientnet-b1-f1951068.pth',
+    'efficientnet-b2': 'data/pretrained_model/efficientnet-b2-8bb594d6.pth',
+    'efficientnet-b3': 'data/pretrained_model/efficientnet-b3-5fb5a3c3.pth',
+    'efficientnet-b4': 'data/pretrained_model/efficientnet-b4-6ed6700e.pth',
+    'efficientnet-b5': 'data/pretrained_model/efficientnet-b5-b6417697.pth',
+    'efficientnet-b6': 'data/pretrained_model/efficientnet-b6-c76e70fd.pth',
+    'efficientnet-b7': 'data/pretrained_model/efficientnet-b7-dcc49843.pth',
+}
 
 def load_pretrained_weights(model, model_name, load_fc=True):
     """ Loads pretrained weights, and downloads if loading for the first time. """
-    state_dict = model_zoo.load_url(url_map[model_name])
+    state_dict = torch.load(local_model_paths[model_name])
     if load_fc:
         model.load_state_dict(state_dict)
     else:
@@ -495,6 +506,9 @@ class EfficientNet(nn.Module):
         self._fc = nn.Linear(out_channels, self._global_params.num_classes)
         self._swish = MemoryEfficientSwish()
 
+        # block index to conv. feat. name.
+        self._feat_dict = dict(zip(range(7), ['conv' + str(i) for i in range(1, 8)]))
+
     def set_swish(self, memory_efficient=True):
         """Sets swish function as memory efficient (for training) or standard (for export)"""
         self._swish = MemoryEfficientSwish() if memory_efficient else Swish()
@@ -510,6 +524,8 @@ class EfficientNet(nn.Module):
         index = 0
         num_repeat = 0
         # Blocks
+
+        feat_ind = 0
         for idx, block in enumerate(self._blocks):
             drop_connect_rate = self._global_params.drop_connect_rate
             if drop_connect_rate:
@@ -519,7 +535,9 @@ class EfficientNet(nn.Module):
             if(num_repeat == self._blocks_args[index].num_repeat):
                 num_repeat = 0
                 index = index + 1
-                P.append(x)
+                if self._feat_dict[feat_ind] in self._global_params.feat_list:
+                    P.append(x)
+                feat_ind += 1
         return P
 
     def forward(self, inputs):
@@ -536,9 +554,9 @@ class EfficientNet(nn.Module):
         return cls(blocks_args, global_params)
 
     @classmethod
-    def from_pretrained(cls, model_name, num_classes=1000, in_channels=3):
+    def from_pretrained(cls, model_name, num_classes=1000, in_channels=3, feat_list = ['conv' + str(i) for i in range(1, 8)]):
         model = cls.from_name(model_name, override_params={
-                              'num_classes': num_classes})
+                              'num_classes': num_classes, 'feat_list' : feat_list})
         load_pretrained_weights(
             model, model_name, load_fc=(num_classes == 1000))
         if in_channels != 3:
@@ -550,9 +568,9 @@ class EfficientNet(nn.Module):
         return model
 
     @classmethod
-    def from_pretrained(cls, model_name, num_classes=1000):
+    def from_pretrained(cls, model_name, num_classes=1000, feat_list = ['conv' + str(i) for i in range(1, 8)]):
         model = cls.from_name(model_name, override_params={
-                              'num_classes': num_classes})
+                              'num_classes': num_classes, 'feat_list' : feat_list})
         load_pretrained_weights(
             model, model_name, load_fc=(num_classes == 1000))
 
@@ -577,7 +595,8 @@ class EfficientNet(nn.Module):
     def get_list_features(self):
         list_feature = []
         for idx in range(len(self._blocks_args)):
-            list_feature.append(self._blocks_args[idx].output_filters)
+            if self._feat_dict[idx] in self._global_params.feat_list:
+                list_feature.append(self._blocks_args[idx].output_filters)
 
         return list_feature
 

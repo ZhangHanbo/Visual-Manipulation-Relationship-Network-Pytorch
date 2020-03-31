@@ -205,15 +205,15 @@ class vmrdetRoibatchLoader(objdetRoibatchLoader):
         if self.augmentation:
             self.augObjdet = Compose([
                 RandomMirror(),
-                Expand(mean = cfg.PIXEL_MEANS * 255.),
+                # Expand(mean = cfg.PIXEL_MEANS * 255.),
                 # TODO: allow to damage bounding boxes while prevent deleting them when doing random crop
-                RandomCropKeepBoxes(),
+                # RandomCropKeepBoxes(),
             ])
 
     def _imagePreprocess(self, blob, fix_size=True):
         keep = np.arange(blob['gt_boxes'].shape[0])
         if self.augmentation:
-            blob['data'] = self.augImageOnly(blob['data'])
+            # blob['data'] = self.augImageOnly(blob['data'])
             blob['data'], blob['gt_boxes'], _, keep, _ = self.augObjdet(image=blob['data'], boxes=blob['gt_boxes'], boxes_keep=keep)
 
         # choose one predefined size, TODO: support multi-instance batch
