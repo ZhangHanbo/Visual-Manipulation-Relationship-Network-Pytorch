@@ -47,7 +47,7 @@ F-VMRN | VGG-16 | VMRDtrainval | VMRDtest | 95.0 | - | 68.7
 ### Training Curves
 
 | <img src="results/F-VMRN_VGG16.png" width = "300" div align=left /> |<img src="results/F-VMRN_ResNet101.png" width = "300" div align=left />
-|---|---|
+|:---:|:---:|
 | Rel-IA of F-VMRN_VGG16 | Rel-IA of F-VMRN_ResNet101 |
 
 
@@ -72,7 +72,7 @@ you should check the configurations so that they are same as the claimed ones (e
 
 ## Problem Shooting
 
-1. [Solved] When setting batch_size of Faster RCNN to 1 and augmentation to True, we want to use SSD-like augmentation to generate more training data. However, it will cause NaN error.
+1. \[Solved\] When setting batch_size of Faster RCNN to 1 and augmentation to True, we want to use SSD-like augmentation to generate more training data. However, it will cause NaN error.
 2. There are some grasp and relation label errors in VMRD. However, we find that they do not affect the detection performance much. We will fix this problem as soon as possible.
-3. This package only supports pytorch 0.4.0. When using 0.4.1, there will be segmentation fault (reason not found).
+3. This package only supports pytorch 0.4.0. When using 0.4.1, there will be segmentation fault (reasons not found).
 4. When training VMRN, the batchsize should be at least 2. Otherwise the network will not reach convergence.

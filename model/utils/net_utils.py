@@ -17,6 +17,8 @@ from model.rpn.bbox_transform import bbox_transform_inv, clip_boxes
 from model.fcgn.bbox_transform_grasp import labels2points, grasp_decode
 from model.nms.nms_wrapper import nms
 
+import networkx as nx
+
 def save_net(fname, net):
     import h5py
     h5f = h5py.File(fname, mode='w')
@@ -583,3 +585,49 @@ def rel_prob_to_mat(rel_cls_prob, num_obj):
             else:
                 assert RuntimeError
     return rel_mat
+
+def create_mrt(rel_mat):
+    # using relationship matrix to create manipulation relationship tree
+    mrt = nx.DiGraph()
+
+    node_num = np.max(np.where(rel_mat > 0)[0]) + 1
+    for obj1 in xrange(node_num):
+        mrt.add_node(obj1)
+        for obj2 in xrange(obj1):
+            if rel_mat[obj1, obj2].item() == cfg.VMRN.FATHER:
+                # OBJ1 is the father of OBJ2
+                mrt.add_edge(obj2, obj1)
+
+            if rel_mat[obj1, obj2].item() == cfg.VMRN.CHILD:
+                # OBJ1 is the father of OBJ2
+                mrt.add_edge(obj1, obj2)
+
+def find_all_paths(mrt, t_node = 0):
+    """
+    :param mrt: a manipulation relationship tree
+    :param t_node: the index of the target node
+    :return: paths: a list of all possible paths
+    """
+    # depth-first search
+    assert t_node in mrt.nodes, "The target node is not found in the given manipulation relationship tree."
+    paths = []
+    for e in mrt.edges:
+        if t_node == e[1]:
+            # find all sub paths from current target node
+            paths += find_all_paths(mrt, e[0])
+    # attach current target node in front of all sub paths
+    for i in xrange(len(paths)):
+        paths[i] += [t_node, ]
+    if len(paths) == 0:
+        return [[t_node, ]]
+    else:
+        return paths
+
+def find_shortest_path(mrt, t_node = 0):
+    paths = find_all_paths(mrt, t_node)
+    p_lenth = np.inf
+    best_path = None
+    for p in paths:
+        if len(p) < p_lenth:
+            best_path = p
+    return best_path

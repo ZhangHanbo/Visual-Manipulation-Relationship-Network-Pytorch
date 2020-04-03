@@ -11,6 +11,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 from model.utils.config import cfg
+from model.utils.net_utils import create_mrt
 
 def fig2data(fig):
     """
@@ -141,19 +142,7 @@ class dataViewer(object):
         if rel_mat.shape[0] == 0:
             return img
 
-        mrt = nx.DiGraph()
-
-        node_num = np.max(np.where(rel_mat > 0)[0]) + 1
-        for obj1 in xrange(node_num):
-            mrt.add_node("ind" + str(obj1))
-            for obj2 in xrange(obj1):
-                if rel_mat[obj1, obj2].item() == cfg.VMRN.FATHER:
-                    # OBJ1 is the father of OBJ2
-                    mrt.add_edge("ind" + str(obj2), "ind" + str(obj1))
-
-                if rel_mat[obj1, obj2].item() == cfg.VMRN.CHILD:
-                    # OBJ1 is the father of OBJ2
-                    mrt.add_edge("ind" + str(obj1), "ind" + str(obj2))
+        mrt = create_mrt(rel_mat)
 
         fig = plt.figure(0, figsize=(3, 3))
         nx.draw_kamada_kawai(mrt, with_labels=True, arrowstyle='fancy', font_size=16,

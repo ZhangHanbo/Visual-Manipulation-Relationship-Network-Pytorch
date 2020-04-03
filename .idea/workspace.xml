@@ -4,9 +4,9 @@
     <list default="true" id="c9b880e4-a6e3-414a-b387-4aa4ff30b986" name="Default" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cfgs/vmrdcompv1_faster_rcnn_vmrn_res101.yml" beforeDir="false" afterPath="$PROJECT_DIR$/cfgs/vmrdcompv1_faster_rcnn_vmrn_res101.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cfgs/vmrdcompv1_faster_rcnn_vmrn_vgg16.yml" beforeDir="false" afterPath="$PROJECT_DIR$/cfgs/vmrdcompv1_faster_rcnn_vmrn_vgg16.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/roi_data_layer/roibatchLoader.py" beforeDir="false" afterPath="$PROJECT_DIR$/roi_data_layer/roibatchLoader.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cfgs/vmrdcompv1_mgn_res101.yml" beforeDir="false" afterPath="$PROJECT_DIR$/cfgs/vmrdcompv1_mgn_res101.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/utils/data_viewer.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/utils/data_viewer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/utils/net_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/utils/net_utils.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -33,72 +33,6 @@
         <option value="Python Script" />
       </list>
     </option>
-  </component>
-  <component name="FindInProjectRecents">
-    <findStrings>
-      <find>origin</find>
-      <find>rank_roidb_ratio</find>
-      <find>normal</find>
-      <find>init_weights</find>
-      <find>focal</find>
-      <find>ConvModule</find>
-      <find>no_norm_on_lateral</find>
-      <find>activation</find>
-      <find>build_conv_layer</find>
-      <find>xavier_init</find>
-      <find>clipBoxes</find>
-      <find>TRAIN.VMRN</find>
-      <find>inside</find>
-      <find>anchor</find>
-      <find>negative_weights</find>
-      <find>_num_anchors</find>
-      <find>outside</find>
-      <find>thresh</find>
-      <find>output_act</find>
-      <find>SwishImplementation</find>
-      <find>_anchors</find>
-      <find>override_params</find>
-      <find>conv_cfg</find>
-      <find>build</find>
-      <find>_compute_targets_batch</find>
-      <find>_anchor_ratios</find>
-      <find>USE_REL_GRADIENTS</find>
-      <find>http://storage.googleapis.com/public-models/efficientnet/</find>
-      <find>CROP_RESIZE_WITH_MAX_POOL</find>
-      <find>_get_rel_det_result</find>
-    </findStrings>
-    <replaceStrings>
-      <replace>gt_grasp_inds</replace>
-      <replace>parent</replace>
-      <replace>cfg.SCALES</replace>
-      <replace>cfg.SCALES[random_scale_ind],</replace>
-      <replace>torch.from_numpy(blobs['data'].copy())</replace>
-      <replace>gt_grasp_inds = torch.LongTensor([0])</replace>
-      <replace>roidb</replace>
-      <replace>box_</replace>
-      <replace>image=</replace>
-      <replace>blob['im_info'][2:4]</replace>
-      <replace />
-      <replace>self.</replace>
-      <replace>box_output</replace>
-      <replace>self</replace>
-      <replace>vis_gt</replace>
-      <replace>RCNN_rpn</replace>
-      <replace>RCNN_proposal_target</replace>
-      <replace>RCNN_roi_pool</replace>
-      <replace>RCNN_roi_align</replace>
-      <replace>res101</replace>
-      <replace>RCNN_loss_cls</replace>
-      <replace>RCNN_roi_crop</replace>
-      <replace>NOTE: When using torchvision pretrained models, images should be normalized.</replace>
-      <replace>FCGN</replace>
-      <replace>FCGN_proposal_target</replace>
-      <replace>FCGN_anchors</replace>
-      <replace>self.FCGN_num_anchors</replace>
-      <replace>FCGN_num_anchors</replace>
-      <replace>_anchor_ratios</replace>
-      <replace>data/pretrained_model/</replace>
-    </replaceStrings>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -277,7 +211,8 @@
       <workItem from="1585879678828" duration="92000" />
       <workItem from="1585879784766" duration="440000" />
       <workItem from="1585882522830" duration="21000" />
-      <workItem from="1585882630251" duration="1974000" />
+      <workItem from="1585882630251" duration="2618000" />
+      <workItem from="1585904012243" duration="2045000" />
     </task>
     <servers />
   </component>
@@ -285,14 +220,14 @@
     <option name="version" value="1" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="341" y="164" key="SettingsEditor" timestamp="1585891624725">
+    <state x="341" y="164" key="SettingsEditor" timestamp="1585903995525">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state x="341" y="164" key="SettingsEditor/0.0.1680.1050@0.0.1680.1050" timestamp="1585891624725" />
-    <state x="494" y="347" key="com.intellij.ide.util.TipDialog" timestamp="1585882631155">
+    <state x="341" y="164" key="SettingsEditor/0.0.1680.1050@0.0.1680.1050" timestamp="1585903995525" />
+    <state x="494" y="347" key="com.intellij.ide.util.TipDialog" timestamp="1585904012549">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state x="494" y="347" key="com.intellij.ide.util.TipDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1585882631155" />
+    <state x="494" y="347" key="com.intellij.ide.util.TipDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1585904012549" />
     <state x="494" y="345" key="com.intellij.ide.util.TipDialog/0.23.1680.975@0.23.1680.975" timestamp="1585879041713" />
   </component>
   <component name="XDebuggerManager">
