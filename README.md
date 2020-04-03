@@ -35,17 +35,30 @@ We want to re-implement the SOTA performance of the related algorithms. Some per
 *Rel-IA*: Image Accuracy of Relationship Detection
 
 ### Performance
+
 Algorithm | Backbone | Training | Testing | mAP | mAP-G | Rel-IA
--|-|-|-|-|-|-
+|---|---|---|---|---|---|---|
 Faster R-CNN | ResNet-101 | VOC2007trainval | VOC2007test | 71.5 | - | -
 FPN | ResNet-101 | VOC2007trainval | VOC2007test | 73.9 | - | -
 ROI-GD | ResNet-101 | VMRDtrainval | VMRDtest | 94.5 | 75.7 | -
+F-VMRN | ResNet-101 | VMRDtrainval | VMRDtest | 95.6 | - | 64.7
+F-VMRN | VGG-16 | VMRDtrainval | VMRDtest | 95.0 | - | 68.7
+
+### Training Curves
+
+| <img src="results/F-VMRN_VGG16.png" width = "300" div align=left /> |<img src="results/F-VMRN_ResNet101.png" width = "300" div align=left />
+|---|---|
+| Rel-IA of F-VMRN_VGG16 | Rel-IA of F-VMRN_ResNet101 |
+
 
 ## Noteable Things
 1. To train the network, you have to pre-download the pretrained models and put them in "data/pretrained_model" and name them the same as the usage in codes.
 2. The training data should be placed or linked in "data".
 3. The code will be improved continuously. Therefore, if you meet some problems, do not hesitate to contact me.
 4. The included FPN and Focal Loss are uncompleted while Faster-RCNN and SSD can be used normally, though they are not the main contributions.
+UPDATE in 01/04/2020
+5. I have re-written all codes so that they can be more readable and modularized. Therefore, if you want to obtain the performance claimed in the paper,
+you should check the configurations so that they are same as the claimed ones (e.g. data-augmentation methods).
 
 ## Papers
 1. Zhang, Hanbo, et al. "ROI-based Robotic Grasp Detection for Object Overlapping Scenes." arXiv preprint arXiv:1808.10313 (2018). To appear in IROS 2019.
