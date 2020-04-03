@@ -2,11 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c9b880e4-a6e3-414a-b387-4aa4ff30b986" name="Default" comment="">
+      <change afterPath="$PROJECT_DIR$/model/utils/cython_bbox.so" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cfgs/vmrdcompv1_mgn_res101.yml" beforeDir="false" afterPath="$PROJECT_DIR$/cfgs/vmrdcompv1_mgn_res101.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/utils/data_viewer.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/utils/data_viewer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/utils/net_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/utils/net_utils.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -212,7 +209,7 @@
       <workItem from="1585879784766" duration="440000" />
       <workItem from="1585882522830" duration="21000" />
       <workItem from="1585882630251" duration="2618000" />
-      <workItem from="1585904012243" duration="2045000" />
+      <workItem from="1585904012243" duration="2987000" />
     </task>
     <servers />
   </component>
