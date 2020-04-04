@@ -2,7 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c9b880e4-a6e3-414a-b387-4aa4ff30b986" name="Default" comment="">
-      <change afterPath="$PROJECT_DIR$/model/utils/cython_bbox.so" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/Visual-Manipulation-Relationship-Network-Pytorch.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/Visual-Manipulation-Relationship-Network-Pytorch.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -47,7 +48,7 @@
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
-    <property name="settings.editor.selected.configurable" value="preferences.pluginManager" />
+    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
   </component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
@@ -61,7 +62,7 @@
       <recent name="$PROJECT_DIR$/model" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.main">
+  <component name="RunManager" selected="Python.demo_ingress">
     <configuration name="FasterRCNN" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="Visual-Manipulation-Relationship-Network-Pytorch" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -76,6 +77,31 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/model/FasterRCNN.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="demo_ingress" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="Visual-Manipulation-Relationship-Network-Pytorch" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+        <env name="ROS_PACKAGE_PATH" value="/data0/svc4/catkin_ws/src:/opt/ros/kinetic/share" />
+        <env name="ROS_MASTER_URI" value="http://localhost:11311" />
+        <env name="LD_LIBRARY_PATH" value="/data0/svc4/catkin_ws/devel/lib:/opt/ros/kinetic/lib:/opt/ros/kinetic/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH" />
+      </envs>
+      <option name="SDK_HOME" value="ssh://svc4@202.117.3.81:22/data0/svc4/workspace/pytorch/bin/python2.7" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/demo_ingress.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -151,42 +177,20 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="showlabel (1)" type="PythonConfigurationType" factoryName="Python" temporary="true">
-      <module name="Visual-Manipulation-Relationship-Network-Pytorch" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="/Volumes/Extreme SSD/Jacquard/Jacquard_Dataset_0/1a3efcaaf8db9957a010c31b9816f48b" />
-      <option name="IS_MODULE_SDK" value="false" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="/Volumes/Extreme SSD/Jacquard/Jacquard_Dataset_0/1a3efcaaf8db9957a010c31b9816f48b/showlabel.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
     <list>
       <item itemvalue="Python.FasterRCNN" />
       <item itemvalue="Python.efficientnet" />
       <item itemvalue="Python.main" />
       <item itemvalue="Python.resnet" />
-      <item itemvalue="Python.showlabel (1)" />
+      <item itemvalue="Python.demo_ingress" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.demo_ingress" />
         <item itemvalue="Python.main" />
         <item itemvalue="Python.efficientnet" />
         <item itemvalue="Python.resnet" />
         <item itemvalue="Python.FasterRCNN" />
-        <item itemvalue="Python.showlabel (1)" />
       </list>
     </recent_temporary>
   </component>
@@ -209,7 +213,9 @@
       <workItem from="1585879784766" duration="440000" />
       <workItem from="1585882522830" duration="21000" />
       <workItem from="1585882630251" duration="2618000" />
-      <workItem from="1585904012243" duration="2987000" />
+      <workItem from="1585904012243" duration="5991000" />
+      <workItem from="1585978435152" duration="214000" />
+      <workItem from="1585978694150" duration="3343000" />
     </task>
     <servers />
   </component>
@@ -217,15 +223,59 @@
     <option name="version" value="1" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="341" y="164" key="SettingsEditor" timestamp="1585903995525">
+    <state x="304" y="188" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1585982553738">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state x="341" y="164" key="SettingsEditor/0.0.1680.1050@0.0.1680.1050" timestamp="1585903995525" />
-    <state x="494" y="347" key="com.intellij.ide.util.TipDialog" timestamp="1585904012549">
+    <state x="304" y="188" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1585982553738" />
+    <state x="594" y="296" key="EnvironmentVariablesDialog" timestamp="1585982552268">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state x="494" y="347" key="com.intellij.ide.util.TipDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1585904012549" />
+    <state x="594" y="296" key="EnvironmentVariablesDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1585982552268" />
+    <state width="1638" height="327" key="GridCell.Tab.0.bottom" timestamp="1585982582891">
+      <screen x="0" y="0" width="1680" height="1050" />
+    </state>
+    <state width="1638" height="327" key="GridCell.Tab.0.bottom/0.0.1680.1050@0.0.1680.1050" timestamp="1585982582891" />
+    <state width="1638" height="327" key="GridCell.Tab.0.center" timestamp="1585982582890">
+      <screen x="0" y="0" width="1680" height="1050" />
+    </state>
+    <state width="1638" height="327" key="GridCell.Tab.0.center/0.0.1680.1050@0.0.1680.1050" timestamp="1585982582890" />
+    <state width="1638" height="327" key="GridCell.Tab.0.left" timestamp="1585982582889">
+      <screen x="0" y="0" width="1680" height="1050" />
+    </state>
+    <state width="1638" height="327" key="GridCell.Tab.0.left/0.0.1680.1050@0.0.1680.1050" timestamp="1585982582889" />
+    <state width="1638" height="327" key="GridCell.Tab.0.right" timestamp="1585982582891">
+      <screen x="0" y="0" width="1680" height="1050" />
+    </state>
+    <state width="1638" height="327" key="GridCell.Tab.0.right/0.0.1680.1050@0.0.1680.1050" timestamp="1585982582891" />
+    <state width="1638" height="327" key="GridCell.Tab.1.bottom" timestamp="1585982582893">
+      <screen x="0" y="0" width="1680" height="1050" />
+    </state>
+    <state width="1638" height="327" key="GridCell.Tab.1.bottom/0.0.1680.1050@0.0.1680.1050" timestamp="1585982582893" />
+    <state width="1638" height="327" key="GridCell.Tab.1.center" timestamp="1585982582892">
+      <screen x="0" y="0" width="1680" height="1050" />
+    </state>
+    <state width="1638" height="327" key="GridCell.Tab.1.center/0.0.1680.1050@0.0.1680.1050" timestamp="1585982582892" />
+    <state width="1638" height="327" key="GridCell.Tab.1.left" timestamp="1585982582892">
+      <screen x="0" y="0" width="1680" height="1050" />
+    </state>
+    <state width="1638" height="327" key="GridCell.Tab.1.left/0.0.1680.1050@0.0.1680.1050" timestamp="1585982582892" />
+    <state width="1638" height="327" key="GridCell.Tab.1.right" timestamp="1585982582893">
+      <screen x="0" y="0" width="1680" height="1050" />
+    </state>
+    <state width="1638" height="327" key="GridCell.Tab.1.right/0.0.1680.1050@0.0.1680.1050" timestamp="1585982582893" />
+    <state x="341" y="164" key="SettingsEditor" timestamp="1585980523451">
+      <screen x="0" y="0" width="1680" height="1050" />
+    </state>
+    <state x="341" y="164" key="SettingsEditor/0.0.1680.1050@0.0.1680.1050" timestamp="1585980523451" />
+    <state x="494" y="347" key="com.intellij.ide.util.TipDialog" timestamp="1585978694468">
+      <screen x="0" y="0" width="1680" height="1050" />
+    </state>
+    <state x="494" y="347" key="com.intellij.ide.util.TipDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1585978694468" />
     <state x="494" y="345" key="com.intellij.ide.util.TipDialog/0.23.1680.975@0.23.1680.975" timestamp="1585879041713" />
+    <state x="899" y="202" key="ftp.server.browser" timestamp="1585980502274">
+      <screen x="0" y="0" width="1680" height="1050" />
+    </state>
+    <state x="899" y="202" key="ftp.server.browser/0.0.1680.1050@0.0.1680.1050" timestamp="1585980502274" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -240,6 +290,11 @@
           <line>128</line>
           <option name="timeStamp" value="375" />
         </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/demo_ingress.py</url>
+          <line>38</line>
+          <option name="timeStamp" value="381" />
+        </line-breakpoint>
       </breakpoints>
       <default-breakpoints>
         <breakpoint type="python-exception">
@@ -249,5 +304,8 @@
         </breakpoint>
       </default-breakpoints>
     </breakpoint-manager>
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$demo_ingress.coverage" NAME="demo_ingress Coverage Results" MODIFIED="1585982582873" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>
