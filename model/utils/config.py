@@ -7,6 +7,9 @@ import os.path as osp
 import numpy as np
 # `pip install easydict` if you don't have it
 from easydict import EasyDict as edict
+import argparse
+import pprint
+
 
 __C = edict()
 # Consumers can get config by:
@@ -190,7 +193,7 @@ __C.TEST.RCNN_COMMON.RPN_MIN_SIZE = 16
 __C.TEST.RCNN_COMMON.RPN_TOP_N = 5000
 
 
-__C.TEST.VMRN.ISEX = False
+__C.TEST.VMRN.ISEX = True
 
 __C.TEST.FCGN.JACCARD_OVERLAP_THRESH = 0.25
 
@@ -413,3 +416,176 @@ def cfg_from_list(cfg_list):
       'type {} does not match original type {}'.format(
         type(value), type(d[subkey]))
     d[subkey] = value
+
+def parse_args():
+  """
+  Parse input arguments
+  """
+  parser = argparse.ArgumentParser(description='Train a Fast R-CNN network')
+  parser.add_argument('--dataset', dest='dataset',
+                      help='training dataset',
+                      default='pascal_voc', type=str)
+  parser.add_argument('--frame', dest='frame',
+                    help='faster_rcnn, fpn, ssd, faster_rcnn_vmrn, ssd_vmrn, fcgn, mgn, allinone',
+                    default='faster_rcnn', type=str)
+  parser.add_argument('--net', dest='net',
+                    help='vgg16, res101',
+                    default='res101', type=str)
+  parser.add_argument('--epochs', dest='max_epochs',
+                      help='number of epochs to train',
+                      default=0, type=int)
+  parser.add_argument('--disp_interval', dest='disp_interval',
+                      help='number of iterations to display',
+                      default=0, type=int)
+  parser.add_argument('--save_dir', dest='save_dir',
+                      help='directory to save models', default="output",
+                      type=str)
+  parser.add_argument('--nw', dest='num_workers',
+                      help='number of worker to load data',
+                      default=0, type=int)
+  parser.add_argument('--cuda', dest='cuda',
+                      help='whether use CUDA',
+                      action='store_true')
+  parser.add_argument('--ls', dest='large_scale',
+                      help='whether use large imag scale',
+                      action='store_true')
+  parser.add_argument('--mGPUs', dest='mGPUs',
+                      help='whether use multiple GPUs',
+                      action='store_true')
+  parser.add_argument('--bs', dest='batch_size',
+                      help='batch_size',
+                      default=0, type=int)
+  parser.add_argument('--cag', dest='class_agnostic',
+                      help='whether perform class_agnostic bbox regression',
+                      default=False, type=bool)
+  parser.add_argument('--test', dest='test',
+                      help='whether to perform test',
+                      action='store_true')
+
+# config optimization
+  parser.add_argument('--o', dest='optimizer',
+                      help='training optimizer',
+                      default="sgd", type=str)
+  parser.add_argument('--lr', dest='lr',
+                      help='starting learning rate',
+                      default=None, type=float)
+  parser.add_argument('--lr_decay_step', dest='lr_decay_step',
+                      help='step to do learning rate decay, unit is epoch',
+                      default=None, type=int)
+  parser.add_argument('--lr_decay_gamma', dest='lr_decay_gamma',
+                      help='learning rate decay ratio',
+                      default=None, type=float)
+
+# set training session
+  parser.add_argument('--s', dest='session',
+                      help='training session',
+                      default=1, type=int)
+
+# resume trained model
+  parser.add_argument('--r', dest='resume',
+                      help='resume checkpoint or not',
+                      action='store_true')
+  parser.add_argument('--checksession', dest='checksession',
+                      help='checksession to load model',
+                      default=1, type=int)
+  parser.add_argument('--checkepoch', dest='checkepoch',
+                      help='checkepoch to load model',
+                      default=1, type=int)
+  parser.add_argument('--checkpoint', dest='checkpoint',
+                      help='checkpoint to load model',
+                      default=0, type=int)
+# log and diaplay
+  parser.add_argument('--use_tfboard', dest='use_tfboard',
+                      help='whether use tensorflow tensorboard',
+                      action='store_true')
+  parser.add_argument('--vis', dest='vis',
+                      help='whether to visualize training data',
+                      action='store_true')
+
+  args = parser.parse_args()
+  return args
+
+def read_cfgs():
+    args = parse_args()
+    print('Called with args:')
+    print(args)
+    if args.dataset == "pascal_voc":
+        args.imdb_name = "voc_2007_trainval"
+        args.imdbval_name = "voc_2007_test"
+        args.set_cfgs = ['MAX_NUM_GT_BOXES', '20']
+    elif args.dataset == "pascal_voc_0712":
+        args.imdb_name = "voc_2007_trainval+voc_2012_trainval"
+        args.imdbval_name = "voc_2007_test"
+        args.set_cfgs = ['MAX_NUM_GT_BOXES', '20']
+    elif args.dataset == "coco":
+        args.imdb_name = "coco_2014_train+coco_2014_valminusminival"
+        args.imdbval_name = "coco_2014_minival"
+        args.set_cfgs = ['MAX_NUM_GT_BOXES', '50']
+    elif args.dataset == "imagenet":
+        args.imdb_name = "imagenet_train"
+        args.imdbval_name = "imagenet_val"
+        args.set_cfgs = ['MAX_NUM_GT_BOXES', '30']
+    elif args.dataset == "vg":
+        # train sizes: train, smalltrain, minitrain
+        # train scale: ['150-50-20', '150-50-50', '500-150-80', '750-250-150', '1750-700-450', '1600-400-20']
+        args.imdb_name = "vg_150-50-50_minitrain"
+        args.imdbval_name = "vg_150-50-50_minival"
+        args.set_cfgs = ['MAX_NUM_GT_BOXES', '50']
+    elif args.dataset == 'vmrdcompv1':
+        args.imdb_name = "vmrd_compv1_trainval"
+        args.imdbval_name = "vmrd_compv1_test"
+        args.set_cfgs = ['MAX_NUM_GT_BOXES', '20']
+    elif args.dataset == "vg_vmrd":
+        args.imdb_name = "vmrd_compv1_trainval+vg_150-50-50_minitrain"
+        args.imdbval_name = "vmrd_compv1_test"
+        args.set_cfgs = ['MAX_NUM_GT_BOXES', '50']
+    elif args.dataset == 'bdds':
+        args.imdb_name = "bdds_trainval"
+        args.imdbval_name = "bdds_test"
+        args.set_cfgs = ['MAX_NUM_GT_BOXES', '20']
+    elif args.dataset[:7] == 'cornell':
+        cornell = args.dataset.split('_')
+        args.imdb_name = 'cornell_{}_{}_trainval_{}'.format(cornell[1],cornell[2],cornell[3])
+        args.imdbval_name = 'cornell_{}_{}_test_{}'.format(cornell[1],cornell[2],cornell[3])
+        args.set_cfgs = ['MAX_NUM_GT_BOXES', '50']
+    elif args.dataset[:8] == 'jacquard':
+        jacquard = args.dataset.split('_')
+        args.imdb_name = 'jacquard_{}_trainval_{}'.format(jacquard[1], jacquard[2])
+        args.imdbval_name = 'jacquard_{}_test_{}'.format(jacquard[1], jacquard[2])
+        args.set_cfgs = ['MAX_NUM_GT_GRASPS', '1000']
+    if args.dataset[:7] == 'cornell':
+        args.cfg_file = "cfgs/cornell_{}_{}_ls.yml".format(args.frame, args.net) if args.large_scale \
+        else "cfgs/cornell_{}_{}.yml".format(args.frame, args.net)
+    elif args.dataset[:8] == 'jacquard':
+        args.cfg_file = "cfgs/jacquard_{}_{}_ls.yml".format(args.frame, args.net) if args.large_scale \
+        else "cfgs/jacquard_{}_{}.yml".format(args.frame, args.net)
+    else:
+        args.cfg_file = "cfgs/{}_{}_{}_ls.yml".format(args.dataset, args.frame, args.net) if args.large_scale \
+        else "cfgs/{}_{}_{}.yml".format(args.dataset, args.frame, args.net)
+    print("Using cfg file: " + args.cfg_file)
+    if args.cfg_file is not None:
+        cfg_from_file(args.cfg_file)
+    if args.set_cfgs is not None:
+        cfg_from_list(args.set_cfgs)
+    if not args.disp_interval:
+        args.disp_interval = cfg.TRAIN.COMMON.DISPLAY
+    if not args.batch_size:
+        args.batch_size = cfg.TRAIN.COMMON.IMS_PER_BATCH
+    if not args.lr_decay_step:
+        args.lr_decay_step = cfg.TRAIN.COMMON.LR_DECAY_STEPSIZE[0]
+    if not args.lr:
+        args.lr = cfg.TRAIN.COMMON.LEARNING_RATE
+    if not args.lr_decay_gamma:
+        args.lr_decay_gamma = cfg.TRAIN.COMMON.GAMMA
+    if not args.max_epochs:
+        args.max_epochs = cfg.TRAIN.COMMON.MAX_EPOCH
+    print('Using config:')
+    # train set
+    # -- Note: Use validation set and disable the flipped to enable faster loading.
+    cfg.TRAIN.COMMON.USE_FLIPPED = True
+    cfg.USE_GPU_NMS = args.cuda
+    pprint.pprint(cfg)
+    if args.cuda:
+        cfg.CUDA = True
+
+    return args

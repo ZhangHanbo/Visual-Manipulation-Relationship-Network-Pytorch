@@ -3,3 +3,7 @@
 *.DS_Store
 .idea/markdown-navigator-enh.xml
 .idea/markdown-navigator.xml
+
+rosapi/*
+demo*
+*.graffle

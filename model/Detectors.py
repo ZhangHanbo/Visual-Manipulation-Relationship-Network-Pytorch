@@ -46,12 +46,11 @@ class graspDetector(detector):
 
 class objectDetector(detector):
     __metaclass__ = abc.ABCMeta
-    def __init__(self, classes, class_agnostic,
+    def __init__(self, num_classes, class_agnostic,
                  feat_name = 'res101', feat_list = ('conv4',), pretrained = True):
         super(objectDetector, self).__init__(feat_name, feat_list, pretrained)
 
-        self.classes = classes
-        self.n_classes = len(classes)
+        self.n_classes = num_classes
         self.class_agnostic = class_agnostic
 
 class vmrn_rel_classifier(nn.Module):
@@ -169,6 +168,7 @@ class VMRN(nn.Module):
         elif cfg.TEST.VMRN.ISEX and cfg.TRAIN.VMRN.ISEX:
             rel_cls_prob_1 = rel_cls_prob[0::2, :]
             rel_cls_prob_2 = rel_cls_prob[1::2, :]
+            rel_cls_prob = rel_cls_prob_1.new(rel_cls_prob_1.shape).zero_()
             rel_cls_prob[:, 0] = (rel_cls_prob_1[:, 0] + rel_cls_prob_2[:, 1]) / 2
             rel_cls_prob[:, 1] = (rel_cls_prob_1[:, 1] + rel_cls_prob_2[:, 0]) / 2
             rel_cls_prob[:, 2] = (rel_cls_prob_1[:, 2] + rel_cls_prob_2[:, 2]) / 2

@@ -42,7 +42,7 @@ def get_minibatch_objdet(roidb):
     blobs['data'] = im_blob
     blobs['gt_boxes'] = gt_boxes
     blobs['im_info'] = np.array(
-        [im_blob.shape[1], im_blob.shape[2], 1., 1., roidb['img_id']],
+        [im_blob.shape[0], im_blob.shape[1], 1., 1., roidb['img_id']],
         dtype=np.float32)
     blobs['img_id'] = roidb['img_id']
     blobs['img_path'] = roidb['image']
@@ -65,7 +65,7 @@ def get_minibatch_graspdet(roidb):
     blobs['data'] = im_blob
     blobs['gt_grasps'] = gt_grasps
     blobs['im_info'] = np.array(
-        [im_blob.shape[1], im_blob.shape[2], 1., 1., roidb['img_id']],
+        [im_blob.shape[0], im_blob.shape[1], 1., 1., roidb['img_id']],
         dtype=np.float32)
     blobs['img_id'] = roidb['img_id']
     blobs['img_path'] = roidb['image']

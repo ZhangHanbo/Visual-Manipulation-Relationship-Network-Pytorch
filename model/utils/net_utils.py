@@ -567,6 +567,15 @@ def objgrasp_inference(o_cls_prob, o_box_output, g_cls_prob, g_box_output, im_in
     return all_box, all_grasp
 
 def rel_prob_to_mat(rel_cls_prob, num_obj):
+    """
+    :param rel_cls_prob: N x 3 relationship class score
+    :param num_obj: an int indicating the number of objects
+    :return: a N_obj x N_obj relationship matrix. element(i, j) indicates the relationship between i and j,
+                i.e., i  -- rel --> j
+
+    The input is Tensors and the output is np.array.
+    """
+
     if rel_cls_prob.size(0) == 0:
         return np.array([], dtype=np.int32)
     rel = torch.argmax(rel_cls_prob, dim = 1) + 1
@@ -601,6 +610,7 @@ def create_mrt(rel_mat):
             if rel_mat[obj1, obj2].item() == cfg.VMRN.CHILD:
                 # OBJ1 is the father of OBJ2
                 mrt.add_edge(obj1, obj2)
+    return mrt
 
 def find_all_paths(mrt, t_node = 0):
     """

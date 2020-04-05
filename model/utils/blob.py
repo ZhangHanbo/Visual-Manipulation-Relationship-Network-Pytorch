@@ -12,6 +12,7 @@ import numpy as np
 import cv2
 
 from model.utils.config import cfg
+import torch
 
 try:
     xrange          # Python 2
@@ -66,3 +67,30 @@ def image_unnormalize(im, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
     im = im * (std + 1e-8) + mean
     im *= 255.
     return im.astype(np.float32)
+
+def prepare_data_batch_from_cvimage(cv_img, is_cuda = True):
+    # BGR to RGB
+    image = cv_img[:, :, ::-1]
+    image, im_scale = prep_im_for_blob(image, cfg.SCALES[0], cfg.TRAIN.COMMON.MAX_SIZE)
+    image = image_normalize(image, mean=cfg.PIXEL_MEANS, std=cfg.PIXEL_STDS)
+
+    im_info = np.array(
+        [image.shape[0], image.shape[1], im_scale['y'], im_scale['x'], -1],
+        dtype=np.float32)
+
+    data = torch.from_numpy(image.copy()).permute(2, 0, 1).contiguous()
+    im_info = torch.from_numpy(im_info)
+    gt_boxes = torch.FloatTensor([1, 1, 1, 1, 1])
+    num_boxes = torch.FloatTensor([0])
+    rel_mat = torch.FloatTensor([0])
+
+    data_batch = [data, im_info, gt_boxes, num_boxes, rel_mat]
+
+    for i, d in enumerate(data_batch):
+        if i == 3:
+            continue
+        data_batch[i] = d.unsqueeze(0)
+        if is_cuda:
+            data_batch[i] = data_batch[i].cuda()
+
+    return data_batch

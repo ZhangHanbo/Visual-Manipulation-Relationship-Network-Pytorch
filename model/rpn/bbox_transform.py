@@ -286,3 +286,17 @@ def bbox_overlaps_batch(anchors, gt_boxes):
         raise ValueError('anchors input dimension is not correct.')
 
     return overlaps
+
+def bbox_xy_to_xywh(boxes):
+    assert boxes.shape[-1] % 4 == 0
+    if len(boxes.shape) == 2:
+        w = boxes[:, 2::4] - boxes[:, 0::4]
+        h = boxes[:, 3::4] - boxes[:, 1::4]
+        boxes[:, 2::4] = w
+        boxes[:, 3::4] = h
+    elif len(boxes.shape) == 3:
+        w = boxes[:, :, 2::4] - boxes[:, :, 0::4]
+        h = boxes[:, :, 3::4] - boxes[:, :, 1::4]
+        boxes[:, :, 2::4] = w
+        boxes[:, :, 3::4] = h
+    return boxes

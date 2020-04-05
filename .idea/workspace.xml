@@ -2,9 +2,18 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c9b880e4-a6e3-414a-b387-4aa4ff30b986" name="Default" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/Visual-Manipulation-Relationship-Network-Pytorch.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/Visual-Manipulation-Relationship-Network-Pytorch.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/demo_ingress.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/images/a_det.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/Detectors.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/Detectors.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/rpn/bbox_transform.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/rpn/bbox_transform.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/utils/blob.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/utils/blob.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/utils/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/utils/config.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/utils/net_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/utils/net_utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/roi_data_layer/minibatch.py" beforeDir="false" afterPath="$PROJECT_DIR$/roi_data_layer/minibatch.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -49,42 +58,23 @@
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
+    <property name="two.files.diff.last.used.file" value="$PROJECT_DIR$/../ingress-proj/ingress_ros/src/ingress_srv/ingress_srv.py" />
   </component>
   <component name="RecentsManager">
-    <key name="MoveFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/model/header" />
-      <recent name="$PROJECT_DIR$/data" />
-      <recent name="$PROJECT_DIR$/data/Jacquard" />
-    </key>
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/cfgs" />
       <recent name="$PROJECT_DIR$/model/basenet" />
       <recent name="$PROJECT_DIR$/model" />
     </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/demos" />
+      <recent name="$PROJECT_DIR$/model/header" />
+      <recent name="$PROJECT_DIR$/data" />
+      <recent name="$PROJECT_DIR$/data/Jacquard" />
+    </key>
   </component>
-  <component name="RunManager" selected="Python.demo_ingress">
-    <configuration name="FasterRCNN" type="PythonConfigurationType" factoryName="Python" temporary="true">
-      <module name="Visual-Manipulation-Relationship-Network-Pytorch" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/model" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/model/FasterRCNN.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
+  <component name="RunManager" selected="Python.demo_ingress_vmrn">
     <configuration name="demo_ingress" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="Visual-Manipulation-Relationship-Network-Pytorch" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -103,6 +93,31 @@
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/demo_ingress.py" />
       <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="demo_ingress_vmrn" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="Visual-Manipulation-Relationship-Network-Pytorch" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+        <env name="ROS_PACKAGE_PATH" value="/data0/svc4/catkin_ws/src:/opt/ros/kinetic/share" />
+        <env name="ROS_MASTER_URI" value="http://localhost:11311" />
+        <env name="LD_LIBRARY_PATH" value="/data0/svc4/catkin_ws/devel/lib:/opt/ros/kinetic/lib:/opt/ros/kinetic/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="false" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/demo_ingress_vmrn.py" />
+      <option name="PARAMETERS" value="--dataset vmrdcompv1 --cuda --net vgg16 --frame faster_rcnn_vmrn --checkepoch 25 --checkpoint 704" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -147,7 +162,7 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/main.py" />
-      <option name="PARAMETERS" value="--net res101 --frame faster_rcnn_vmrn --dataset vmrdcompv1 --cuda" />
+      <option name="PARAMETERS" value="--net vgg16 --frame faster_rcnn_vmrn --dataset vmrdcompv1 --cuda --test --checkpoint 704 --checkepoch 25" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -178,19 +193,19 @@
       <method v="2" />
     </configuration>
     <list>
-      <item itemvalue="Python.FasterRCNN" />
       <item itemvalue="Python.efficientnet" />
       <item itemvalue="Python.main" />
       <item itemvalue="Python.resnet" />
       <item itemvalue="Python.demo_ingress" />
+      <item itemvalue="Python.demo_ingress_vmrn" />
     </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.demo_ingress" />
+        <item itemvalue="Python.demo_ingress_vmrn" />
         <item itemvalue="Python.main" />
+        <item itemvalue="Python.demo_ingress" />
         <item itemvalue="Python.efficientnet" />
         <item itemvalue="Python.resnet" />
-        <item itemvalue="Python.FasterRCNN" />
       </list>
     </recent_temporary>
   </component>
@@ -215,7 +230,9 @@
       <workItem from="1585882630251" duration="2618000" />
       <workItem from="1585904012243" duration="5991000" />
       <workItem from="1585978435152" duration="214000" />
-      <workItem from="1585978694150" duration="3343000" />
+      <workItem from="1585978694150" duration="20283000" />
+      <workItem from="1586017762717" duration="867000" />
+      <workItem from="1586076426862" duration="8018000" />
     </task>
     <servers />
   </component>
@@ -223,54 +240,96 @@
     <option name="version" value="1" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="304" y="188" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1585982553738">
+    <state x="304" y="198" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1586014163259">
+      <screen x="0" y="23" width="1680" height="980" />
+    </state>
+    <state x="304" y="188" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1586012938047" />
+    <state x="304" y="198" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.23.1680.980@0.23.1680.980" timestamp="1586014163259" />
+    <state x="578" y="280" key="#com.intellij.refactoring.safeDelete.UnsafeUsagesDialog" timestamp="1586086642863">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state x="304" y="188" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1585982553738" />
-    <state x="594" y="296" key="EnvironmentVariablesDialog" timestamp="1585982552268">
+    <state x="578" y="280" key="#com.intellij.refactoring.safeDelete.UnsafeUsagesDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1586086642863" />
+    <state x="100" y="100" width="1480" height="850" key="DiffContextDialog" timestamp="1586084671345">
+      <screen x="0" y="23" width="1680" height="973" />
+    </state>
+    <state x="100" y="100" width="1480" height="850" key="DiffContextDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1586084560550" />
+    <state x="100" y="100" width="1480" height="850" key="DiffContextDialog/0.23.1680.973@0.23.1680.973" timestamp="1586084671345" />
+    <state x="594" y="296" key="EnvironmentVariablesDialog" timestamp="1586012225363">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state x="594" y="296" key="EnvironmentVariablesDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1585982552268" />
-    <state width="1638" height="327" key="GridCell.Tab.0.bottom" timestamp="1585982582891">
+    <state x="594" y="296" key="EnvironmentVariablesDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1586012225363" />
+    <state width="1638" height="337" key="GridCell.Tab.0.bottom" timestamp="1586086643048">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1638" height="327" key="GridCell.Tab.0.bottom/0.0.1680.1050@0.0.1680.1050" timestamp="1585982582891" />
-    <state width="1638" height="327" key="GridCell.Tab.0.center" timestamp="1585982582890">
+    <state width="1638" height="337" key="GridCell.Tab.0.bottom/0.0.1680.1050@0.0.1680.1050" timestamp="1586086643048" />
+    <state width="1638" height="337" key="GridCell.Tab.0.bottom/0.23.1680.967@0.23.1680.967" timestamp="1586052821694" />
+    <state width="1638" height="365" key="GridCell.Tab.0.bottom/0.23.1680.972@0.23.1680.972" timestamp="1586077871524" />
+    <state width="1638" height="327" key="GridCell.Tab.0.bottom/0.23.1680.978@0.23.1680.978" timestamp="1586013788321" />
+    <state width="1180" height="302" key="GridCell.Tab.0.bottom/0.23.1680.980@0.23.1680.980" timestamp="1586017483410" />
+    <state width="1638" height="337" key="GridCell.Tab.0.center" timestamp="1586086643047">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1638" height="327" key="GridCell.Tab.0.center/0.0.1680.1050@0.0.1680.1050" timestamp="1585982582890" />
-    <state width="1638" height="327" key="GridCell.Tab.0.left" timestamp="1585982582889">
+    <state width="1638" height="337" key="GridCell.Tab.0.center/0.0.1680.1050@0.0.1680.1050" timestamp="1586086643047" />
+    <state width="1638" height="337" key="GridCell.Tab.0.center/0.23.1680.967@0.23.1680.967" timestamp="1586052821693" />
+    <state width="1638" height="365" key="GridCell.Tab.0.center/0.23.1680.972@0.23.1680.972" timestamp="1586077871522" />
+    <state width="1638" height="327" key="GridCell.Tab.0.center/0.23.1680.978@0.23.1680.978" timestamp="1586013788319" />
+    <state width="1180" height="302" key="GridCell.Tab.0.center/0.23.1680.980@0.23.1680.980" timestamp="1586017483410" />
+    <state width="1638" height="337" key="GridCell.Tab.0.left" timestamp="1586086643046">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1638" height="327" key="GridCell.Tab.0.left/0.0.1680.1050@0.0.1680.1050" timestamp="1585982582889" />
-    <state width="1638" height="327" key="GridCell.Tab.0.right" timestamp="1585982582891">
+    <state width="1638" height="337" key="GridCell.Tab.0.left/0.0.1680.1050@0.0.1680.1050" timestamp="1586086643046" />
+    <state width="1638" height="337" key="GridCell.Tab.0.left/0.23.1680.967@0.23.1680.967" timestamp="1586052821692" />
+    <state width="1638" height="365" key="GridCell.Tab.0.left/0.23.1680.972@0.23.1680.972" timestamp="1586077871521" />
+    <state width="1638" height="327" key="GridCell.Tab.0.left/0.23.1680.978@0.23.1680.978" timestamp="1586013788318" />
+    <state width="1180" height="302" key="GridCell.Tab.0.left/0.23.1680.980@0.23.1680.980" timestamp="1586017483409" />
+    <state width="1638" height="337" key="GridCell.Tab.0.right" timestamp="1586086643048">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1638" height="327" key="GridCell.Tab.0.right/0.0.1680.1050@0.0.1680.1050" timestamp="1585982582891" />
-    <state width="1638" height="327" key="GridCell.Tab.1.bottom" timestamp="1585982582893">
+    <state width="1638" height="337" key="GridCell.Tab.0.right/0.0.1680.1050@0.0.1680.1050" timestamp="1586086643048" />
+    <state width="1638" height="337" key="GridCell.Tab.0.right/0.23.1680.967@0.23.1680.967" timestamp="1586052821693" />
+    <state width="1638" height="365" key="GridCell.Tab.0.right/0.23.1680.972@0.23.1680.972" timestamp="1586077871523" />
+    <state width="1638" height="327" key="GridCell.Tab.0.right/0.23.1680.978@0.23.1680.978" timestamp="1586013788320" />
+    <state width="1180" height="302" key="GridCell.Tab.0.right/0.23.1680.980@0.23.1680.980" timestamp="1586017483410" />
+    <state width="1638" height="365" key="GridCell.Tab.1.bottom" timestamp="1586085819797">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1638" height="327" key="GridCell.Tab.1.bottom/0.0.1680.1050@0.0.1680.1050" timestamp="1585982582893" />
-    <state width="1638" height="327" key="GridCell.Tab.1.center" timestamp="1585982582892">
+    <state width="1638" height="365" key="GridCell.Tab.1.bottom/0.0.1680.1050@0.0.1680.1050" timestamp="1586085819797" />
+    <state width="1638" height="365" key="GridCell.Tab.1.bottom/0.23.1680.967@0.23.1680.967" timestamp="1586052821645" />
+    <state width="1638" height="365" key="GridCell.Tab.1.bottom/0.23.1680.972@0.23.1680.972" timestamp="1586080187943" />
+    <state width="1638" height="327" key="GridCell.Tab.1.bottom/0.23.1680.978@0.23.1680.978" timestamp="1586013803780" />
+    <state width="1180" height="327" key="GridCell.Tab.1.bottom/0.23.1680.980@0.23.1680.980" timestamp="1586017483405" />
+    <state width="1638" height="365" key="GridCell.Tab.1.center" timestamp="1586085819796">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1638" height="327" key="GridCell.Tab.1.center/0.0.1680.1050@0.0.1680.1050" timestamp="1585982582892" />
-    <state width="1638" height="327" key="GridCell.Tab.1.left" timestamp="1585982582892">
+    <state width="1638" height="365" key="GridCell.Tab.1.center/0.0.1680.1050@0.0.1680.1050" timestamp="1586085819796" />
+    <state width="1638" height="365" key="GridCell.Tab.1.center/0.23.1680.967@0.23.1680.967" timestamp="1586052821644" />
+    <state width="1638" height="365" key="GridCell.Tab.1.center/0.23.1680.972@0.23.1680.972" timestamp="1586080187941" />
+    <state width="1638" height="327" key="GridCell.Tab.1.center/0.23.1680.978@0.23.1680.978" timestamp="1586013803778" />
+    <state width="1180" height="327" key="GridCell.Tab.1.center/0.23.1680.980@0.23.1680.980" timestamp="1586017483404" />
+    <state width="1638" height="365" key="GridCell.Tab.1.left" timestamp="1586085819796">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1638" height="327" key="GridCell.Tab.1.left/0.0.1680.1050@0.0.1680.1050" timestamp="1585982582892" />
-    <state width="1638" height="327" key="GridCell.Tab.1.right" timestamp="1585982582893">
+    <state width="1638" height="365" key="GridCell.Tab.1.left/0.0.1680.1050@0.0.1680.1050" timestamp="1586085819796" />
+    <state width="1638" height="365" key="GridCell.Tab.1.left/0.23.1680.967@0.23.1680.967" timestamp="1586052821643" />
+    <state width="1638" height="365" key="GridCell.Tab.1.left/0.23.1680.972@0.23.1680.972" timestamp="1586080187941" />
+    <state width="1638" height="327" key="GridCell.Tab.1.left/0.23.1680.978@0.23.1680.978" timestamp="1586013803777" />
+    <state width="1180" height="327" key="GridCell.Tab.1.left/0.23.1680.980@0.23.1680.980" timestamp="1586017483404" />
+    <state width="1638" height="365" key="GridCell.Tab.1.right" timestamp="1586085819797">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1638" height="327" key="GridCell.Tab.1.right/0.0.1680.1050@0.0.1680.1050" timestamp="1585982582893" />
+    <state width="1638" height="365" key="GridCell.Tab.1.right/0.0.1680.1050@0.0.1680.1050" timestamp="1586085819797" />
+    <state width="1638" height="365" key="GridCell.Tab.1.right/0.23.1680.967@0.23.1680.967" timestamp="1586052821644" />
+    <state width="1638" height="365" key="GridCell.Tab.1.right/0.23.1680.972@0.23.1680.972" timestamp="1586080187942" />
+    <state width="1638" height="327" key="GridCell.Tab.1.right/0.23.1680.978@0.23.1680.978" timestamp="1586013803780" />
+    <state width="1180" height="327" key="GridCell.Tab.1.right/0.23.1680.980@0.23.1680.980" timestamp="1586017483405" />
     <state x="341" y="164" key="SettingsEditor" timestamp="1585980523451">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
     <state x="341" y="164" key="SettingsEditor/0.0.1680.1050@0.0.1680.1050" timestamp="1585980523451" />
-    <state x="494" y="347" key="com.intellij.ide.util.TipDialog" timestamp="1585978694468">
+    <state x="494" y="347" key="com.intellij.ide.util.TipDialog" timestamp="1586076429523">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state x="494" y="347" key="com.intellij.ide.util.TipDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1585978694468" />
+    <state x="494" y="347" key="com.intellij.ide.util.TipDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1586076429523" />
     <state x="494" y="345" key="com.intellij.ide.util.TipDialog/0.23.1680.975@0.23.1680.975" timestamp="1585879041713" />
     <state x="899" y="202" key="ftp.server.browser" timestamp="1585980502274">
       <screen x="0" y="0" width="1680" height="1050" />
@@ -290,11 +349,6 @@
           <line>128</line>
           <option name="timeStamp" value="375" />
         </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/demo_ingress.py</url>
-          <line>38</line>
-          <option name="timeStamp" value="381" />
-        </line-breakpoint>
       </breakpoints>
       <default-breakpoints>
         <breakpoint type="python-exception">
@@ -306,6 +360,8 @@
     </breakpoint-manager>
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$demo_ingress.coverage" NAME="demo_ingress Coverage Results" MODIFIED="1585982582873" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$demo_ingress_vmrn.coverage" NAME="demo_ingress_vmrn Coverage Results" MODIFIED="1586086023466" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$main.coverage" NAME="main Coverage Results" MODIFIED="1586014423062" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$demo_ingress.coverage" NAME="demo_ingress Coverage Results" MODIFIED="1585999183285" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>

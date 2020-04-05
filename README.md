@@ -6,6 +6,17 @@ Users for Pascal GPUs: you can skip the steps for building the C codes with Pyth
 
 Users for other GPUs: you have to follow the installation steps from https://github.com/jwyang/faster-rcnn.pytorch to make sure that the components of Faster-RCNN work fine.
 
+## Implemented Algorithms
+
+I have included some well-known object detection algorithms (e.g. Faster-RCNN, SSD, FPN and EfficientDet), and developed
+a series of algorithms related to robotc grasping. The following figure provide an overview of this package.
+
+![](tutorial/detectors.jpg)
+
+In the future, I will continuously update this package so that it can contain latest SOTA algorithms and improve the 
+performance of our own algorithms. Certainly, all my new works related to robotic grasping and computer vision will 
+also be contained in this package.
+
 ## Installation
 1. Follow https://github.com/jwyang/faster-rcnn.pytorch to make sure that Faster-RCNN works fine.
 2. Run codes.
@@ -26,7 +37,7 @@ python main.py --test --dataset vmrdcompv1 --frame all_in_one --net res101 --cud
 
 ## Performance
 
-We want to re-implement the SOTA performance of the related algorithms. Some performance is shown below and it will be updated continuously.
+I want to re-implement the SOTA performance of the related algorithms. Some performance is shown below and it will be updated continuously.
 
 *mAP*: mean Average Precision
 
@@ -34,7 +45,7 @@ We want to re-implement the SOTA performance of the related algorithms. Some per
 
 *Rel-IA*: Image Accuracy of Relationship Detection
 
-### Performance
+### Performance Summary
 
 Algorithm | Backbone | Training | Testing | mAP | mAP-G | Rel-IA
 |---|---|---|---|---|---|---|
@@ -44,20 +55,27 @@ ROI-GD | ResNet-101 | VMRDtrainval | VMRDtest | 94.5 | 75.7 | -
 F-VMRN | ResNet-101 | VMRDtrainval | VMRDtest | 95.6 | - | 64.7
 F-VMRN | VGG-16 | VMRDtrainval | VMRDtest | 95.0 | - | 68.7
 
-### Training Curves
+### Testing Curves
 
 | <img src="results/F-VMRN_VGG16.png" width = "300" div align=left /> |<img src="results/F-VMRN_ResNet101.png" width = "300" div align=left />
 |:---:|:---:|
 | Rel-IA of F-VMRN_VGG16 | Rel-IA of F-VMRN_ResNet101 |
 
+## TODO
+
+* [ ] Performance of SSD, S-VMRN, All-In-One
+* [ ] Testing Curve of Faster-RCNN, FPN, ROI-GD
+* [ ] Complete VAM model
+* [ ] COCO, VisualGenome Support
+* [ ] Multi-GPU Support
+* [ ] PyTorch 1.0 and Python3 Support
 
 ## Noteable Things
 1. To train the network, you have to pre-download the pretrained models and put them in "data/pretrained_model" and name them the same as the usage in codes.
 2. The training data should be placed or linked in "data".
 3. The code will be improved continuously. Therefore, if you meet some problems, do not hesitate to contact me.
 4. The included FPN and Focal Loss are uncompleted while Faster-RCNN and SSD can be used normally, though they are not the main contributions.
-UPDATE in 01/04/2020
-5. I have re-written all codes so that they can be more readable and modularized. Therefore, if you want to obtain the performance claimed in the paper,
+5. [UPDATE in 01/04/2020] I have re-written all codes so that they can be more readable and modularized. Therefore, if you want to obtain the performance claimed in the paper,
 you should check the configurations so that they are same as the claimed ones (e.g. data-augmentation methods).
 
 ## Papers
@@ -72,7 +90,7 @@ you should check the configurations so that they are same as the claimed ones (e
 
 ## Problem Shooting
 
-1. \[Solved\] When setting batch_size of Faster RCNN to 1 and augmentation to True, we want to use SSD-like augmentation to generate more training data. However, it will cause NaN error.
-2. There are some grasp and relation label errors in VMRD. However, we find that they do not affect the detection performance much. We will fix this problem as soon as possible.
+1. \[Solved\] When setting batch_size of Faster RCNN to 1 and augmentation to True, I want to use SSD-like augmentation to generate more training data. However, it will cause NaN error.
+2. There are some grasp and relation label errors in VMRD. However, I find that they do not affect the detection performance much. I will fix this problem as soon as possible.
 3. This package only supports pytorch 0.4.0. When using 0.4.1, there will be segmentation fault (reasons not found).
 4. When training VMRN, the batchsize should be at least 2. Otherwise the network will not reach convergence.
