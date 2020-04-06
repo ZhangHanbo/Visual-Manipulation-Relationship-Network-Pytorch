@@ -376,9 +376,9 @@ class vmrd(pascal_voc):
                     # o1 and o2 has no relationship
                     rel_mat_gt[o1, o2] = cfg.VMRN.NOREL
 
-        det_bboxes = np.array(det_result[0])
-        det_labels = np.array(det_result[1])
-        det_rel_prob = np.array(det_result[2])
+        det_bboxes = det_result[0].cpu().numpy()
+        det_labels = det_result[1].cpu().numpy()
+        det_rel_prob = det_result[2].cpu().numpy()
 
         # no detected rel, tp and fp is all 0
         if not det_rel_prob.shape[0]:

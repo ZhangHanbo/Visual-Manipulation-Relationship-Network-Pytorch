@@ -6,27 +6,15 @@
 # based on code from Jiasen Lu, Jianwei Yang, Ross Girshick
 # --------------------------------------------------------
 
-import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
-import torchvision.models as models
-from torch.autograd import Variable
-import numpy as np
 from utils.config import cfg
 from rpn.rpn import _RPN
-from roi_pooling.modules.roi_pool import _RoIPooling
-from roi_crop.modules.roi_crop import _RoICrop
-from roi_align.modules.roi_align import RoIAlignAvg
+from model.roi_layers import ROIAlign, ROIPool
 from rpn.proposal_target_layer_cascade import _ProposalTargetLayer
 from Detectors import objectDetector
-import time
-import pdb
-from utils.net_utils import _smooth_l1_loss, _crop_pool_layer, _affine_grid_gen, _affine_theta, weights_normal_init,\
-    set_bn_eval, set_bn_fix
-
-from basenet.resnet import resnet101
+from utils.net_utils import _smooth_l1_loss
 
 class fasterRCNN(objectDetector):
     """ faster RCNN """
@@ -50,11 +38,10 @@ class fasterRCNN(objectDetector):
                              feat_stride=cfg.RCNN_COMMON.FEAT_STRIDE[0])
 
         self.RCNN_proposal_target = _ProposalTargetLayer(self.n_classes)
-        self.RCNN_roi_pool = _RoIPooling(cfg.RCNN_COMMON.POOLING_SIZE, cfg.RCNN_COMMON.POOLING_SIZE, 1.0/16.0)
-        self.RCNN_roi_align = RoIAlignAvg(cfg.RCNN_COMMON.POOLING_SIZE, cfg.RCNN_COMMON.POOLING_SIZE, 1.0/16.0)
+        self.RCNN_roi_pool = ROIPool((cfg.RCNN_COMMON.POOLING_SIZE, cfg.RCNN_COMMON.POOLING_SIZE), 1.0 / 16.0)
+        self.RCNN_roi_align = ROIAlign((cfg.RCNN_COMMON.POOLING_SIZE, cfg.RCNN_COMMON.POOLING_SIZE), 1.0 / 16.0, 0)
 
         self.grid_size = cfg.RCNN_COMMON.POOLING_SIZE * 2 if cfg.RCNN_COMMON.CROP_RESIZE_WITH_MAX_POOL else cfg.RCNN_COMMON.POOLING_SIZE
-        self.RCNN_roi_crop = _RoICrop()
 
         self.iter_counter = 0
 
@@ -68,16 +55,7 @@ class fasterRCNN(objectDetector):
         return rois, rois_label, rois_target, rois_inside_ws, rois_outside_ws
 
     def _roi_pooling(self, base_feat, rois):
-        # do roi pooling based on predicted rois
-        if cfg.RCNN_COMMON.POOLING_MODE == 'crop':
-            # pdb.set_trace()
-            # pooled_feat_anchor = _crop_pool_layer(base_feat, rois.view(-1, 5))
-            grid_xy = _affine_grid_gen(rois.view(-1, 5), base_feat.size()[2:], self.grid_size)
-            grid_yx = torch.stack([grid_xy.data[:, :, :, 1], grid_xy.data[:, :, :, 0]], 3).contiguous()
-            pooled_feat = self.RCNN_roi_crop(base_feat, Variable(grid_yx).detach())
-            if cfg.RCNN_COMMON.CROP_RESIZE_WITH_MAX_POOL:
-                pooled_feat = F.max_pool2d(pooled_feat, 2, 2)
-        elif cfg.RCNN_COMMON.POOLING_MODE == 'align':
+        if cfg.RCNN_COMMON.POOLING_MODE == 'align':
             pooled_feat = self.RCNN_roi_align(base_feat, rois.view(-1, 5))
         elif cfg.RCNN_COMMON.POOLING_MODE == 'pool':
             pooled_feat = self.RCNN_roi_pool(base_feat, rois.view(-1, 5))

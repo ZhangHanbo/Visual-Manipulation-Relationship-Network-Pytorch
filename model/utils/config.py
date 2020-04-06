@@ -450,8 +450,8 @@ def parse_args():
                       help='whether use large imag scale',
                       action='store_true')
   parser.add_argument('--mGPUs', dest='mGPUs',
-                      help='whether use multiple GPUs',
-                      action='store_true')
+                      help='the GPUs you do want to use for training',
+                      default='', type=str)
   parser.add_argument('--bs', dest='batch_size',
                       help='batch_size',
                       default=0, type=int)

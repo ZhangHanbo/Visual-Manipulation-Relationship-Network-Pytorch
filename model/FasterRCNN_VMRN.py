@@ -5,14 +5,9 @@
 # Modified from R. B. G.'s faster_rcnn.py
 # --------------------------------------------------------
 
-import random
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.autograd import Variable
 from utils.config import cfg
-from utils.net_utils import _smooth_l1_loss, _crop_pool_layer, _affine_grid_gen, _affine_theta, set_bn_eval, set_bn_fix
-import copy
 
 from FasterRCNN import fasterRCNN
 from Detectors import VMRN

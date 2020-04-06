@@ -16,15 +16,9 @@ from model.ssd.default_bbox_generator import PriorBox
 import torch.nn.init as init
 from model.ssd.multi_bbox_loss import MultiBoxLoss
 from model.utils.config import cfg
-from model.nms.nms_wrapper import nms
+from model.roi_layers.nms import nms
 from model.rpn.bbox_transform import bbox_overlaps
 
-from roi_pooling.modules.roi_pool import _RoIPooling
-from roi_crop.modules.roi_crop import _RoICrop
-from roi_align.modules.roi_align import RoIAlignAvg
-
-from model.op2l.object_pairing_layer import _ObjPairLayer
-from model.op2l.rois_pair_expanding_layer import  _RoisPairExpandingLayer
 from model.op2l.op2l import _OP2L
 
 import torchvision
@@ -375,7 +369,7 @@ class SSD(nn.Module):
                 cls_dets = torch.cat((cls_boxes, cls_scores.unsqueeze(1)), 1)
                 # cls_dets = torch.cat((cls_boxes, cls_scores), 1)
                 cls_dets = cls_dets[order]
-                keep = nms(cls_dets, cfg.TEST.COMMON.NMS)
+                keep = nms(cls_dets[:, :4], cls_dets[:, 4], cfg.TEST.COMMON.NMS)
                 cls_dets = cls_dets[keep.view(-1).long()]
 
                 final_keep = torch.nonzero(cls_dets[:, -1] > cfg.TEST.COMMON.OBJ_DET_THRESHOLD).squeeze()

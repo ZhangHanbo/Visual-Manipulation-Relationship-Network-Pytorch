@@ -9,18 +9,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-import os
-from model.ssd.default_bbox_generator import PriorBox
-import torch.nn.init as init
-from torchvision import models
 
 from model.utils.config import cfg
-from basenet.resnet import resnet18,resnet34,resnet50,resnet101,resnet152
 
 from model.fcgn.classifier import _Classifier
 from model.fcgn.grasp_proposal_target import _GraspTargetLayer
-from model.fcgn.bbox_transform_grasp import \
-    points2labels,labels2points,grasp_encode, grasp_decode
 
 from model.fcgn.bbox_transform_grasp import points2labels
 from model.utils.net_utils import _smooth_l1_loss

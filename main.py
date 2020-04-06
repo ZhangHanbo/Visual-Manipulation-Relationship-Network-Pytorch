@@ -158,8 +158,9 @@ def init_network(args, n_cls):
     if args.cuda:
         Network.cuda()
 
-    if args.mGPUs:
-        Network = nn.DataParallel(Network)
+    if len(args.mGPUs) > 0:
+        gpus = [int(i) for i in args.mGPUs.split('')]
+        Network = nn.DataParallel(Network, gpus)
 
     params = []
     for key, value in dict(Network.named_parameters()).items():
@@ -562,7 +563,7 @@ def train():
             optimizer.step()
 
             # record training information
-            if args.mGPUs:
+            if len(args.mGPUs) > 0:
                 if rpn_loss_cls is not None:
                     loss_rpn_cls += rpn_loss_cls.mean().data[0].item()
                 if rpn_loss_box is not None:
