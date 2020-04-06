@@ -1,6 +1,6 @@
 #include <THC/THC.h>
 #include <math.h>
-#include "cuda/psroi_pooling_kernel.h"
+#include "psroi_pooling_kernel.h"
 
 
 
