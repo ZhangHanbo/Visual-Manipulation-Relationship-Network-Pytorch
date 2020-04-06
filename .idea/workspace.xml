@@ -2,7 +2,10 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c9b880e4-a6e3-414a-b387-4aa4ff30b986" name="Default" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/psroi_pooling/src/psroi_pooling.cu.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/psroi_pooling/src/psroi_pooling_cuda.c" beforeDir="false" afterPath="$PROJECT_DIR$/model/psroi_pooling/src/psroi_pooling_cuda.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/psroi_pooling/src/psroi_pooling_kernel.cu" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/psroi_pooling/src/psroi_pooling_kernel.h" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
