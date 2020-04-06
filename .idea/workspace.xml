@@ -3,93 +3,7 @@
   <component name="ChangeListManager">
     <list default="true" id="c9b880e4-a6e3-414a-b387-4aa4ff30b986" name="Default" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/datasets/vmrd.py" beforeDir="false" afterPath="$PROJECT_DIR$/datasets/vmrd.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/make.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/FCGN.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/FCGN.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/FPN.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/FPN.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/FasterRCNN.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/FasterRCNN.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/FasterRCNN_VMRN.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/FasterRCNN_VMRN.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/SSD.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/SSD.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/SSD_VMRN.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/SSD_VMRN.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/VAM.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/VAM.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/nms/src/nms_cuda_kernel.cu.o" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/op2l/op2l.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/op2l/op2l.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/psroi_pooling/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/psroi_pooling/_ext/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/psroi_pooling/_ext/psroi_pooling/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/psroi_pooling/_ext/psroi_pooling/_psroi_pooling.so" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/psroi_pooling/build.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/psroi_pooling/functions/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/psroi_pooling/functions/psroi_pooling.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/psroi_pooling/modules/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/psroi_pooling/modules/psroi_pool.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/psroi_pooling/src/psroi_pooling.cu.o" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/psroi_pooling/src/psroi_pooling_cuda.c" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/psroi_pooling/src/psroi_pooling_cuda.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/psroi_pooling/src/psroi_pooling_kernel.cu" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/psroi_pooling/src/psroi_pooling_kernel.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_align/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_align/_ext/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_align/_ext/roi_align/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_align/_ext/roi_align/_roi_align.so" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_align/build.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_align/functions/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_align/functions/roi_align.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_align/make.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_align/modules/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_align/modules/roi_align.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_align/src/roi_align.c" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_align/src/roi_align.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_align/src/roi_align_cuda.c" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_align/src/roi_align_cuda.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_align/src/roi_align_kernel.cu" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_align/src/roi_align_kernel.cu.o" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_align/src/roi_align_kernel.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_crop/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_crop/_ext/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_crop/_ext/crop_resize/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_crop/_ext/crop_resize/_crop_resize.so" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_crop/_ext/roi_crop/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_crop/_ext/roi_crop/_roi_crop.so" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_crop/build.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_crop/functions/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_crop/functions/crop_resize.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_crop/functions/gridgen.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_crop/functions/roi_crop.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_crop/make.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_crop/modules/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_crop/modules/gridgen.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_crop/modules/roi_crop.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_crop/src/roi_crop.c" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_crop/src/roi_crop.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_crop/src/roi_crop_cuda.c" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_crop/src/roi_crop_cuda.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_crop/src/roi_crop_cuda_kernel.cu" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_crop/src/roi_crop_cuda_kernel.cu.o" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_crop/src/roi_crop_cuda_kernel.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_pooling/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_pooling/_ext/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_pooling/_ext/roi_pooling/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_pooling/_ext/roi_pooling/_roi_pooling.so" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_pooling/build.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_pooling/functions/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_pooling/functions/roi_pool.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_pooling/modules/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_pooling/modules/roi_pool.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_pooling/src/roi_pooling.c" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_pooling/src/roi_pooling.cu.o" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_pooling/src/roi_pooling.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_pooling/src/roi_pooling_cuda.c" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_pooling/src/roi_pooling_cuda.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_pooling/src/roi_pooling_kernel.cu" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_pooling/src/roi_pooling_kernel.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/rpn/proposal_layer.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/rpn/proposal_layer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/rpn/proposal_target_layer_cascade.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/rpn/proposal_target_layer_cascade.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/utils/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/utils/config.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/utils/net_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/utils/net_utils.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/setup.py" beforeDir="false" afterPath="$PROJECT_DIR$/setup.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -308,7 +222,7 @@
       <workItem from="1585978435152" duration="214000" />
       <workItem from="1585978694150" duration="20283000" />
       <workItem from="1586017762717" duration="867000" />
-      <workItem from="1586076426862" duration="14276000" />
+      <workItem from="1586076426862" duration="14629000" />
     </task>
     <servers />
   </component>
