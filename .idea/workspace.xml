@@ -2,18 +2,11 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c9b880e4-a6e3-414a-b387-4aa4ff30b986" name="Default" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/Visual-Manipulation-Relationship-Network-Pytorch.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/Visual-Manipulation-Relationship-Network-Pytorch.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/deployment.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/deployment.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/demo_ingress.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/images/a_det.jpg" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/Detectors.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/Detectors.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/rpn/bbox_transform.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/rpn/bbox_transform.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/utils/blob.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/utils/blob.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/utils/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/utils/config.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/utils/net_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/utils/net_utils.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/roi_data_layer/minibatch.py" beforeDir="false" afterPath="$PROJECT_DIR$/roi_data_layer/minibatch.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -74,7 +67,7 @@
       <recent name="$PROJECT_DIR$/data/Jacquard" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.demo_ingress_vmrn">
+  <component name="RunManager" selected="Python.main">
     <configuration name="demo_ingress" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="Visual-Manipulation-Relationship-Network-Pytorch" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -155,7 +148,7 @@
         <env name="PYTHONUNBUFFERED" value="1" />
         <env name="CUDA_VISIBLE_DEVICES" value="5" />
       </envs>
-      <option name="SDK_HOME" value="ssh://svc4@202.117.3.81:22/data0/svc4/workspace/pytorch/bin/python2.7" />
+      <option name="SDK_HOME" value="sftp://svc4@202.117.3.81:22/data0/svc4/workspace/pytorch-vmrn/bin/python" />
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
       <option name="IS_MODULE_SDK" value="false" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
@@ -201,8 +194,8 @@
     </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.demo_ingress_vmrn" />
         <item itemvalue="Python.main" />
+        <item itemvalue="Python.demo_ingress_vmrn" />
         <item itemvalue="Python.demo_ingress" />
         <item itemvalue="Python.efficientnet" />
         <item itemvalue="Python.resnet" />
@@ -240,10 +233,14 @@
     <option name="version" value="1" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="304" y="198" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1586014163259">
-      <screen x="0" y="23" width="1680" height="980" />
+    <state x="440" y="192" key="#Deployment" timestamp="1586149521668">
+      <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state x="304" y="188" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1586012938047" />
+    <state x="440" y="192" key="#Deployment/0.0.1680.1050@0.0.1680.1050" timestamp="1586149521668" />
+    <state x="304" y="188" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1586149583188">
+      <screen x="0" y="0" width="1680" height="1050" />
+    </state>
+    <state x="304" y="188" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1586149583188" />
     <state x="304" y="198" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.23.1680.980@0.23.1680.980" timestamp="1586014163259" />
     <state x="578" y="280" key="#com.intellij.refactoring.safeDelete.UnsafeUsagesDialog" timestamp="1586086642863">
       <screen x="0" y="0" width="1680" height="1050" />
@@ -258,34 +255,34 @@
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
     <state x="594" y="296" key="EnvironmentVariablesDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1586012225363" />
-    <state width="1638" height="337" key="GridCell.Tab.0.bottom" timestamp="1586086643048">
+    <state width="1638" height="337" key="GridCell.Tab.0.bottom" timestamp="1586149545536">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1638" height="337" key="GridCell.Tab.0.bottom/0.0.1680.1050@0.0.1680.1050" timestamp="1586086643048" />
+    <state width="1638" height="337" key="GridCell.Tab.0.bottom/0.0.1680.1050@0.0.1680.1050" timestamp="1586149545536" />
     <state width="1638" height="337" key="GridCell.Tab.0.bottom/0.23.1680.967@0.23.1680.967" timestamp="1586052821694" />
     <state width="1638" height="365" key="GridCell.Tab.0.bottom/0.23.1680.972@0.23.1680.972" timestamp="1586077871524" />
     <state width="1638" height="327" key="GridCell.Tab.0.bottom/0.23.1680.978@0.23.1680.978" timestamp="1586013788321" />
     <state width="1180" height="302" key="GridCell.Tab.0.bottom/0.23.1680.980@0.23.1680.980" timestamp="1586017483410" />
-    <state width="1638" height="337" key="GridCell.Tab.0.center" timestamp="1586086643047">
+    <state width="1638" height="337" key="GridCell.Tab.0.center" timestamp="1586149545535">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1638" height="337" key="GridCell.Tab.0.center/0.0.1680.1050@0.0.1680.1050" timestamp="1586086643047" />
+    <state width="1638" height="337" key="GridCell.Tab.0.center/0.0.1680.1050@0.0.1680.1050" timestamp="1586149545535" />
     <state width="1638" height="337" key="GridCell.Tab.0.center/0.23.1680.967@0.23.1680.967" timestamp="1586052821693" />
     <state width="1638" height="365" key="GridCell.Tab.0.center/0.23.1680.972@0.23.1680.972" timestamp="1586077871522" />
     <state width="1638" height="327" key="GridCell.Tab.0.center/0.23.1680.978@0.23.1680.978" timestamp="1586013788319" />
     <state width="1180" height="302" key="GridCell.Tab.0.center/0.23.1680.980@0.23.1680.980" timestamp="1586017483410" />
-    <state width="1638" height="337" key="GridCell.Tab.0.left" timestamp="1586086643046">
+    <state width="1638" height="337" key="GridCell.Tab.0.left" timestamp="1586149545534">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1638" height="337" key="GridCell.Tab.0.left/0.0.1680.1050@0.0.1680.1050" timestamp="1586086643046" />
+    <state width="1638" height="337" key="GridCell.Tab.0.left/0.0.1680.1050@0.0.1680.1050" timestamp="1586149545534" />
     <state width="1638" height="337" key="GridCell.Tab.0.left/0.23.1680.967@0.23.1680.967" timestamp="1586052821692" />
     <state width="1638" height="365" key="GridCell.Tab.0.left/0.23.1680.972@0.23.1680.972" timestamp="1586077871521" />
     <state width="1638" height="327" key="GridCell.Tab.0.left/0.23.1680.978@0.23.1680.978" timestamp="1586013788318" />
     <state width="1180" height="302" key="GridCell.Tab.0.left/0.23.1680.980@0.23.1680.980" timestamp="1586017483409" />
-    <state width="1638" height="337" key="GridCell.Tab.0.right" timestamp="1586086643048">
+    <state width="1638" height="337" key="GridCell.Tab.0.right" timestamp="1586149545536">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1638" height="337" key="GridCell.Tab.0.right/0.0.1680.1050@0.0.1680.1050" timestamp="1586086643048" />
+    <state width="1638" height="337" key="GridCell.Tab.0.right/0.0.1680.1050@0.0.1680.1050" timestamp="1586149545536" />
     <state width="1638" height="337" key="GridCell.Tab.0.right/0.23.1680.967@0.23.1680.967" timestamp="1586052821693" />
     <state width="1638" height="365" key="GridCell.Tab.0.right/0.23.1680.972@0.23.1680.972" timestamp="1586077871523" />
     <state width="1638" height="327" key="GridCell.Tab.0.right/0.23.1680.978@0.23.1680.978" timestamp="1586013788320" />
@@ -322,19 +319,19 @@
     <state width="1638" height="365" key="GridCell.Tab.1.right/0.23.1680.972@0.23.1680.972" timestamp="1586080187942" />
     <state width="1638" height="327" key="GridCell.Tab.1.right/0.23.1680.978@0.23.1680.978" timestamp="1586013803780" />
     <state width="1180" height="327" key="GridCell.Tab.1.right/0.23.1680.980@0.23.1680.980" timestamp="1586017483405" />
-    <state x="341" y="164" key="SettingsEditor" timestamp="1585980523451">
+    <state x="341" y="164" key="SettingsEditor" timestamp="1586149469849">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state x="341" y="164" key="SettingsEditor/0.0.1680.1050@0.0.1680.1050" timestamp="1585980523451" />
+    <state x="341" y="164" key="SettingsEditor/0.0.1680.1050@0.0.1680.1050" timestamp="1586149469849" />
     <state x="494" y="347" key="com.intellij.ide.util.TipDialog" timestamp="1586076429523">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
     <state x="494" y="347" key="com.intellij.ide.util.TipDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1586076429523" />
     <state x="494" y="345" key="com.intellij.ide.util.TipDialog/0.23.1680.975@0.23.1680.975" timestamp="1585879041713" />
-    <state x="899" y="202" key="ftp.server.browser" timestamp="1585980502274">
+    <state x="899" y="202" key="ftp.server.browser" timestamp="1586149462635">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state x="899" y="202" key="ftp.server.browser/0.0.1680.1050@0.0.1680.1050" timestamp="1585980502274" />
+    <state x="899" y="202" key="ftp.server.browser/0.0.1680.1050@0.0.1680.1050" timestamp="1586149462635" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -361,7 +358,8 @@
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$demo_ingress_vmrn.coverage" NAME="demo_ingress_vmrn Coverage Results" MODIFIED="1586086023466" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$main.coverage" NAME="main Coverage Results" MODIFIED="1586014423062" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$main.coverage" NAME="main Coverage Results" MODIFIED="1586149533888" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$demo_ingress.coverage" NAME="demo_ingress Coverage Results" MODIFIED="1585999183285" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$net_utils.coverage" NAME="net_utils Coverage Results" MODIFIED="1586146938600" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/model/utils" />
   </component>
 </project>

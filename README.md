@@ -1,4 +1,7 @@
 # Visual Manipulation Relationship Network
+
+#### News! Pytorch 1.0 is supported now. Please see branch pytorch1.0.
+
 ## Introduction
 This package includes our latest proposed robotic grasping algorithms. Main framework is based on code of Faster RCNN (https://github.com/jwyang/faster-rcnn.pytorch).
 
@@ -68,7 +71,8 @@ F-VMRN | VGG-16 | VMRDtrainval | VMRDtest | 95.0 | - | 68.7
 * [ ] Complete VAM model
 * [ ] COCO, VisualGenome Support
 * [ ] Multi-GPU Support
-* [ ] PyTorch 1.0 and Python3 Support
+* [x] PyTorch 1.0 Support (see branch pytorch1.0)
+* [ ] Python3 Support
 
 ## Noteable Things
 1. To train the network, you have to pre-download the pretrained models and put them in "data/pretrained_model" and name them the same as the usage in codes.
