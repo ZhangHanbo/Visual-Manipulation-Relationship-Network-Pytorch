@@ -7,13 +7,7 @@
 
 
 from __future__ import absolute_import
-import random
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torchvision.models as models
-from torch.autograd import Variable
-import numpy as np
 from model.utils.config import cfg
 
 from model.roi_layers import ROIAlign, ROIPool

@@ -2,8 +2,38 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c9b880e4-a6e3-414a-b387-4aa4ff30b986" name="Default" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/deployment.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/deployment.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/webServers.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/webServers.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/csrc/ROIAlign.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/csrc/ROIPool.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/csrc/cpu/ROIAlign_cpu.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/csrc/cpu/nms_cpu.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/csrc/cpu/vision.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/csrc/cuda/ROIAlign_cuda.cu" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/csrc/cuda/ROIPool_cuda.cu" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/csrc/cuda/nms.cu" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/csrc/cuda/vision.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/csrc/nms.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/csrc/vision.cpp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/nms/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/nms/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/nms/_ext/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/nms/_ext/nms/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/nms/build.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/nms/make.sh" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/nms/nms_cpu.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/nms/nms_gpu.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/nms/nms_kernel.cu" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/nms/nms_wrapper.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/nms/src/nms_cuda.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/nms/src/nms_cuda_kernel.cu" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/nms/src/nms_cuda_kernel.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/op2l/op2l.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/op2l/op2l.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/roi_layers/nms.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/roi_layers/nms.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/roi_layers/roi_align.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/roi_layers/roi_align.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/roi_layers/roi_pool.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/roi_layers/roi_pool.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/rpn/rpn.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/rpn/rpn.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -223,6 +253,7 @@
       <workItem from="1585978694150" duration="20283000" />
       <workItem from="1586017762717" duration="867000" />
       <workItem from="1586076426862" duration="14629000" />
+      <workItem from="1586245013735" duration="184000" />
     </task>
     <servers />
   </component>
@@ -230,10 +261,10 @@
     <option name="version" value="1" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="304" y="188" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1586146507833">
+    <state x="304" y="188" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1586245226871">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state x="304" y="188" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1586146507833" />
+    <state x="304" y="188" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1586245226871" />
     <state x="304" y="198" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.23.1680.980@0.23.1680.980" timestamp="1586014163259" />
     <state x="578" y="280" key="#com.intellij.refactoring.safeDelete.UnsafeUsagesDialog" timestamp="1586086642863">
       <screen x="0" y="0" width="1680" height="1050" />
@@ -248,34 +279,34 @@
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
     <state x="594" y="296" key="EnvironmentVariablesDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1586012225363" />
-    <state width="1638" height="337" key="GridCell.Tab.0.bottom" timestamp="1586147740846">
+    <state width="1638" height="337" key="GridCell.Tab.0.bottom" timestamp="1586245215604">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1638" height="337" key="GridCell.Tab.0.bottom/0.0.1680.1050@0.0.1680.1050" timestamp="1586147740846" />
+    <state width="1638" height="337" key="GridCell.Tab.0.bottom/0.0.1680.1050@0.0.1680.1050" timestamp="1586245215604" />
     <state width="1638" height="337" key="GridCell.Tab.0.bottom/0.23.1680.967@0.23.1680.967" timestamp="1586052821694" />
     <state width="1638" height="365" key="GridCell.Tab.0.bottom/0.23.1680.972@0.23.1680.972" timestamp="1586077871524" />
     <state width="1638" height="327" key="GridCell.Tab.0.bottom/0.23.1680.978@0.23.1680.978" timestamp="1586013788321" />
     <state width="1180" height="302" key="GridCell.Tab.0.bottom/0.23.1680.980@0.23.1680.980" timestamp="1586017483410" />
-    <state width="1638" height="337" key="GridCell.Tab.0.center" timestamp="1586147740845">
+    <state width="1638" height="337" key="GridCell.Tab.0.center" timestamp="1586245215603">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1638" height="337" key="GridCell.Tab.0.center/0.0.1680.1050@0.0.1680.1050" timestamp="1586147740845" />
+    <state width="1638" height="337" key="GridCell.Tab.0.center/0.0.1680.1050@0.0.1680.1050" timestamp="1586245215603" />
     <state width="1638" height="337" key="GridCell.Tab.0.center/0.23.1680.967@0.23.1680.967" timestamp="1586052821693" />
     <state width="1638" height="365" key="GridCell.Tab.0.center/0.23.1680.972@0.23.1680.972" timestamp="1586077871522" />
     <state width="1638" height="327" key="GridCell.Tab.0.center/0.23.1680.978@0.23.1680.978" timestamp="1586013788319" />
     <state width="1180" height="302" key="GridCell.Tab.0.center/0.23.1680.980@0.23.1680.980" timestamp="1586017483410" />
-    <state width="1638" height="337" key="GridCell.Tab.0.left" timestamp="1586147740844">
+    <state width="1638" height="337" key="GridCell.Tab.0.left" timestamp="1586245215603">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1638" height="337" key="GridCell.Tab.0.left/0.0.1680.1050@0.0.1680.1050" timestamp="1586147740844" />
+    <state width="1638" height="337" key="GridCell.Tab.0.left/0.0.1680.1050@0.0.1680.1050" timestamp="1586245215603" />
     <state width="1638" height="337" key="GridCell.Tab.0.left/0.23.1680.967@0.23.1680.967" timestamp="1586052821692" />
     <state width="1638" height="365" key="GridCell.Tab.0.left/0.23.1680.972@0.23.1680.972" timestamp="1586077871521" />
     <state width="1638" height="327" key="GridCell.Tab.0.left/0.23.1680.978@0.23.1680.978" timestamp="1586013788318" />
     <state width="1180" height="302" key="GridCell.Tab.0.left/0.23.1680.980@0.23.1680.980" timestamp="1586017483409" />
-    <state width="1638" height="337" key="GridCell.Tab.0.right" timestamp="1586147740845">
+    <state width="1638" height="337" key="GridCell.Tab.0.right" timestamp="1586245215604">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1638" height="337" key="GridCell.Tab.0.right/0.0.1680.1050@0.0.1680.1050" timestamp="1586147740845" />
+    <state width="1638" height="337" key="GridCell.Tab.0.right/0.0.1680.1050@0.0.1680.1050" timestamp="1586245215604" />
     <state width="1638" height="337" key="GridCell.Tab.0.right/0.23.1680.967@0.23.1680.967" timestamp="1586052821693" />
     <state width="1638" height="365" key="GridCell.Tab.0.right/0.23.1680.972@0.23.1680.972" timestamp="1586077871523" />
     <state width="1638" height="327" key="GridCell.Tab.0.right/0.23.1680.978@0.23.1680.978" timestamp="1586013788320" />
@@ -346,7 +377,7 @@
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$demo_ingress_vmrn.coverage" NAME="demo_ingress_vmrn Coverage Results" MODIFIED="1586086023466" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$main.coverage" NAME="main Coverage Results" MODIFIED="1586147740836" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$main.coverage" NAME="main Coverage Results" MODIFIED="1586245215595" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$demo_ingress.coverage" NAME="demo_ingress Coverage Results" MODIFIED="1585999183285" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$net_utils.coverage" NAME="net_utils Coverage Results" MODIFIED="1586146938600" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/model/utils" />
   </component>
