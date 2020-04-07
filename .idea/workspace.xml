@@ -2,38 +2,10 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c9b880e4-a6e3-414a-b387-4aa4ff30b986" name="Default" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/deployment.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/deployment.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/webServers.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/webServers.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/csrc/ROIAlign.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/csrc/ROIPool.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/csrc/cpu/ROIAlign_cpu.cpp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/csrc/cpu/nms_cpu.cpp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/csrc/cpu/vision.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/csrc/cuda/ROIAlign_cuda.cu" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/csrc/cuda/ROIPool_cuda.cu" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/csrc/cuda/nms.cu" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/csrc/cuda/vision.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/csrc/nms.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/csrc/vision.cpp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/nms/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/nms/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/nms/_ext/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/nms/_ext/nms/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/nms/build.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/nms/make.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/nms/nms_cpu.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/nms/nms_gpu.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/nms/nms_kernel.cu" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/nms/nms_wrapper.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/nms/src/nms_cuda.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/nms/src/nms_cuda_kernel.cu" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/nms/src/nms_cuda_kernel.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/op2l/op2l.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/op2l/op2l.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_layers/nms.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/roi_layers/nms.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_layers/roi_align.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/roi_layers/roi_align.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/roi_layers/roi_pool.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/roi_layers/roi_pool.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/rpn/rpn.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/rpn/rpn.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/fcgn/bbox_transform_grasp.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/fcgn/bbox_transform_grasp.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/fcgn/grasp_proposal_target.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/fcgn/grasp_proposal_target.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -254,6 +226,7 @@
       <workItem from="1586017762717" duration="867000" />
       <workItem from="1586076426862" duration="14629000" />
       <workItem from="1586245013735" duration="184000" />
+      <workItem from="1586250646546" duration="328000" />
     </task>
     <servers />
   </component>

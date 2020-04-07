@@ -6,12 +6,6 @@
 # --------------------------------------------------------
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.autograd import Variable
-import os
-
-import torch.nn.init as init
 from model.utils.config import cfg
 import numpy as np
 import cv2
@@ -31,7 +25,7 @@ def points2labels(points):
                                 + torch.pow((points[:, :, 3] - points[:, :, 5]), 2))
     label[:, :, 4] = - torch.atan((points[:, :, 3] - points[:, :, 1]) / (points[:, :, 2] - points[:, :, 0]))
     label[:, :, 4] = label[:, :, 4] / np.pi * 180
-    label[:, :, 4][np.isnan(label[:, :, 4])] = 0
+    label[:, :, 4][label[:, :, 4] != label[:, :, 4]] = 0
     return label
 
 def labels2points(label):

@@ -21,8 +21,9 @@ performance of our own algorithms. Certainly, all my new works related to roboti
 also be contained in this package.
 
 ## Installation
-1. Follow https://github.com/jwyang/faster-rcnn.pytorch to make sure that Faster-RCNN works fine.
-2. Run codes.
+
+Since we use torchvision.ops instead of all C expansions in pytorch-1.0 version, all codes can run normally without
+any extra building. Follow training example to enjoy it.
 
 ## Training Example
 ```bash

@@ -195,7 +195,7 @@ class _GraspTargetLayer(nn.Module):
                 + neg.gt(0).float()) / ((num_pos + num_neg)|1).float()
             ow = ow.unsqueeze(2).expand(conf.size(0), -1, 5)
 
-        if np.isnan(ow.data).sum() > 0:
+        if (ow != ow).sum().item() > 0:
             pdb.set_trace()
 
         if (neg.gt(0) & pos.gt(0)).sum().item() > 0:
