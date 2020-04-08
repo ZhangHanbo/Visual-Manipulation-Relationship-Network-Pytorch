@@ -85,7 +85,7 @@ class VMRN(nn.Module):
 
         for i in range(batch_size):
             obj_boxes = torch.Tensor(objdet_inference(cls_prob[i], bbox_pred[i], im_info[i], rois[i][:, 1:5],
-                                                      class_agnostic = self.class_agnostic, n_classes = self.n_classes,
+                                                      class_agnostic = self.class_agnostic,
                                                       for_vis = True, recover_imscale=False)).type_as(det_results)
             obj_num.append(obj_boxes.size(0))
             if obj_num[-1] > 0 :

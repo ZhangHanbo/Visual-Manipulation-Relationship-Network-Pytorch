@@ -438,13 +438,13 @@ class vmrd(pascal_voc):
                 rel_ind += 1
         return tp, fp, ngt_rel
 
-    def evaluate_multigrasp_detections(self, all_boxes, all_grasp):
+    def evaluate_multigrasp_detections(self, all_boxes, all_grasp, object_class_agnostic = False):
         print('-----------------------------------------------------')
         print('Computing results of Multi-Grasp Detection.')
         print('-----------------------------------------------------')
         print('Evaluating MR-FPPI...')
         # 100 points MissRate-FPPI
-        grasp_MRFPPI, APs = self.evaluate_multigrasp_MRFPPI(all_boxes, all_grasp)
+        grasp_MRFPPI, APs = self.evaluate_multigrasp_MRFPPI(all_boxes, all_grasp, object_class_agnostic)
         print('Evaluating Completed...')
         print('Log-Average Miss Rate Results...')
         mean_grasp_MRFPPI = []
@@ -477,7 +477,7 @@ class vmrd(pascal_voc):
 
         return grasp_MRFPPI, mean_grasp_MRFPPI, key_point_MRFPPI, np.mean(APs[np.nonzero(1-np.isnan(APs))])
 
-    def evaluate_multigrasp_MRFPPI(self, all_boxes, all_grasp):
+    def evaluate_multigrasp_MRFPPI(self, all_boxes, all_grasp, object_class_agnostic = False):
         MRFPPI = []
         AP = []
         boxthresh = 0.5
@@ -485,7 +485,7 @@ class vmrd(pascal_voc):
         gr_angth = 30
         cls_dets_all = []
         GTall = 0.
-        for cls in range(1, len(self.classes)):
+        for cls in range(1, len(all_boxes)):
             GT = 0.
             # NUM_IMG = 0.
             # all detection results across all the test images.
@@ -499,8 +499,12 @@ class vmrd(pascal_voc):
                         continue
                     else:
                         # NUM_IMG += 1
-                        boxannoindex = boxanno['node_inds'][boxanno['gt_classes'] == cls]
-                        boxanno = boxanno['boxes'][boxanno['gt_classes'] == cls]
+                        if object_class_agnostic:
+                            boxannoindex = boxanno['node_inds']
+                            boxanno = boxanno['boxes']
+                        else:
+                            boxannoindex = boxanno['node_inds'][boxanno['gt_classes'] == cls]
+                            boxanno = boxanno['boxes'][boxanno['gt_classes'] == cls]
                         GT += boxanno.shape[0]
 
                         graspanno = self._load_grasp_annotation(index)
@@ -584,7 +588,8 @@ class vmrd(pascal_voc):
 
             # and sum (\Delta recall) * prec
             ap = np.sum((mrec[i + 1] - mrec[i]) * mpre[i + 1])
-            print("AP with grasp detection for %s: %.4f" % (self._classes[cls], ap))
+            if not object_class_agnostic:
+                print("AP with grasp detection for %s: %.4f" % (self._classes[cls], ap))
             AP.append(ap)
 
             #MRFPPI.append(np.concatenate([

@@ -51,8 +51,6 @@ class SSD(objectDetector):
         n_channels = [f.size(1) for f in rand_feat]
 
         self.size = cfg.SCALES[0]
-        self.classes = classes
-        self.num_classes = len(self.classes)
         self.priors_cfg = self._init_prior_cfg()
         self.priorbox = PriorBox(self.priors_cfg)
         self.priors_xywh = Variable(self.priorbox.forward())
@@ -69,7 +67,7 @@ class SSD(objectDetector):
         # Layer learns to scale the l2 normalized features from conv4_3
         self.L2Norm = L2Norm(512, 20)
         self.softmax = nn.Softmax(dim=-1)
-        self.criterion = MultiBoxLoss(self.num_classes)
+        self.criterion = MultiBoxLoss(self.n_classes)
 
         mbox_cfg = []
         for i in cfg.SSD.PRIOR_ASPECT_RATIO:
@@ -81,9 +79,9 @@ class SSD(objectDetector):
 
         # conv 4_3 detector
         self.loc.append(
-            nn.Conv2d(n_channels[0], mbox_cfg[0] * 4 if self.class_agnostic else mbox_cfg[0] * 4 * self.num_classes
+            nn.Conv2d(n_channels[0], mbox_cfg[0] * 4 if self.class_agnostic else mbox_cfg[0] * 4 * self.n_classes
                       , kernel_size=3, padding=1))
-        self.conf.append(nn.Conv2d(n_channels[0], mbox_cfg[0] * self.num_classes, kernel_size=3, padding=1))
+        self.conf.append(nn.Conv2d(n_channels[0], mbox_cfg[0] * self.n_classes, kernel_size=3, padding=1))
 
         # conv 7 detector
         self.extra_conv.append(nn.Sequential(
@@ -92,9 +90,9 @@ class SSD(objectDetector):
             nn.ReLU(inplace=True),
             nn.Conv2d(1024, 1024, kernel_size=1),
             nn.ReLU(inplace=True)))
-        self.loc.append(nn.Conv2d(1024, mbox_cfg[1] * 4 if self.class_agnostic else mbox_cfg[1] * 4 * self.num_classes,
+        self.loc.append(nn.Conv2d(1024, mbox_cfg[1] * 4 if self.class_agnostic else mbox_cfg[1] * 4 * self.n_classes,
                                   kernel_size=3, padding=1))
-        self.conf.append(nn.Conv2d(1024, mbox_cfg[1] * self.num_classes, kernel_size=3, padding=1))
+        self.conf.append(nn.Conv2d(1024, mbox_cfg[1] * self.n_classes, kernel_size=3, padding=1))
 
         def add_extra_conv(extra_conv, loc, conf, in_c, mid_c, out_c, downsamp, mbox, n_cls, cag):
             extra_conv.append(nn.Sequential(
@@ -106,10 +104,10 @@ class SSD(objectDetector):
             loc.append(nn.Conv2d(out_c, mbox * 4 if cag else mbox * 4 * n_cls, kernel_size=3, padding=1))
             conf.append(nn.Conv2d(out_c, mbox * n_cls, kernel_size=3, padding=1))
 
-        add_extra_conv(self.extra_conv, self.loc, self.conf, 1024, 256, 512, True, mbox_cfg[2], self.num_classes, self.class_agnostic)
-        add_extra_conv(self.extra_conv, self.loc, self.conf, 512, 128, 256, True, mbox_cfg[3], self.num_classes, self.class_agnostic)
-        add_extra_conv(self.extra_conv, self.loc, self.conf, 256, 128, 256, False, mbox_cfg[4], self.num_classes, self.class_agnostic)
-        add_extra_conv(self.extra_conv, self.loc, self.conf, 256, 128, 256, False, mbox_cfg[5], self.num_classes, self.class_agnostic)
+        add_extra_conv(self.extra_conv, self.loc, self.conf, 1024, 256, 512, True, mbox_cfg[2], self.n_classes, self.class_agnostic)
+        add_extra_conv(self.extra_conv, self.loc, self.conf, 512, 128, 256, True, mbox_cfg[3], self.n_classes, self.class_agnostic)
+        add_extra_conv(self.extra_conv, self.loc, self.conf, 256, 128, 256, False, mbox_cfg[4], self.n_classes, self.class_agnostic)
+        add_extra_conv(self.extra_conv, self.loc, self.conf, 256, 128, 256, False, mbox_cfg[5], self.n_classes, self.class_agnostic)
 
         self.iter_counter = 0
 
@@ -125,7 +123,7 @@ class SSD(objectDetector):
         conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)
 
         loc = loc.view(loc.size(0), -1, 4)
-        conf = conf.view(conf.size(0), -1, self.num_classes)
+        conf = conf.view(conf.size(0), -1, self.n_classes)
         return loc, conf
 
     def forward(self, data_batch):
@@ -192,7 +190,7 @@ class SSD(objectDetector):
                 m.bias.data.zero_()
 
         # initialize newly added layers' weights with xavier method
-        self.extras.apply(weights_init)
+        self.extra_conv.apply(weights_init)
         self.loc.apply(weights_init)
         self.conf.apply(weights_init)
 

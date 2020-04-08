@@ -325,7 +325,7 @@ def box_filter(box, box_scores, thresh, use_nms = True):
         order = np.array([], dtype=np.int32)
     return cls_dets, cls_scores, (inds.cpu().numpy())[order]
 
-def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agnostic = True, n_classes = None,
+def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agnostic = True,
                      for_vis = False, recover_imscale = True):
     """
     :param cls_prob: predicted class info
@@ -339,6 +339,7 @@ def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agno
     :return: a list of bounding boxes, one class corresponding to one element. If for_vis, they will be concatenated.
     """
     assert box_output.dim() == 2, "Multi-instance batch inference has not been implemented."
+    n_classes = cls_prob.shape[1]
 
     if for_vis:
         thresh = cfg.TEST.COMMON.OBJ_DET_THRESHOLD
@@ -417,7 +418,7 @@ def grasp_inference(cls_prob, box_output, im_info, box_prior = None, topN = Fals
     return grasps
 
 def objgrasp_inference(o_cls_prob, o_box_output, g_cls_prob, g_box_output, im_info, rois = None,
-                       class_agnostic = True, n_classes = None, g_box_prior = None, for_vis = False, topN_g = False,
+                       class_agnostic = True, g_box_prior = None, for_vis = False, topN_g = False,
                        recover_imscale = True):
     """
     :param o_cls_prob: N x N_cls tensor
@@ -436,6 +437,7 @@ def objgrasp_inference(o_cls_prob, o_box_output, g_cls_prob, g_box_output, im_in
     """
     o_scores = o_cls_prob
     rois = rois[:, 1:5]
+    n_classes = o_cls_prob.shape[1]
 
     g_scores = g_cls_prob
 

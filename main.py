@@ -117,7 +117,7 @@ def init_network(args, n_cls):
 
     elif args.frame == 'efficientdet':
         Network = EfficientDet(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
-                               feat_list=('conv3', 'conv4', 'conv5', 'conv6', 'conv7'), pretrained=False)
+                               feat_list=('conv3', 'conv4', 'conv5', 'conv6', 'conv7'), pretrained=True)
     elif args.frame == 'vam':
         if args.net == 'vgg16':
             Network = VAM.vgg16(n_cls, pretrained=True)
@@ -320,12 +320,12 @@ def evalute_model(Network, namedb, args):
         if args.frame in {'ssd', 'fpn', 'faster_rcnn', 'faster_rcnn_vmrn', 'ssd_vmrn', 'vam', 'efficientdet'}:
             # detected_box is a list of boxes. len(list) = num_classes
             det_box = objdet_inference(cls_prob[0].data, bbox_pred[0].data, data_batch[1][0].data,
-                        box_prior=boxes[0].data, class_agnostic=args.class_agnostic, n_classes=imdb.num_classes, for_vis=False)
+                        box_prior=boxes[0].data, class_agnostic=args.class_agnostic, for_vis=False)
             if args.vis:
                 if args.frame not in {'faster_rcnn_vmrn', 'ssd_vmrn', 'vam'}:
                     vis_boxes = objdet_inference(cls_prob[0].data, bbox_pred[0].data, data_batch[1][0].data,
                                      box_prior=boxes[0].data, class_agnostic=args.class_agnostic,
-                                     n_classes=imdb.num_classes, for_vis=True)
+                                     for_vis=True)
                     data_list = [data_batch[0][0], data_batch[1][0], torch.Tensor(vis_boxes)]
                 else:
                     det_res = all_rel[-1]
@@ -338,21 +338,21 @@ def evalute_model(Network, namedb, args):
                                  torch.Tensor([vis_boxes.size(0)]), torch.Tensor(rel_mat)]
             if max_per_image > 0:
                 det_box = detection_filter(det_box, None, max_per_image)
-            for j in xrange(1, imdb.num_classes):
+            for j in xrange(1, len(det_box)):
                 all_boxes[j][i] = det_box[j]
 
         elif args.frame in {'mgn', 'all_in_one'}:
-            det_box, det_grasps = objgrasp_inference(cls_prob[0].data if cls_prob is not None else cls_prob,
+            det_box, det_grasps = objgrasp_inference(cls_prob[0].data,
                         bbox_pred[0].data if bbox_pred is not None else bbox_pred,
                         grasp_prob.data, grasp_loc.data, data_batch[1][0].data, rois[0].data,
-                        class_agnostic=args.class_agnostic, n_classes=imdb.num_classes,
+                        class_agnostic=args.class_agnostic,
                         g_box_prior=grasp_all_anchors.data, for_vis=False, topN_g = 1)
             if args.vis:
-                vis_boxes, vis_grasps = objgrasp_inference(cls_prob[0].data if cls_prob is not None else cls_prob,
+                vis_boxes, vis_grasps = objgrasp_inference(cls_prob[0].data,
                              bbox_pred[0].data if bbox_pred is not None else bbox_pred,
                              grasp_prob.data, grasp_loc.data, data_batch[1][0].data, rois[0].data,
-                             class_agnostic=args.class_agnostic, n_classes=imdb.num_classes,
-                             g_box_prior=grasp_all_anchors.data, for_vis=True, topN_g=5)
+                             class_agnostic=args.class_agnostic,
+                             g_box_prior=grasp_all_anchors.data, for_vis=True, topN_g=3)
                 if vis_boxes.shape[0] > 0:
                     g_inds = torch.Tensor(np.arange(vis_boxes.shape[0])).unsqueeze(1).repeat(1, vis_grasps.shape[1]) + 1
                 else:
@@ -361,7 +361,7 @@ def evalute_model(Network, namedb, args):
                              torch.Tensor(vis_grasps).view(-1, vis_grasps.shape[-1]), g_inds.long().view(-1)]
             if max_per_image > 0:
                 det_box, det_grasps = detection_filter(det_box, det_grasps, max_per_image)
-            for j in xrange(1, imdb.num_classes):
+            for j in xrange(1, len(det_box)):
                 all_boxes[j][i] = det_box[j]
                 all_grasp[j][i] = det_grasps[j]
         elif args.frame in {'fcgn'}:
@@ -397,7 +397,9 @@ def evalute_model(Network, namedb, args):
             pass
         else:
             print('Evaluating grasp detection results')
-            grasp_MRFPPI, mean_MRFPPI, key_point_MRFPPI, mAPgrasp = imdb.evaluate_multigrasp_detections(all_boxes, all_grasp)
+            oag = False if Network.use_objdet_branch else True
+            grasp_MRFPPI, mean_MRFPPI, key_point_MRFPPI, mAPgrasp = \
+                        imdb.evaluate_multigrasp_detections(all_boxes, all_grasp, object_class_agnostic = oag)
             print('Mean Log-Average Miss Rate: %.4f' % np.mean(np.array(mean_MRFPPI)))
             result = mAPgrasp
 
