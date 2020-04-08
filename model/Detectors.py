@@ -33,11 +33,13 @@ class detector(nn.Module):
             return resnet_initializer(self.feat_name, self.feat_list, self.pretrained)
         elif 'vgg' in self.feat_name:
             return vgg_initializer(self.feat_name, self.feat_list, self.pretrained)
-        elif 'efficientnet' in self.feat_name:
+        elif 'efcnet' in self.feat_name:
             if self.pretrained:
-                return EfficientNet.from_pretrained(self.feat_name, feat_list = self.feat_list)
+                return EfficientNet.from_pretrained(self.feat_name.replace("efcnet", "efficientnet-"),
+                                                    feat_list = self.feat_list)
             else:
-                return EfficientNet.from_name(self.feat_name, override_params={'feat_list': self.feat_list})
+                return EfficientNet.from_name(self.feat_name.replace("efcnet", "efficientnet-"),
+                                              override_params={'feat_list': self.feat_list})
 
 class graspDetector(detector):
     __metaclass__ = abc.ABCMeta

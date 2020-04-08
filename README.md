@@ -65,6 +65,10 @@ F-VMRN | VGG-16 | VMRDtrainval | VMRDtest | 95.0 | - | 68.7
 |:---:|:---:|
 | Rel-IA of F-VMRN_VGG16 | Rel-IA of F-VMRN_ResNet101 |
 
+| <img src="results/faster_rcnn_pascal_voc.png" width = "300" div align=left /> |
+|:---:|
+| mAP of Faster-RCNN on VOC2007|
+
 ## TODO
 
 * [ ] Performance of SSD, S-VMRN, All-In-One
@@ -99,3 +103,4 @@ you should check the configurations so that they are same as the claimed ones (e
 2. There are some grasp and relation label errors in VMRD. However, I find that they do not affect the detection performance much. I will fix this problem as soon as possible.
 3. This package only supports pytorch 0.4.0. When using 0.4.1, there will be segmentation fault (reasons not found).
 4. When training VMRN, the batchsize should be at least 2. Otherwise the network will not reach convergence.
+5. All vggXX_bns cannot work well.

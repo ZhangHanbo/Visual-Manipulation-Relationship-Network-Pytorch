@@ -146,7 +146,7 @@ def _focal_loss(cls_prob, labels, alpha = 0.25, gamma = 2):
     alphas[labels == 0] = 1. - alpha
     alphas[labels > 0] = alpha
 
-    loss_cls = (loss_cls * focal_weights * alphas).sum() / torch.sum(labels > 0).float()
+    loss_cls = (loss_cls * focal_weights * alphas).sum() / torch.clamp(torch.sum(labels > 0).float(), min = 1.0)
     # loss_cls = (loss_cls * focal_weights * alphas).mean()
 
     return loss_cls
@@ -344,7 +344,7 @@ def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agno
     if for_vis:
         thresh = cfg.TEST.COMMON.OBJ_DET_THRESHOLD
     else:
-        thresh = 0.
+        thresh = 0.01
 
     scores = cls_prob
 

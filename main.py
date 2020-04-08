@@ -47,7 +47,7 @@ torch.set_default_tensor_type(torch.FloatTensor)
 
 # implemented-algorithm list
 LEGAL_FRAMES = {"faster_rcnn", "ssd", "fpn", "faster_rcnn_vmrn", "ssd_vmrn", "all_in_one", "fcgn", "mgn", "vam",
-                "efficientdet"}
+                "efc_det"}
 
 class sampler(Sampler):
     def __init__(self, train_size, batch_size):
@@ -115,7 +115,7 @@ def init_network(args, n_cls):
         Network = SSD_VMRN(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
                       feat_list=('conv3', 'conv4'), pretrained=True)
 
-    elif args.frame == 'efficientdet':
+    elif args.frame == 'efc_det':
         Network = EfficientDet(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
                                feat_list=('conv3', 'conv4', 'conv5', 'conv6', 'conv7'), pretrained=True)
     elif args.frame == 'vam':
@@ -228,7 +228,7 @@ def evalute_model(Network, namedb, args):
 
     # load test dataset
     imdb, roidb, ratio_list, ratio_index = combined_roidb(namedb, False)
-    if args.frame in {"fpn", "faster_rcnn", "efficientdet"}:
+    if args.frame in {"fpn", "faster_rcnn", "efc_det"}:
         dataset = objdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
                            imdb.num_classes, training=False, cls_list=imdb.classes, augmentation=False)
     elif args.frame in {"ssd"}:
@@ -289,7 +289,7 @@ def evalute_model(Network, namedb, args):
         if args.frame == 'faster_rcnn' or args.frame == 'fpn':
             rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_box, net_loss_cls, net_loss_bbox, rois_label = Network(data_batch)
             boxes = rois[:, :, 1:5]
-        elif args.frame in {'ssd', 'efficientdet'}:
+        elif args.frame in {'ssd', 'efc_det'}:
             bbox_pred, cls_prob, net_loss_bbox, net_loss_cls = Network(data_batch)
             boxes = Network.priors.type_as(bbox_pred).unsqueeze(0)
         elif args.frame == 'faster_rcnn_vmrn':
@@ -317,7 +317,7 @@ def evalute_model(Network, namedb, args):
         detect_time = det_toc - det_tic
         misc_tic = time.time()
         # collect results
-        if args.frame in {'ssd', 'fpn', 'faster_rcnn', 'faster_rcnn_vmrn', 'ssd_vmrn', 'vam', 'efficientdet'}:
+        if args.frame in {'ssd', 'fpn', 'faster_rcnn', 'faster_rcnn_vmrn', 'ssd_vmrn', 'vam', 'efc_det'}:
             # detected_box is a list of boxes. len(list) = num_classes
             det_box = objdet_inference(cls_prob[0].data, bbox_pred[0].data, data_batch[1][0].data,
                         box_prior=boxes[0].data, class_agnostic=args.class_agnostic, for_vis=False)
@@ -443,7 +443,7 @@ def train():
     print('{:d} roidb entries'.format(len(roidb)))
     sampler_batch = sampler(train_size, args.batch_size)
     iters_per_epoch = int(train_size / args.batch_size)
-    if args.frame in {"fpn", "faster_rcnn", "efficientdet"}:
+    if args.frame in {"fpn", "faster_rcnn", "efc_det"}:
         dataset = objdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
                            imdb.num_classes, training=True, cls_list=imdb.classes, augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
     elif args.frame in {"ssd"}:
@@ -546,7 +546,7 @@ def train():
                 grasp_loc, grasp_prob, grasp_bbox_loss,grasp_cls_loss, grasp_conf_label, grasp_all_anchors = Network(data_batch)
                 loss = rpn_loss_box.mean() + rpn_loss_cls.mean() + loss_cls.mean() + loss_bbox.mean() + rel_loss_cls.mean() + \
                        cfg.MGN.OBJECT_GRASP_BALANCE * grasp_bbox_loss.mean() + grasp_cls_loss.mean()
-            elif args.frame in {'ssd', 'efficientdet'}:
+            elif args.frame in {'ssd', 'efc_det'}:
                 bbox_pred, cls_prob, loss_bbox, loss_cls = Network(data_batch)
                 loss = loss_bbox.mean() + loss_cls.mean()
             elif args.frame == 'ssd_vmrn' or args.frame == 'vam':
