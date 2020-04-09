@@ -4,14 +4,9 @@
     <list default="true" id="c9b880e4-a6e3-414a-b387-4aa4ff30b986" name="Default" comment="">
       <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cfgs/pascal_voc_efficientdet_efficientnet-b2.yml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/cfgs/pascal_voc_faster_rcnn_res101.yml" beforeDir="false" afterPath="$PROJECT_DIR$/cfgs/pascal_voc_faster_rcnn_res101.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cfgs/pascal_voc_faster_rcnn_vgg16.yml" beforeDir="false" afterPath="$PROJECT_DIR$/cfgs/pascal_voc_faster_rcnn_vgg16.yml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/Detectors.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/Detectors.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/EfficientDet.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/EfficientDet.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/utils/net_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/utils/net_utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/roi_data_layer/roibatchLoader.py" beforeDir="false" afterPath="$PROJECT_DIR$/roi_data_layer/roibatchLoader.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -236,7 +231,7 @@
       <workItem from="1586251188143" duration="104000" />
       <workItem from="1586251294962" duration="2246000" />
       <workItem from="1586311552305" duration="11537000" />
-      <workItem from="1586352632560" duration="199000" />
+      <workItem from="1586352632560" duration="4622000" />
     </task>
     <servers />
   </component>

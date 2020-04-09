@@ -43,6 +43,9 @@ class roibatchLoader(data.Dataset):
         self.cls_list = cls_list
 
         self.augmentation = augmentation
+        if self.augmentation:
+            self.augImageOnly = None
+            self.augObjdet = None
 
     @abc.abstractmethod
     def _imagePreprocess(self, blob, fix_size):
@@ -56,27 +59,19 @@ class roibatchLoader(data.Dataset):
         return len(self._roidb)
 
 class objdetRoibatchLoader(roibatchLoader):
+    __metaclass__ = abc.ABCMeta
     def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True,
                  cls_list=None, augmentation = False):
 
         super(objdetRoibatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes, training,
                  cls_list, augmentation)
-        if self.augmentation:
-            self.augImageOnly = ComposeImageOnly([
-                ConvertToFloats(),
-                PhotometricDistort(),
-            ])
-            self.augObjdet = Compose([
-                RandomMirror(),
-                Expand(mean = cfg.PIXEL_MEANS * 255.),
-                RandomSampleCrop(),
-            ])
 
     def _imagePreprocess(self, blob, fix_size = True):
         keep = np.arange(blob['gt_boxes'].shape[0])
         if self.augmentation:
-            blob['data'] = self.augImageOnly(blob['data'])
-            blob['data'], blob['gt_boxes'], _, _, _ = self.augObjdet(image=blob['data'], boxes=blob['gt_boxes'], boxes_keep=keep)
+            if self.augImageOnly is not None: blob['data'] = self.augImageOnly(blob['data'])
+            if self.augObjdet is not None: blob['data'], blob['gt_boxes'], _, _, _ = \
+                self.augObjdet(image=blob['data'], boxes=blob['gt_boxes'], boxes_keep=keep)
         # choose one predefined size, TODO: support multi-instance batch
         random_scale_ind = np.random.randint(0, high=len(cfg.SCALES))
         blob['data'], im_scale = prep_im_for_blob(blob['data'], cfg.SCALES[random_scale_ind], cfg.TRAIN.COMMON.MAX_SIZE, fix_size)
@@ -130,26 +125,18 @@ class objdetRoibatchLoader(roibatchLoader):
             return data, im_info, gt_boxes, num_boxes
 
 class graspdetRoibatchLoader(roibatchLoader):
+    __metaclass__ = abc.ABCMeta
     def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True,
                  cls_list=None, augmentation = False):
         super(graspdetRoibatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes, training,
                  cls_list, augmentation)
-        if self.augmentation:
-            self.augImageOnly = ComposeImageOnly([
-                ConvertToFloats(),
-                PhotometricDistort(),
-            ])
-            self.augmGraspdet = Compose([
-                RandomRotate(),
-                RandomMirror(),
-                RandomCropKeepBoxes(keep_shape=True),
-            ])
 
     def _imagePreprocess(self, blob, fix_size = True):
         keep = np.arange(blob['gt_grasps'].shape[0])
         if self.augmentation:
-            blob['data'] = self.augImageOnly(blob['data'])
-            blob['data'], _, blob['gt_grasps'], _, _ = self.augmGraspdet(image=blob['data'], grasps=blob['gt_grasps'], grasps_keep=keep)
+            if self.augImageOnly is not None: blob['data'] = self.augImageOnly(blob['data'])
+            if self.augObjdet is not None: blob['data'], _, blob['gt_grasps'], _, _ = \
+                self.augmGraspdet(image=blob['data'], grasps=blob['gt_grasps'], grasps_keep=keep)
         # choose one predefined size, TODO: support multi-instance batch
         random_scale_ind = np.random.randint(0, high=len(cfg.SCALES))
         blob['data'], im_scale = prep_im_for_blob(blob['data'], cfg.SCALES[random_scale_ind], cfg.TRAIN.COMMON.MAX_SIZE, fix_size)
@@ -196,25 +183,20 @@ class graspdetRoibatchLoader(roibatchLoader):
             return data, im_info, gt_grasps, num_grasps
 
 class vmrdetRoibatchLoader(objdetRoibatchLoader):
+    __metaclass__ = abc.ABCMeta
+
     def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True,
                  cls_list=None, augmentation = False):
 
         super(vmrdetRoibatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes, training,
                  cls_list, augmentation)
 
-        if self.augmentation:
-            self.augObjdet = Compose([
-                RandomMirror(),
-                Expand(mean=cfg.PIXEL_MEANS * 255.),
-                # TODO: allow to damage bounding boxes while prevent deleting them when doing random crop
-                RandomCropKeepBoxes(),
-            ])
-
     def _imagePreprocess(self, blob, fix_size=True):
         keep = np.arange(blob['gt_boxes'].shape[0])
         if self.augmentation:
-            blob['data'] = self.augImageOnly(blob['data'])
-            blob['data'], blob['gt_boxes'], _, keep, _ = self.augObjdet(image=blob['data'], boxes=blob['gt_boxes'], boxes_keep=keep)
+            if self.augImageOnly is not None: blob['data'] = self.augImageOnly(blob['data'])
+            if self.augObjdet is not None: blob['data'], blob['gt_boxes'], _, keep, _ = \
+                self.augObjdet(image=blob['data'], boxes=blob['gt_boxes'], boxes_keep=keep)
 
         # choose one predefined size, TODO: support multi-instance batch
         random_scale_ind = np.random.randint(0, high=len(cfg.SCALES))
@@ -399,6 +381,8 @@ class mulInSizeRoibatchLoader(roibatchLoader):
         raise NotImplementedError
 
 class objdetMulInSizeRoibatchLoader(objdetRoibatchLoader, mulInSizeRoibatchLoader):
+    __metaclass__ = abc.ABCMeta
+
     def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True,
                  cls_list=None, augmentation = False):
         super(objdetMulInSizeRoibatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes, training,
@@ -464,6 +448,8 @@ class objdetMulInSizeRoibatchLoader(objdetRoibatchLoader, mulInSizeRoibatchLoade
             return data, im_info, gt_boxes, num_boxes
 
 class graspMulInSizeRoibatchLoader(graspdetRoibatchLoader, mulInSizeRoibatchLoader):
+    __metaclass__ = abc.ABCMeta
+
     def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True,
                  cls_list=None, augmentation=False):
         super(graspMulInSizeRoibatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes, training,
@@ -535,6 +521,8 @@ class graspMulInSizeRoibatchLoader(graspdetRoibatchLoader, mulInSizeRoibatchLoad
             return data, im_info, gt_grasps, num_grasps
 
 class vmrdetMulInSizeRoibatchLoader(vmrdetRoibatchLoader, objdetMulInSizeRoibatchLoader):
+    __metaclass__ = abc.ABCMeta
+
     def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True,
                  cls_list=None, augmentation=False):
         super(vmrdetMulInSizeRoibatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes, training,
@@ -596,27 +584,22 @@ class vmrdetMulInSizeRoibatchLoader(vmrdetRoibatchLoader, objdetMulInSizeRoibatc
             return data, im_info, gt_boxes, num_boxes, rel_mat
 
 class roigdetMulInSizeRoibatchLoader(graspMulInSizeRoibatchLoader, objdetMulInSizeRoibatchLoader):
+    __metaclass__ = abc.ABCMeta
+
     def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True,
                  cls_list=None, augmentation=False):
         super(roigdetMulInSizeRoibatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes, training,
                  cls_list, augmentation)
-
-        if self.augmentation:
-            self.augObjdet = Compose([
-                RandomMirror(),
-                Expand(mean=cfg.PIXEL_MEANS),
-                # TODO: allow to damage bounding boxes while prevent deleting them when doing random crop
-                RandomCropKeepBoxes(keep_shape=True),
-            ])
 
     def _imagePreprocess(self, blob, fix_size = False):
         assert not fix_size, "When grasp labels are included, the input image can not be fixed-size."
         keep_b = np.arange(blob['gt_boxes'].shape[0])
         keep_g = np.arange(blob['gt_grasps'].shape[0])
         if self.augmentation:
-            blob['data'] = self.augImageOnly(blob['data'])
-            blob['data'], blob['gt_boxes'], blob['gt_grasps'], keep_b, keep_g = self.augObjdet(image=blob['data'],
-                    boxes=blob['gt_boxes'], grasps=blob['gt_grasps'], boxes_keep=keep_b, grasps_keep=keep_g)
+            if self.augImageOnly is not None: blob['data'] = self.augImageOnly(blob['data'])
+            if self.augObjdet is not None: blob['data'], blob['gt_boxes'], blob['gt_grasps'], keep_b, keep_g = \
+                self.augObjdet(image=blob['data'], boxes=blob['gt_boxes'], grasps=blob['gt_grasps'],
+                               boxes_keep=keep_b, grasps_keep=keep_g)
 
         # choose one predefined size, TODO: support multi-instance batch
         random_scale_ind = np.random.randint(0, high=len(cfg.SCALES))
@@ -713,6 +696,8 @@ class roigdetMulInSizeRoibatchLoader(graspMulInSizeRoibatchLoader, objdetMulInSi
             return data, im_info, gt_boxes, gt_grasps, num_boxes, num_grasps, gt_grasp_inds
 
 class allInOneMulInSizeRoibatchLoader(roigdetMulInSizeRoibatchLoader, vmrdetMulInSizeRoibatchLoader):
+    __metaclass__ = abc.ABCMeta
+
     def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True,
                  cls_list=None, augmentation= False):
         super(allInOneMulInSizeRoibatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes, training,
@@ -814,4 +799,123 @@ class allInOneMulInSizeRoibatchLoader(roigdetMulInSizeRoibatchLoader, vmrdetMulI
             num_grasps = 0
             rel_mat = torch.FloatTensor([0])
             return data, im_info, gt_boxes, gt_grasps, num_boxes, num_grasps, rel_mat, gt_grasp_inds
+
+class ssdbatchLoader(objdetRoibatchLoader):
+    def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True,
+                 cls_list=None, augmentation = False):
+        super(ssdbatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes,
+                                             training, cls_list, augmentation)
+        if not self.augmentation and self.training:
+            warnings.warn("You are going to train SSD without any augmentation.")
+        else:
+            self.augImageOnly = ComposeImageOnly([
+                ConvertToFloats(),
+                PhotometricDistort(),
+            ])
+            self.augObjdet = Compose([
+                RandomMirror(),
+                Expand(mean = cfg.PIXEL_MEANS * 255.),
+                RandomSampleCrop(),
+            ])
+
+class fcgnbatchLoader(graspdetRoibatchLoader):
+    def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True,
+                 cls_list=None, augmentation = False):
+        super(fcgnbatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes,
+                                             training, cls_list, augmentation)
+        if not self.augmentation and self.training:
+            warnings.warn("You are going to train FCGN without any augmentation.")
+        else:
+            self.augImageOnly = ComposeImageOnly([
+                ConvertToFloats(),
+                PhotometricDistort(),
+            ])
+            self.augmGraspdet = Compose([
+                RandomRotate(),
+                RandomMirror(),
+                RandomCropKeepBoxes(keep_shape=True),
+            ])
+
+class svmrnbatchLoader(vmrdetRoibatchLoader):
+    def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True,
+                 cls_list=None, augmentation = False):
+        super(svmrnbatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes,
+                                             training, cls_list, augmentation)
+        if not self.augmentation and self.training:
+            warnings.warn("You are going to train S-VMRN without any augmentation.")
+        else:
+            self.augImageOnly = ComposeImageOnly([
+                ConvertToFloats(),
+                PhotometricDistort(),
+            ])
+            self.augObjdet = Compose([
+                RandomMirror(),
+                Expand(mean=cfg.PIXEL_MEANS * 255.),
+                # TODO: allow to damage bounding boxes while prevent deleting them when doing random crop
+                RandomCropKeepBoxes(),
+            ])
+
+class fasterrcnnbatchLoader(objdetMulInSizeRoibatchLoader):
+    def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True,
+                 cls_list=None, augmentation = False):
+        super(fasterrcnnbatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes,
+                                             training, cls_list, augmentation)
+        if not self.augmentation and self.training:
+            warnings.warn("You are going to train Faster-RCNN without flipped images.")
+        else:
+            self.augObjdet = Compose([
+                RandomMirror(),
+            ])
+
+class fvmrnbatchLoader(vmrdetMulInSizeRoibatchLoader):
+    def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True,
+                 cls_list=None, augmentation = False):
+        super(fvmrnbatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes,
+                                             training, cls_list, augmentation)
+        if not self.augmentation and self.training:
+            warnings.warn("You are going to train F-VMRN without any augmentation.")
+        else:
+            self.augObjdet = Compose([
+                RandomMirror(),
+                # TODO: allow to damage bounding boxes while prevent deleting them when doing random crop
+                RandomCropKeepBoxes(),
+            ])
+
+class roignbatchLoader(roigdetMulInSizeRoibatchLoader):
+    def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True,
+                 cls_list=None, augmentation = False):
+        super(roignbatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes,
+                                             training, cls_list, augmentation)
+        if not self.augmentation and self.training:
+            warnings.warn("You are going to train ROI-GN without any augmentation.")
+        else:
+            self.augImageOnly = ComposeImageOnly([
+                ConvertToFloats(),
+                PhotometricDistort(),
+            ])
+            self.augObjdet = Compose([
+                RandomMirror(),
+                Expand(mean=cfg.PIXEL_MEANS),
+                # TODO: allow to damage bounding boxes while prevent deleting them when doing random crop
+                RandomCropKeepBoxes(keep_shape=True),
+            ])
+
+class fallinonebatchLoader(allInOneMulInSizeRoibatchLoader):
+    def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True,
+                 cls_list=None, augmentation = False):
+        super(fallinonebatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes,
+                                             training, cls_list, augmentation)
+        if not self.augmentation and self.training:
+            warnings.warn("You are going to train ROI-GN without any augmentation.")
+        else:
+            self.augImageOnly = ComposeImageOnly([
+                ConvertToFloats(),
+                PhotometricDistort(),
+            ])
+            self.augObjdet = Compose([
+                RandomMirror(),
+                Expand(mean=cfg.PIXEL_MEANS),
+                # TODO: allow to damage bounding boxes while prevent deleting them when doing random crop
+                RandomCropKeepBoxes(keep_shape=True),
+            ])
 

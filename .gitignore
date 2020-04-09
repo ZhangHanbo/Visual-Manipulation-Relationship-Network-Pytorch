@@ -9,5 +9,5 @@ demo*
 *.graffle
 
 model/header/*
-model/featnet/*
 model/EfficientDet.py
+model/featnet/

@@ -229,25 +229,25 @@ def evalute_model(Network, namedb, args):
     # load test dataset
     imdb, roidb, ratio_list, ratio_index = combined_roidb(namedb, False)
     if args.frame in {"fpn", "faster_rcnn", "efc_det"}:
-        dataset = objdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+        dataset = fasterrcnnbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
                            imdb.num_classes, training=False, cls_list=imdb.classes, augmentation=False)
     elif args.frame in {"ssd"}:
-        dataset = objdetRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+        dataset = ssdbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
                            imdb.num_classes, training=False, cls_list=imdb.classes, augmentation=False)
     elif args.frame in {"ssd_vmrn", "vam"}:
-        dataset = vmrdetRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+        dataset = svmrnbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
                            imdb.num_classes, training=False, cls_list=imdb.classes, augmentation=False)
     elif args.frame in {"faster_rcnn_vmrn"}:
-        dataset = vmrdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+        dataset = fvmrnbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
                            imdb.num_classes, training=False, cls_list=imdb.classes, augmentation=False)
     elif args.frame in {"fcgn"}:
-        dataset = graspdetRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+        dataset = fcgnbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
                            imdb.num_classes, training=False, cls_list=imdb.classes, augmentation=False)
     elif args.frame in {"all_in_one"}:
-        dataset = allInOneMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+        dataset = fallinonebatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
                            imdb.num_classes, training=False, cls_list=imdb.classes, augmentation=False)
     elif args.frame in {"mgn"}:
-        dataset = roigdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+        dataset = roignbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
                            imdb.num_classes, training=False, cls_list=imdb.classes, augmentation=False)
     else:
         raise RuntimeError
@@ -444,25 +444,25 @@ def train():
     sampler_batch = sampler(train_size, args.batch_size)
     iters_per_epoch = int(train_size / args.batch_size)
     if args.frame in {"fpn", "faster_rcnn", "efc_det"}:
-        dataset = objdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+        dataset = fasterrcnnbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
                            imdb.num_classes, training=True, cls_list=imdb.classes, augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
     elif args.frame in {"ssd"}:
-        dataset = objdetRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+        dataset = ssdbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
                            imdb.num_classes, training=True, cls_list=imdb.classes, augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
     elif args.frame in {"ssd_vmrn", "vam"}:
-        dataset = vmrdetRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+        dataset = svmrnbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
                            imdb.num_classes, training=True, cls_list=imdb.classes, augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
     elif args.frame in {"faster_rcnn_vmrn"}:
-        dataset = vmrdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+        dataset = fvmrnbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
                            imdb.num_classes, training=True, cls_list=imdb.classes, augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
     elif args.frame in {"fcgn"}:
-        dataset = graspdetRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+        dataset = fcgnbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
                            imdb.num_classes, training=True, cls_list=imdb.classes, augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
     elif args.frame in {"all_in_one"}:
-        dataset = allInOneMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+        dataset = fallinonebatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
                            imdb.num_classes, training=True, cls_list=imdb.classes, augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
     elif args.frame in {"mgn"}:
-        dataset = roigdetMulInSizeRoibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+        dataset = roignbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
                            imdb.num_classes, training=True, cls_list=imdb.classes, augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
     else:
         raise RuntimeError
