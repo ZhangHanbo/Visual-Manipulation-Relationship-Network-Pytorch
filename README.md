@@ -5,10 +5,6 @@
 ## Introduction
 This package includes our latest proposed robotic grasping algorithms. Main framework is based on code of Faster RCNN (https://github.com/jwyang/faster-rcnn.pytorch).
 
-Users for Pascal GPUs: you can skip the steps for building the C codes with Python because I have already done this.
-
-Users for other GPUs: you have to follow the installation steps from https://github.com/jwyang/faster-rcnn.pytorch to make sure that the components of Faster-RCNN work fine.
-
 ## Implemented Algorithms
 
 I have included some well-known object detection algorithms (e.g. Faster-RCNN, SSD, FPN and EfficientDet), and developed
