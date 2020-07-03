@@ -5,9 +5,15 @@
 .idea/markdown-navigator.xml
 
 rosapi/*
-demo*
 *.graffle
 
 model/header/*
 model/EfficientDet.py
 model/featnet/
+
+data/
+images/
+datasets/
+pycocotools/
+output/
+results/
