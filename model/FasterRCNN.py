@@ -14,7 +14,7 @@ from rpn.rpn import _RPN
 from model.roi_layers import ROIAlign, ROIPool
 from rpn.proposal_target_layer_cascade import _ProposalTargetLayer
 from Detectors import objectDetector
-from utils.net_utils import _smooth_l1_loss
+from utils.net_utils import _smooth_l1_loss, weights_normal_init
 
 class fasterRCNN(objectDetector):
     """ faster RCNN """
@@ -111,22 +111,11 @@ class fasterRCNN(objectDetector):
         self._init_weights()
 
     def _init_weights(self):
-        def normal_init(m, mean, stddev, truncated=False):
-            """
-            weight initalizer: truncated normal and random normal.
-            """
-            # x is a parameter
-            if truncated:
-                m.weight.data.normal_().fmod_(2).mul_(stddev).add_(mean)  # not a perfect approximation
-            else:
-                m.weight.data.normal_(mean, stddev)
-                m.bias.data.zero_()
-
-        normal_init(self.RCNN_rpn.RPN_Conv, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-        normal_init(self.RCNN_rpn.RPN_cls_score, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-        normal_init(self.RCNN_rpn.RPN_bbox_pred, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-        normal_init(self.RCNN_cls_score, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-        normal_init(self.RCNN_bbox_pred, 0, 0.001, cfg.TRAIN.COMMON.TRUNCATED)
+        weights_normal_init(self.RCNN_rpn.RPN_Conv, 0.01, 0.)
+        weights_normal_init(self.RCNN_rpn.RPN_cls_score, 0.01, 0.)
+        weights_normal_init(self.RCNN_rpn.RPN_bbox_pred, 0.01, 0.)
+        weights_normal_init(self.RCNN_cls_score, 0.01, 0.)
+        weights_normal_init(self.RCNN_bbox_pred, 0.001, 0.)
 
     def _init_modules(self):
 
@@ -164,6 +153,7 @@ class fasterRCNN(objectDetector):
         # feed image data to base model to obtain base feature map
         # base_feat = self.FeatExt(im_data)
         base_feat = self.FeatExt(im_data)
+        self.base_feat_cache = base_feat # save base feature to cache
 
         # feed base feature map tp RPN to obtain rois
         rois, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes)
@@ -186,3 +176,22 @@ class fasterRCNN(objectDetector):
         bbox_pred = bbox_pred.view(batch_size, rois.size(1), -1)
 
         return rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox, rois_label
+    
+    def box_to_spatial_fc7(self, obj_boxes):
+        # transform back to rois 
+        # batch_inds = Variable(net_conv.data.new(ori_boxes.shape[0], 1).zero_())
+        # scaled_boxes = (ori_boxes * im_info[0][2]).astype(np.float32)
+        # scaled_boxes = Variable(torch.from_numpy(scaled_boxes).cuda())
+        # rois = torch.cat([batch_inds, scaled_boxes], 1)
+        # rois = None # TODO
+        rois = obj_boxes
+
+        # pool fc7
+        # if cfg.POOLING_MODE == 'crop':
+        #     pool5 = self.net._crop_pool_layer(net_conv, rois)
+        # else:
+        #     pool5 = self.net._roi_pool_layer(net_conv, rois)  # (n, 1024, 7, 7)
+
+        pool5 = self._roi_pooling(self.base_feat_cache, rois)
+        spatial_fc7 = self._obj_head_to_tail_resnet(pool5)  # (n, 2048, 7, 7)
+        return pool5, spatial_fc7
