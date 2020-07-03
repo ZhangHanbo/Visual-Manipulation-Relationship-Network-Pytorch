@@ -147,6 +147,7 @@ class fasterRCNN(objectDetector):
         num_boxes = data_batch[3]
 
         batch_size = im_data.size(0)
+        self.batch_size = batch_size
         if self.training:
             self.iter_counter += 1
 
@@ -178,20 +179,15 @@ class fasterRCNN(objectDetector):
         return rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox, rois_label
     
     def box_to_spatial_fc7(self, obj_boxes):
-        # transform back to rois 
-        # batch_inds = Variable(net_conv.data.new(ori_boxes.shape[0], 1).zero_())
-        # scaled_boxes = (ori_boxes * im_info[0][2]).astype(np.float32)
-        # scaled_boxes = Variable(torch.from_numpy(scaled_boxes).cuda())
-        # rois = torch.cat([batch_inds, scaled_boxes], 1)
-        # rois = None # TODO
-        rois = obj_boxes
+        # obj_boxes: bs x N x 4 Tensor. bs: batch size, N: number of boxes on each image
+        # obj_boxes[i]: N x 4 Tensor, meaning the boxes on the ith image.
+        assert obj_boxes.shape[0] == self.batch_size, "Batch size does not match."
+       
+        img_index = [torch.ones(obj_boxes.shape[1]).unsqueeze(0).unsqueeze(-1) * i for i in range(obj_boxes.shape[0])]
+        img_index = torch.cat(img_index, dim = 0).type_as(obj_boxes)
+        obj_boxes = torch.cat([img_index, obj_boxes], dim = -1)
 
-        # pool fc7
-        # if cfg.POOLING_MODE == 'crop':
-        #     pool5 = self.net._crop_pool_layer(net_conv, rois)
-        # else:
-        #     pool5 = self.net._roi_pool_layer(net_conv, rois)  # (n, 1024, 7, 7)
-
-        pool5 = self._roi_pooling(self.base_feat_cache, rois)
-        spatial_fc7 = self._obj_head_to_tail_resnet(pool5)  # (n, 2048, 7, 7)
+        pool5 = self._roi_pooling(self.base_feat_cache, obj_boxes.view(-1,5))
+        print(pool5.shape)
+        spatial_fc7 = self.FeatExt.layer4(pool5) # (n, 2048, 7, 7)
         return pool5, spatial_fc7

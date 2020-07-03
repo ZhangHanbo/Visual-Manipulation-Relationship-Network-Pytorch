@@ -895,7 +895,7 @@ class roignbatchLoader(roigdetMulInSizeRoibatchLoader):
             ])
             self.augObjdet = Compose([
                 RandomMirror(),
-                Expand(mean=cfg.PIXEL_MEANS),
+                # Expand(mean=cfg.PIXEL_MEANS),
                 # TODO: allow to damage bounding boxes while prevent deleting them when doing random crop
                 RandomCropKeepBoxes(keep_shape=True),
             ])
@@ -914,8 +914,14 @@ class fallinonebatchLoader(allInOneMulInSizeRoibatchLoader):
             ])
             self.augObjdet = Compose([
                 RandomMirror(),
-                Expand(mean=cfg.PIXEL_MEANS),
+                # Expand(mean=cfg.PIXEL_MEANS),
                 # TODO: allow to damage bounding boxes while prevent deleting them when doing random crop
                 RandomCropKeepBoxes(keep_shape=True),
             ])
 
+# TODO: Implement caption generation batch loader.
+class captionRoiBatchLoader(objdetMulInSizeRoibatchLoader):
+    def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True,
+                 cls_list=None, augmentation = False):
+        super(captionRoiBatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes,
+                                             training, cls_list, augmentation)

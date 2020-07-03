@@ -87,9 +87,9 @@ class All_in_One(MGN, VMRN):
             obj_labels = obj_rois[:, 5]
             obj_rois = obj_rois[:, :5]
 
-        VMRN_rel_loss_cls = 0
+        VMRN_rel_loss_cls, rel_reg_loss = 0, 0
         if (obj_num > 1).sum().item() > 0:
-            rel_cls_score, rel_cls_prob = self._get_rel_det_result(base_feat, obj_rois, obj_num)
+            rel_cls_score, rel_cls_prob, rel_reg_loss = self._get_rel_det_result(base_feat, obj_rois, obj_num)
             if self.training:
                 obj_pair_rel_label = self._generate_rel_labels(obj_rois, gt_boxes, obj_num, rel_mat, rel_cls_prob.size(0))
                 VMRN_rel_loss_cls = self._rel_det_loss_comp(obj_pair_rel_label.type_as(gt_boxes).long(), rel_cls_score)
@@ -156,10 +156,12 @@ class All_in_One(MGN, VMRN):
             grasp_all_anchors = self._generate_anchors(feat_height, feat_width, rois.view(-1, 5))
 
         return rois, cls_prob, bbox_pred, rel_result, rpn_loss_cls, rpn_loss_bbox, \
-                RCNN_loss_cls, RCNN_loss_bbox, VMRN_rel_loss_cls, rois_label, \
+                RCNN_loss_cls, RCNN_loss_bbox, VMRN_rel_loss_cls, rel_reg_loss, rois_label, \
                 grasp_loc, grasp_prob, grasp_bbox_loss , grasp_cls_loss, grasp_conf_label, grasp_all_anchors
 
     def create_architecture(self):
+        assert cfg.TRAIN.VMRN.RELCLS_GRAD or cfg.VMRN.SHARE_WEIGHTS, \
+            "No gradients are applied to relationship convolutional layers."
         self._init_modules()
         self._init_weights()
 
@@ -174,8 +176,3 @@ class All_in_One(MGN, VMRN):
     def _init_weights(self):
         MGN._init_weights(self)
         VMRN._init_weights(self)
-
-    def train(self, mode=True):
-        # Override train so that the training mode is set as we want
-        nn.Module.train(self, mode)
-        VMRN.train(self, mode)

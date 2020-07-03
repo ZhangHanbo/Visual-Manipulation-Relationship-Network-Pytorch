@@ -11,11 +11,15 @@ from utils.config import cfg
 
 from FasterRCNN import fasterRCNN
 from Detectors import VMRN
+from utils.net_utils import set_bn_eval, set_bn_fix
 
 class fasterRCNN_VMRN(fasterRCNN, VMRN):
     """ faster RCNN """
-    def __init__(self, classes, class_agnostic, feat_name, feat_list=('conv4',), pretrained = True):
+    def __init__(self, classes, class_agnostic, feat_name, feat_list=('conv4',), pretrained=True):
         super(fasterRCNN_VMRN, self).__init__(classes, class_agnostic, feat_name, feat_list, pretrained)
+        self._fix_fasterRCNN = cfg.TRAIN.VMRN.FIX_OBJDET
+        if self._fix_fasterRCNN:
+            self._fixed_keys = []
 
     def forward(self, data_batch):
         im_data = data_batch[0]
@@ -78,9 +82,11 @@ class fasterRCNN_VMRN(fasterRCNN, VMRN):
             obj_labels = obj_rois[:, 5]
             obj_rois = obj_rois[:, :5]
 
-        VMRN_rel_loss_cls = 0
+        VMRN_rel_loss_cls, reg_loss= 0, 0
         if (obj_num > 1).sum().item() > 0:
-            rel_cls_score, rel_cls_prob = self._get_rel_det_result(base_feat, obj_rois, obj_num)
+            if cfg.TRAIN.VMRN.ONE_DATA_PER_IMG:
+                obj_rois, obj_num = self._select_pairs(obj_rois, obj_num)
+            rel_cls_score, rel_cls_prob, reg_loss = self._get_rel_det_result(base_feat, obj_rois, obj_num, im_info)
             if self.training:
                 obj_pair_rel_label = self._generate_rel_labels(obj_rois, gt_boxes, obj_num, rel_mat, rel_cls_prob.size(0))
                 VMRN_rel_loss_cls = self._rel_det_loss_comp(obj_pair_rel_label.type_as(gt_boxes).long(), rel_cls_score)
@@ -100,11 +106,18 @@ class fasterRCNN_VMRN(fasterRCNN, VMRN):
                 rel_result = (obj_rois.data, obj_labels, rel_cls_prob.data)
 
         return rois, cls_prob, bbox_pred, rel_result, rpn_loss_cls, rpn_loss_bbox, \
-               RCNN_loss_cls, RCNN_loss_bbox, VMRN_rel_loss_cls, rois_label
+               RCNN_loss_cls, RCNN_loss_bbox, VMRN_rel_loss_cls, reg_loss, rois_label
 
-    def create_architecture(self):
+    def create_architecture(self, object_detector_path=''):
+        assert cfg.TRAIN.VMRN.RELCLS_GRAD or cfg.VMRN.SHARE_WEIGHTS, \
+            "No gradients are applied to relationship convolutional layers."
         self._init_modules()
         self._init_weights()
+
+        if self._fix_fasterRCNN:
+            assert object_detector_path != '', "An pretrained object detector should be specified for VMRN."
+            object_detector = torch.load(object_detector_path)
+            self._load_and_fix_object_detector(object_detector['model'])
 
     def _init_modules_resnet(self):
         fasterRCNN._init_modules_resnet(self)
@@ -118,7 +131,20 @@ class fasterRCNN_VMRN(fasterRCNN, VMRN):
         fasterRCNN._init_weights(self)
         VMRN._init_weights(self)
 
+    def _load_and_fix_object_detector(self, object_model):
+        """
+        To use this function, you need to make sure that all keys in object_model match the ones in the target model.
+        """
+        self._fixed_keys = set([key.split('.')[0] for key in object_model.keys()])
+        self.load_state_dict(object_model, strict=False)
+        for name, module in self.named_children():
+            if name in self._fixed_keys:
+                for p in module.parameters(): p.requires_grad = False
+                module.apply(set_bn_fix)
+
     def train(self, mode=True):
-        # Override train so that the training mode is set as we want
-        nn.Module.train(self, mode)
         VMRN.train(self, mode)
+        if mode:
+            for name, module in self.named_children():
+                if name in self._fixed_keys:
+                    module.eval()

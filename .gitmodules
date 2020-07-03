@@ -1,0 +1,3 @@
+[submodule "model/mattnet"]
+	path = model/mattnet
+	url = https://github.com/lyf44/MAttNet.git

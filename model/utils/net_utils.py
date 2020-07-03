@@ -334,7 +334,7 @@ def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agno
     :param box_prior: anchors, RoIs, e.g.
     :param class_agnostic: whether the boxes are class-agnostic. For faster RCNN, it is class-specific by default.
     :param n_classes: number of object classes
-    :param for_vis: the results are for visualization or validation.
+    :param for_vis: the results are for visualization or validation of VMRN.
     :param recover_imscale: whether the predicted bounding boxes are recovered to the original scale.
     :return: a list of bounding boxes, one class corresponding to one element. If for_vis, they will be concatenated.
     """
@@ -544,13 +544,17 @@ def rel_prob_to_mat(rel_cls_prob, num_obj):
     """
 
     if rel_cls_prob.size(0) == 0:
-        return np.array([], dtype=np.int32)
-    rel = torch.argmax(rel_cls_prob, dim = 1) + 1
+        return np.array([], dtype=np.int32), np.array([], dtype=np.float32)
+    rel_score, rel = torch.max(rel_cls_prob, dim = 1)
+    rel += 1 # to make the label match the macro, i.e., cfg.VMRN.CHILD, cfg.VMRN.FATHER, cfg.VMRN.NO_REL
+
     rel_mat = np.zeros((num_obj, num_obj), dtype=np.int32)
+    rel_score_mat = np.zeros((num_obj, num_obj), dtype=np.float32)
     counter = 0
     for o1 in range(num_obj):
         for o2 in range(o1 + 1, num_obj):
             rel_mat[o1, o2] = rel[counter]
+            rel_score_mat[o1, o2] = rel_score[counter]
             counter += 1
     for o1 in range(num_obj):
         for o2 in range(o1):
@@ -560,23 +564,34 @@ def rel_prob_to_mat(rel_cls_prob, num_obj):
                 rel_mat[o1, o2] = 3 - rel_mat[o2, o1]
             else:
                 assert RuntimeError
-    return rel_mat
+            rel_score_mat[o1, o2] = rel_score_mat[o2, o1]
+    return rel_mat, rel_score_mat
 
-def create_mrt(rel_mat):
+def create_mrt(rel_mat, class_names=None, rel_score=None):
     # using relationship matrix to create manipulation relationship tree
     mrt = nx.DiGraph()
 
     node_num = np.max(np.where(rel_mat > 0)[0]) + 1
+    if class_names is None:
+        class_names = list(range(node_num))
+    else:
+        class_names = [cls + str(i) for i, cls in enumerate(class_names)]
+
+    if rel_score is None:
+        rel_score = np.zeros(rel_mat.shape, dtype=np.float32)
+
     for obj1 in xrange(node_num):
-        mrt.add_node(obj1)
+        mrt.add_node(class_names[obj1])
         for obj2 in xrange(obj1):
             if rel_mat[obj1, obj2].item() == cfg.VMRN.FATHER:
                 # OBJ1 is the father of OBJ2
-                mrt.add_edge(obj2, obj1)
+                mrt.add_edge(class_names[obj2], class_names[obj1],
+                             weight=np.round(rel_score[obj1, obj2].item(), decimals=2))
 
             if rel_mat[obj1, obj2].item() == cfg.VMRN.CHILD:
                 # OBJ1 is the father of OBJ2
-                mrt.add_edge(obj1, obj2)
+                mrt.add_edge(class_names[obj1], class_names[obj2],
+                             weight=np.round(rel_score[obj1, obj2].item(), decimals=2))
     return mrt
 
 def find_all_paths(mrt, t_node = 0):
@@ -608,3 +623,62 @@ def find_shortest_path(mrt, t_node = 0):
         if len(p) < p_lenth:
             best_path = p
     return best_path
+
+def find_all_leaves(mrt, t_node = 0):
+    """
+    :param mrt: a manipulation relationship tree
+    :param t_node: the index of the target node
+    :return: paths: a list of all possible paths
+    NOTE: this function cannot deal with graph including cycles.
+    """
+    # depth-first search
+    assert t_node in mrt.nodes, "The target node is not found in the given manipulation relationship tree."
+    path = [t_node,]
+
+    for e in mrt.edges:
+        if t_node == e[1]:
+            # find all sub paths from current target node
+            path.append(e[0])
+
+    for leaf in path[1:]:
+        sub_leaves = find_all_leaves(mrt, leaf)
+        exist_leaf_inds = []
+        for leaf in sub_leaves[1:]:
+            if leaf not in path:
+                path.append(leaf)
+            else:
+                exist_leaf_inds.append(path.index(leaf))
+
+        # for existing nodes, we need move them all at the end of the path, maintaining the current order
+        exist_leaves = [path[ind] for ind in np.sort(exist_leaf_inds)]
+
+        for leaf in exist_leaves:
+            path.remove(leaf)
+            path.append(leaf)
+
+    return path
+
+if __name__ == '__main__':
+
+    # rel_mat = [[0,1,1,3,3],
+    #             [2,0,3,1,3],
+    #             [2,3,0,1,1],
+    #             [3,2,2,0,3],
+    #             [3,3,2,3,0]]
+    # rel_mat = [[0,3,1,1,2],
+    #             [3,0,2,2,3],
+    #             [2,1,0,2,2],
+    #             [2,1,1,0,3],
+    #             [1,3,1,3,0]]
+    rel_mat = [ [0,3,3,1,2,3,3,2],
+                [3,0,2,3,3,1,2,3],
+                [3,1,0,1,3,1,2,1],
+                [2,3,2,0,3,3,3,2],
+                [1,3,3,3,0,1,3,2],
+                [3,2,2,3,2,0,3,2],
+                [3,1,1,3,3,3,0,3],
+                [1,3,2,1,1,1,3,0] ]
+    rel_mat = torch.Tensor(rel_mat)
+    mrt = create_mrt(rel_mat)
+    path = find_all_leaves(mrt, 6)
+    pass

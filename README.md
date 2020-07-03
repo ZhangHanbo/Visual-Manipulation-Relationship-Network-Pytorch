@@ -5,6 +5,10 @@
 ## Introduction
 This package includes our latest proposed robotic grasping algorithms. Main framework is based on code of Faster RCNN (https://github.com/jwyang/faster-rcnn.pytorch).
 
+Users for Pascal GPUs: you can skip the steps for building the C codes with Python because I have already done this.
+
+Users for other GPUs: you have to follow the installation steps from https://github.com/jwyang/faster-rcnn.pytorch to make sure that the components of Faster-RCNN work fine.
+
 ## Implemented Algorithms
 
 I have included some well-known object detection algorithms (e.g. Faster-RCNN, SSD, FPN and EfficientDet), and developed
@@ -61,9 +65,13 @@ F-VMRN | VGG-16 | VMRDtrainval | VMRDtest | 95.0 | - | 68.7
 |:---:|:---:|
 | Rel-IA of F-VMRN_VGG16 | Rel-IA of F-VMRN_ResNet101 |
 
-| <img src="results/faster_rcnn_pascal_voc.png" width = "300" div align=left /> |
+| <img src="results/Faster_RCNN_pascal_voc.png" width = "300" div align=left /> |
 |:---:|
 | mAP of Faster-RCNN on VOC2007|
+
+**Why Faster RCNN is not state-of-the-art:**
+1. We do not apply flipping during training. When using flipping, the mAP will go up to around 73%.
+2. Pytorch Pretrained model causes lower performance. Refer to: https://github.com/jwyang/faster-rcnn.pytorch/issues/60
 
 ## TODO
 

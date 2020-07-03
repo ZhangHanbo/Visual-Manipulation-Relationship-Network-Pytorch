@@ -7,3 +7,5 @@ easydict
 matplotlib
 pyyaml
 tensorboardX
+networkx
+scikit-learn

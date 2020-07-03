@@ -13,7 +13,7 @@ import torch.nn.init as init
 from model.utils.config import cfg
 from model.rpn.bbox_transform import bbox_overlaps_batch
 from model.fcgn.bbox_transform_grasp import points2labels
-from model.utils.net_utils import _smooth_l1_loss, _affine_grid_gen
+from model.utils.net_utils import _smooth_l1_loss, _affine_grid_gen, weight_kaiming_init
 from model.basenet.resnet import Bottleneck
 import numpy as np
 from model.FasterRCNN import fasterRCNN
@@ -294,13 +294,7 @@ class MGN(fasterRCNN, FCGN):
     def _init_weights(self):
         fasterRCNN._init_weights(self)
         FCGN._init_weights(self)
-        # initialize grasp top
-        def kaiming_init(m):
-            def xavier(param):
-                init.kaiming_normal(param, nonlinearity='relu')
-            if isinstance(m, nn.Conv2d):
-                xavier(m.weight.data)
-        self.MGN_top.apply(kaiming_init)
+        self.MGN_top.apply(weight_kaiming_init)
 
     def _MGN_head_to_tail(self, feats):
         return self.MGN_top(feats)

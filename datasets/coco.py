@@ -33,11 +33,11 @@ class coco(imdb):
     # name, paths
     self._year = year
     self._image_set = image_set
-    self._data_path = osp.join(cfg.DATA_DIR, 'coco')
+    self._data_path = osp.join(cfg.DATA_DIR, 'COCO')
     # load COCO API, classes, class <-> id mappings
     self._COCO = COCO(self._get_ann_file())
     cats = self._COCO.loadCats(self._COCO.getCatIds())
-    self._classes = tuple(['__background__'] + [c['name'] for c in cats])
+    self._classes = list(['__background__'] + [c['name'] for c in cats])
     self._class_to_ind = dict(list(zip(self.classes, list(range(self.num_classes)))))
     self._class_to_coco_cat_id = dict(list(zip([c['name'] for c in cats],
                                                self._COCO.getCatIds())))
@@ -55,7 +55,7 @@ class coco(imdb):
       'test-dev2015': 'test2015',
       'valminuscapval2014': 'val2014',
       'capval2014': 'val2014',
-      'captest2014': 'val2014'
+      'captest2014': 'val2014',
     }
     coco_name = image_set + year  # e.g., "val2014"
     self._data_name = (self._view_map[coco_name]
@@ -78,11 +78,6 @@ class coco(imdb):
     image_ids = self._COCO.getImgIds()
     return image_ids
 
-  def _get_widths(self):
-    anns = self._COCO.loadImgs(self._image_index)
-    widths = [ann['width'] for ann in anns]
-    return widths
-
   def image_path_at(self, i):
     """
     Return the absolute path to image i in the image sequence.
@@ -101,10 +96,8 @@ class coco(imdb):
     """
     # Example image path for index=119993:
     #   images/train2014/COCO_train2014_000000119993.jpg
-    file_name = ('COCO_' + self._data_name + '_' +
-                 str(index).zfill(12) + '.jpg')
-    image_path = osp.join(self._data_path, 'images',
-                          self._data_name, file_name)
+    file_name = (str(index).zfill(12) + '.jpg')
+    image_path = osp.join(self._data_path, self._data_name, file_name)
     assert osp.exists(image_path), \
       'Path does not exist: {}'.format(image_path)
     return image_path
@@ -187,9 +180,6 @@ class coco(imdb):
             'seg_areas': seg_areas,
             'rotated': 0}
 
-  def _get_widths(self):
-    return [r['width'] for r in self.roidb]
-
   def _get_box_file(self, index):
     # first 14 chars / first 22 chars / all chars + .mat
     # COCO_val2014_0/COCO_val2014_000000447/COCO_val2014_000000447991.mat
@@ -219,7 +209,8 @@ class coco(imdb):
     print(('~~~~ Mean and per-category AP @ IoU=[{:.2f},{:.2f}] '
            '~~~~').format(IoU_lo_thresh, IoU_hi_thresh))
     print('{:.1f}'.format(100 * ap_default))
-    for cls_ind, cls in enumerate(self.classes):
+    for cls in self.classes:
+      cls_ind = self._class_to_ind[cls]
       if cls == '__background__':
         continue
       # minus 1 because of __background__
@@ -269,7 +260,8 @@ class coco(imdb):
     #   "bbox": [258.15,41.29,348.26,243.78],
     #   "score": 0.236}, ...]
     results = []
-    for cls_ind, cls in enumerate(self.classes):
+    for cls in self.classes:
+      cls_ind = self._class_to_ind[cls]
       if cls == '__background__':
         continue
       print('Collecting {} results ({:d}/{:d})'.format(cls, cls_ind,

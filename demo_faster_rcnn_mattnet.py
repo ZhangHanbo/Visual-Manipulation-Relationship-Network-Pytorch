@@ -93,12 +93,16 @@ class fasterRCNNMattNetDemo(object):
 
         # Compute features
         # (n, 1024, 7, 7), (n, 2048, 7, 7) TODO
-        pool5, fc7 = self.RCNN.box_to_spatial_fc7(rois)
-        print('pool5 {}'.format(pool5))
-        print('fc7 {}'.format(fc7))
+        print(obj_boxes)
+        obj_boxes = torch.from_numpy(obj_boxes).cuda()
+        obj_boxes = obj_boxes.unsqueeze(0)
+        print(obj_boxes)
+        pool5, fc7 = self.RCNN.box_to_spatial_fc7(obj_boxes)
+        print('pool5 shape {}'.format(pool5.shape))
+        print('fc7 shape {}'.format(fc7.shape))
         lfeats = self.compute_lfeats(det_ids, Dets, image) # location feature against the image
         dif_lfeats = self.compute_dif_lfeats(det_ids, Dets) # location feature against five objects of the same category
-        cxt_fc7, cxt_lfeats, cxt_det_ids = self.fetch_cxt_feats(det_ids, Dets, fc7, self.model_opt)  # relational feature
+        cxt_fc7, cxt_lfeats, cxt_det_ids = self.fetch_cxt_feats(det_ids, Dets, fc7)  # relational feature
 
         # move to Variable cuda
         lfeats = Variable(torch.from_numpy(lfeats).cuda())
@@ -117,15 +121,16 @@ class fasterRCNNMattNetDemo(object):
 
     def forward_process(self, image, save_res=False, id=""):
         img_data = self.fasterRCNN_forward_image(image, save_res, id)
-        # entry = self.mattnet.comprehend(img_data, expr)
+        expr = 'wallet'
+        entry = self.mattnet.comprehend(img_data, expr)
 
-        # print('overall_score: {}'.format(entry['overall_scores']))
-        # print('module_score: {}'.format(entry['module_scores']))
-        # print('sub(%.2f):' % entry['weights'][0], ''.join(['(%s,%.2f)'% (tokens[i], s) for i, s in enumerate(entry['sub_attn'])]))
-        # print('loc(%.2f):' % entry['weights'][1], ''.join(['(%s,%.2f)'% (tokens[i], s) for i, s in enumerate(entry['loc_attn'])]))
-        # print('rel(%.2f):' % entry['weights'][2], ''.join(['(%s,%.2f)'% (tokens[i], s) for i, s in enumerate(entry['rel_attn'])]))
-        # # predict attribute on the predicted object
-        # print(entry['pred_atts'])
+        print('overall_score: {}'.format(entry['overall_scores']))
+        print('module_score: {}'.format(entry['module_scores']))
+        print('sub(%.2f):' % entry['weights'][0], ''.join(['(%s,%.2f)'% (tokens[i], s) for i, s in enumerate(entry['sub_attn'])]))
+        print('loc(%.2f):' % entry['weights'][1], ''.join(['(%s,%.2f)'% (tokens[i], s) for i, s in enumerate(entry['loc_attn'])]))
+        print('rel(%.2f):' % entry['weights'][2], ''.join(['(%s,%.2f)'% (tokens[i], s) for i, s in enumerate(entry['rel_attn'])]))
+        # predict attribute on the predicted object
+        print(entry['pred_atts'])
 
     def compute_lfeats(self, det_ids, Dets, im):
         '''
@@ -195,7 +200,7 @@ class fasterRCNNMattNetDemo(object):
                             rw, (cy1+ch-rcy)/rh, cw*ch/(rw*rh)])
         return dif_lfeats
 
-    def fetch_cxt_feats(self, det_ids, Dets, spatial_fc7, opt):
+    def fetch_cxt_feats(self, det_ids, Dets, spatial_fc7, topK=5, with_st=1):
         '''
         object's location wrt to other objects of the different category
 
@@ -210,7 +215,6 @@ class fasterRCNNMattNetDemo(object):
         Note we use neighbouring objects for computing context objects, zeros padded.
         '''
         fc7 = spatial_fc7.mean(3).mean(2)  # (n, 2048)
-        topK = opt['num_cxt']
         cxt_feats = Variable(spatial_fc7.data.new(
             len(det_ids), topK, 2048).zero_())
         cxt_lfeats = np.zeros((len(det_ids), topK, 5), dtype=np.float32)
@@ -223,7 +227,7 @@ class fasterRCNNMattNetDemo(object):
                 2, rbox[1]+rbox[3]/2, rbox[2], rbox[3]
             # candidate boxes
             st_det_ids, dt_det_ids = self.fetch_neighbour_ids(ref_det_id, Dets)
-            if opt['with_st'] > 0:
+            if with_st > 0:
                 cand_det_ids = dt_det_ids + st_det_ids
             else:
                 cand_det_ids = dt_det_ids
@@ -251,5 +255,5 @@ if __name__ == '__main__':
         test_img_path = os.path.join('images', image_id + ".jpg")
         cv_img = cv2.imread(test_img_path, cv2.IMREAD_COLOR)
         # VMRN forward process
-        obj_box, obj_cls = demo.forward_process(cv_img, save_res=True, id = image_id)
+        demo.forward_process(cv_img, save_res=True, id = image_id)
 

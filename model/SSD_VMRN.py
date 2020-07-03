@@ -99,9 +99,9 @@ class SSD_VMRN(SSD, VMRN):
             obj_labels = obj_rois[:, 5]
             obj_rois = obj_rois[:, :5]
 
-        VMRN_rel_loss_cls = 0
+        VMRN_rel_loss_cls, reg_loss = 0, 0
         if (obj_num > 1).sum().item() > 0:
-            rel_cls_score, rel_cls_prob = self._get_rel_det_result(base_feat, obj_rois, obj_num)
+            rel_cls_score, rel_cls_prob, reg_loss = self._get_rel_det_result(base_feat, obj_rois, obj_num, im_info)
             if self.training:
                 obj_pair_rel_label = self._generate_rel_labels(obj_rois, gt_boxes, obj_num, rel_mat,
                                                                rel_cls_prob.size(0))
@@ -121,9 +121,10 @@ class SSD_VMRN(SSD, VMRN):
             else:
                 rel_result = (obj_rois.data, obj_labels, rel_cls_prob.data)
 
-        return loc, conf, rel_result, SSD_loss_bbox, SSD_loss_cls, VMRN_rel_loss_cls
+        return loc, conf, rel_result, SSD_loss_bbox, SSD_loss_cls, VMRN_rel_loss_cls, reg_loss
 
     def _init_modules(self):
+        assert cfg.TRAIN.VMRN.RELCLS_GRAD, "No gradients are applied to relationship convolutional layers."
         SSD._init_modules(self)
         VMRN._init_modules(self)
 
@@ -131,6 +132,6 @@ class SSD_VMRN(SSD, VMRN):
         SSD._init_weights(self)
         VMRN._init_weights(self)
 
-    def train(self, mode=True):
-        nn.Module.train(self, mode)
-        VMRN.train(self, mode)
+    def create_architecture(self, object_detector_path=''):
+        # TODO: support pretrained object detector here
+        pass

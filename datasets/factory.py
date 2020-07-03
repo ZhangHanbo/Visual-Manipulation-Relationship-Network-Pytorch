@@ -13,6 +13,7 @@ from __future__ import print_function
 __sets = {}
 from datasets.pascal_voc import pascal_voc
 from datasets.coco import coco
+from datasets.refcoco import refcoco
 from datasets.imagenet import imagenet
 from datasets.vg import vg
 from datasets.vmrd import vmrd
@@ -28,23 +29,28 @@ for year in ['2007', '2012']:
     name = 'voc_{}_{}'.format(year, split)
     __sets[name] = (lambda split=split, year=year: pascal_voc(split, year))
 
-# Set up coco_2014_<split>
-for year in ['2014']:
-  for split in ['train', 'val', 'minival', 'valminusminival', 'trainval']:
-    name = 'coco_{}_{}'.format(year, split)
-    __sets[name] = (lambda split=split, year=year: coco(split, year))
-
-# Set up coco_2014_cap_<split>
-for year in ['2014']:
-  for split in ['train', 'val', 'capval', 'valminuscapval', 'trainval']:
-    name = 'coco_{}_{}'.format(year, split)
-    __sets[name] = (lambda split=split, year=year: coco(split, year))
+# Set up coco_<2014 or 2017>_<split>
+for year in ['2014', '2017']:
+  if year == '2014':
+      for split in ['train', 'val', 'capval', 'valminuscapval', 'trainval']:
+        name = 'coco_{}_{}'.format(year, split)
+        __sets[name] = (lambda split=split, year=year: coco(split, year))
+  else:
+      for split in ['train', 'val', 'capval', 'trainval']:
+        name = 'coco_{}_{}'.format(year, split)
+        __sets[name] = (lambda split=split, year=year: coco(split, year))
 
 # Set up coco_2015_<split>
 for year in ['2015']:
   for split in ['test', 'test-dev']:
     name = 'coco_{}_{}'.format(year, split)
     __sets[name] = (lambda split=split, year=year: coco(split, year))
+
+for split in ['google', 'unc', 'umd']:
+    for version in ['', '+', 'g']:
+        for imageset in ['train', 'val', 'test']:
+            name = 'refcoco{}_{}_{}'.format(version, split, imageset)
+            __sets[name] = (lambda imageset=imageset, split=split, version=version: refcoco(imageset, split, version))
 
 # Set up vg_<split>
 # for version in ['1600-400-20']:
@@ -63,7 +69,7 @@ for split in ['train', 'val', 'val1', 'val2', 'test']:
     data_path = 'data/imagenet/ILSVRC'
     __sets[name] = (lambda split=split, devkit_path=devkit_path, data_path=data_path: imagenet(split,devkit_path,data_path))
 
-for version in ['compv1']:
+for version in ['v1', 'compv1', 'ext']:
     for split in ['trainval', 'test']:
         name = 'vmrd_{}_{}'.format(version,split)
         __sets[name] = (lambda split=split, version=version: vmrd(split, version))

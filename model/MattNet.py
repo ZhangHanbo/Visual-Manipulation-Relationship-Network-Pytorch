@@ -76,13 +76,12 @@ class MattNetV2(object):
         det_ids = img_data['det_ids']
         cxt_det_ids = img_data['cxt_det_ids']
         Dets = {det['det_id']: det for det in img_data['dets']}
-        masks = img_data['masks']
+        # masks = img_data['masks']
         Feats = img_data['Feats']
 
         # encode labels
         expr = expr.lower().strip()
-        labels = self.encode_labels(
-            [expr], self.word_to_ix)  # (1, sent_length)
+        labels = self.encode_labels([expr], self.word_to_ix)  # (1, sent_length)
         labels = Variable(torch.from_numpy(labels).long().cuda())
         expanded_labels = labels.expand(
             len(det_ids), labels.size(1))  # (n, sent_length)
@@ -105,7 +104,7 @@ class MattNetV2(object):
         entry['tokens'] = expr.split()
         entry['pred_det_id'] = det_ids[pred_ix]
         entry['pred_box'] = Dets[pred_det_id]['box']
-        entry['pred_mask'] = masks[pred_ix]
+        # entry['pred_mask'] = masks[pred_ix]
         # relative det_id
         entry['rel_det_id'] = cxt_det_ids[pred_ix][rel_ix]
         entry['rel_box'] = Dets[entry['rel_det_id']
@@ -129,3 +128,18 @@ class MattNetV2(object):
 
         return entry
 
+    def encode_labels(self, sent_str_list, word_to_ix):
+        """
+        Arguments:
+        - sent_str_list: list of n sents in string format
+        return:
+        - labels: int32 (n, sent_length)
+        """
+        num_sents = len(sent_str_list)
+        max_len = max([len(sent_str.split()) for sent_str in sent_str_list])
+        L = np.zeros((num_sents, max_len), dtype=np.int32)
+        for i, sent_str in enumerate(sent_str_list):
+            tokens = sent_str.split()
+            for j, w in enumerate(tokens):
+                L[i,j] = word_to_ix[w] if w in word_to_ix else word_to_ix['<UNK>']
+        return L
