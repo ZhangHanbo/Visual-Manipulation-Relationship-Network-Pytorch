@@ -247,6 +247,7 @@ __C.DEDUP_BOXES = 1. / 16.
 # We use the same pixel mean for all networks even though it's not exactly what
 # they were trained with
 __C.PIXEL_MEANS = np.array([[[0.485, 0.456, 0.406]]])
+__C.PIXEL_MEANS_CAFFE = np.array([[[102.9801, 115.9465, 122.7717]]])
 __C.PIXEL_STDS = np.array([[[0.229, 0.224, 0.225]]])
 # For reproducibility
 __C.RNG_SEED = 3
@@ -332,6 +333,13 @@ __C.MGN = edict()
 __C.MGN.USE_ADAPTIVE_ANCHOR = False
 __C.MGN.OBJECT_GRASP_BALANCE = 1.0
 __C.MGN.USE_FIXED_SIZE_ROI = False
+
+
+# pretrain type
+__C.PRETRAIN_TYPE = 'caffe'
+
+
+
 
 import pdb
 def get_output_dir(imdb, weights_filename):

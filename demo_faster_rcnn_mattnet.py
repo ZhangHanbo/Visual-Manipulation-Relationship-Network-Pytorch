@@ -3,6 +3,8 @@ import os
 import torch
 from torch.autograd import Variable
 import argparse
+from scipy.misc import imread, imresize
+import matplotlib.pyplot as plt
 
 from model.FasterRCNN import fasterRCNN
 from model.utils.config import read_cfgs, cfg
@@ -13,11 +15,26 @@ from model.utils.data_viewer import dataViewer
 from model.rpn.bbox_transform import bbox_xy_to_xywh
 from model.MattNet import MattNetV2
 
+# import sys
+# print(sys.path)
+# import model.mattnet.tools._init_paths
+# print(sys.path)
+
+# from mrcn import inference
+# from model.nms_wrapper import nms
+
 import cv2
 from torchsummary import summary
 
+# ------------- Static Functions --------------
+def xywh_to_xyxy(boxes):
+  """Convert [x y w h] box format to [x1 y1 x2 y2] format."""
+  return np.hstack((boxes[:, 0:2], boxes[:, 0:2] + boxes[:, 2:4] - 1))
+
+
 class fasterRCNNMattNetDemo(object):
     def __init__(self, args, model_dir):
+        # init RCNN
         conv_num = str(int(np.log2(cfg.RCNN_COMMON.FEAT_STRIDE[0])))
         # load trained model
         load_name = os.path.join(model_dir, args.frame + '_{}_{}_{}.pth'.format(args.checksession, args.checkepoch,
@@ -52,6 +69,123 @@ class fasterRCNNMattNetDemo(object):
         parser.add_argument('--model_id', type=str, default='mrcn_cmr_with_st', help='model id name')
         args = parser.parse_args('')
         self.mattnet = MattNetV2(args)
+
+        # !!! For testing only
+        # load mrcn 
+        # tic = time.time()
+        # args.imdb_name = self.model_opt['imdb_name']
+        # args.net_name = self.model_opt['net_name']
+        # args.tag = self.model_opt['tag']
+        # args.iters = self.model_opt['iters']
+        # self.mrcn = inference.Inference(args)
+        # self.imdb = self.mrcn.imdb
+        # print('Mask R-CNN: imdb[%s], tag[%s], id[%s_mask_rcnn_iter_%s] loaded in %.2f seconds.' % \
+        #     (args.imdb_name, args.tag, args.net_name, args.iters, time.time()-tic))
+
+    """
+    def cls_to_detections(self, scores, boxes, nms_thresh, conf_thresh):
+        # run nms and threshold for each class detection
+        cls_to_dets = {}
+        num_dets = 0
+        for cls_ind, class_name in enumerate(self.imdb.classes[1:]):
+            cls_ind += 1  # because we skipped background
+            cls_boxes = boxes[:, 4*cls_ind:4*(cls_ind+1)]
+            cls_scores = scores[:, cls_ind]
+            dets = np.hstack((cls_boxes,
+                                cls_scores[:, np.newaxis])).astype(np.float32)
+            keep = nms(torch.from_numpy(dets), nms_thresh)
+            dets = dets[keep.numpy(), :]
+            inds = np.where(dets[:, -1] >= conf_thresh)[0]
+            dets = dets[inds, :]
+            cls_to_dets[class_name] = dets
+            num_dets += dets.shape[0]
+        return cls_to_dets, num_dets
+
+    def mrcn_forward_image(self, img_path, nms_thresh=.3, conf_thresh=.65, true_bboxes=None):
+        '''
+        Arguments:
+        - img_path   : path to image
+        - nms_thresh : nms threshold 
+        - conf_thresh: confidence threshold [0,1]
+        Return "data" is a dict of
+        - det_ids: list of det_ids, order consistent with dets and masks
+        - dets   : [{det_id, box, category_name, category_id, score}], box is [xywh] and category_id is coco_cat_id
+        - masks  : ndarray (n, im_h, im_w) uint8 [0,1]
+        - Feats  :
+        - pool5     : Variable cuda (n, 1024, 7, 7)
+        - fc7       : Variable cuda (n, 2048, 7, 7)
+        - lfeats    : Variable cuda (n, 5)
+        - dif_lfeats: Variable cuda (n, 5*topK)
+        - cxt_fc7   : Variable cuda (n, topK, 2048)
+        - cxt_lfeats: Variable cuda (n, topK, 5)
+        - cxt_det_ids : list of [surrounding_det_ids] for each det_id
+        '''
+        # read image
+        im = imread(img_path)
+
+        # 1st step: detect objects
+        scores, boxes = self.mrcn.predict(img_path)
+        print(boxes)
+        boxes = true_bboxes # !!! For testing only. replace boxes. 
+
+        # get head feats, i.e., net_conv 
+        net_conv = self.mrcn.net._predictions['net_conv']  # Variable cuda (1, 1024, h, w)
+        im_info = self.mrcn.net._im_info  # [[H, W, im_scale]]
+
+        # get cls_to_dets, class_name -> [xyxys] which is (n, 5)
+        cls_to_dets, num_dets = self.cls_to_detections(scores, boxes, nms_thresh, conf_thresh)
+        # make sure num_dets > 0
+        thresh = conf_thresh
+        while num_dets == 0:
+            thresh -= 0.1
+            cls_to_dets, num_dets = self.cls_to_detections(scores, boxes, nms_thresh, thresh)
+
+        # add to dets
+        dets = []
+        det_id = 0
+        for category_name, detections in cls_to_dets.items():
+            # detections: list of (n, 5), [xyxyc]
+            for detection in detections:
+                x1, y1, x2, y2, sc = detection
+                det = {'det_id': det_id, 
+                    'box': [x1, y1, x2-x1+1, y2-y1+1],
+                    'category_name': category_name,
+                    'category_id': self.imdb._class_to_coco_cat_id[category_name],
+                    'score': sc}
+                dets += [det]
+                det_id += 1
+        Dets = {det['det_id']: det for det in dets}
+        det_ids = [det['det_id'] for det in dets]
+
+        # 2nd step: get masks
+        boxes = xywh_to_xyxy(np.array([det['box'] for det in dets]))  # xyxy (n, 4) ndarray
+        labels = np.array([self.imdb._class_to_ind[det['category_name']] for det in dets])
+        # mask_prob = self.mrcn.net._predict_masks_from_boxes_and_labels(net_conv, boxes*im_info[0][2], labels)
+        # mask_prob = mask_prob.data.cpu().numpy()
+        # masks = recover_masks(mask_prob, boxes, im.shape[0], im.shape[1])  # (N, ih, iw) uint8 [0-255]
+        # masks = (masks > 122.).astype(np.uint8)  # (N, ih, iw) uint8 [0,1]
+
+        # 3rd step: compute features
+        pool5, fc7 = self.mrcn.box_to_spatial_fc7(net_conv, im_info, boxes)  # (n, 1024, 7, 7), (n, 2048, 7, 7)
+        lfeats = self.compute_lfeats(det_ids, Dets, im)
+        dif_lfeats = self.compute_dif_lfeats(det_ids, Dets)
+        cxt_fc7, cxt_lfeats, cxt_det_ids = self.fetch_cxt_feats(det_ids, Dets, fc7, self.model_opt)
+
+        # move to Variable cuda
+        lfeats = Variable(torch.from_numpy(lfeats).cuda())
+        dif_lfeats = Variable(torch.from_numpy(dif_lfeats).cuda())
+        cxt_lfeats = Variable(torch.from_numpy(cxt_lfeats).cuda())
+
+        # return
+        data = {}
+        data['det_ids'] = det_ids
+        data['dets'] = dets
+        # data['masks'] = masks
+        data['cxt_det_ids'] = cxt_det_ids
+        data['Feats'] = {'pool5': pool5, 'fc7': fc7, 'lfeats': lfeats, 'dif_lfeats': dif_lfeats, 
+                        'cxt_fc7': cxt_fc7, 'cxt_lfeats': cxt_lfeats}
+        return data
+    """
 
     def fasterRCNN_forward_image(self, image, save_res=False, id=""):
         data_batch = prepare_data_batch_from_cvimage(image, is_cuda=True)
@@ -119,18 +253,44 @@ class fasterRCNNMattNetDemo(object):
                          'cxt_fc7': cxt_fc7, 'cxt_lfeats': cxt_lfeats}
         return data
 
-    def forward_process(self, image, save_res=False, id=""):
+    def forward_process(self, image, expr, save_res=False, id="", img_path=""):
         img_data = self.fasterRCNN_forward_image(image, save_res, id)
-        expr = 'wallet'
+        # obj_boxes = self.fasterRCNN_forward_image(image, save_res, id)
+        # img_data = self.mrcn_forward_image(img_path, true_bboxes=obj_boxes)
+ 
         entry = self.mattnet.comprehend(img_data, expr)
-
         print('overall_score: {}'.format(entry['overall_scores']))
         print('module_score: {}'.format(entry['module_scores']))
+        tokens = expr.split()
         print('sub(%.2f):' % entry['weights'][0], ''.join(['(%s,%.2f)'% (tokens[i], s) for i, s in enumerate(entry['sub_attn'])]))
         print('loc(%.2f):' % entry['weights'][1], ''.join(['(%s,%.2f)'% (tokens[i], s) for i, s in enumerate(entry['loc_attn'])]))
         print('rel(%.2f):' % entry['weights'][2], ''.join(['(%s,%.2f)'% (tokens[i], s) for i, s in enumerate(entry['rel_attn'])]))
         # predict attribute on the predicted object
         print(entry['pred_atts'])
+        fig = plt.figure()
+        self.show_boxes(img_path, xywh_to_xyxy(np.vstack([entry['pred_box']])), ['blue'], texts=None)
+        plt.show()
+
+    def show_boxes(self, img_path, boxes, colors, texts=None, masks=None):
+        # boxes [[xyxy]]
+        img = imread(img_path)
+        plt.imshow(img)
+        ax = plt.gca()
+        for k in range(boxes.shape[0]):
+            box = boxes[k]
+            xmin, ymin, xmax, ymax = list(box)
+            coords = (xmin, ymin), xmax - xmin + 1, ymax - ymin + 1
+            color = colors[k]
+            ax.add_patch(plt.Rectangle(*coords, fill=False, edgecolor=color, linewidth=2))
+            if texts is not None:
+                ax.text(xmin, ymin, texts[k], bbox={'facecolor':color, 'alpha':0.5})
+        # show mask
+        if masks is not None:
+            for k in range(len(masks)):
+                mask = masks[k]
+                m = np.zeros( (mask.shape[0], mask.shape[1], 3))
+                m[:,:,0] = 0; m[:,:,1] = 0; m[:,:,2] = 1.
+                ax.imshow(np.dstack([m*255, mask*255*0.4]).astype(np.uint8)) 
 
     def compute_lfeats(self, det_ids, Dets, im):
         '''
@@ -251,9 +411,12 @@ if __name__ == '__main__':
         image_id = raw_input('Image ID: ').lower()
         if image_id == 'break':
             break
+        expr = raw_input('Expression:').lower()
+        if expr == 'break':
+            break
         # read cv image
         test_img_path = os.path.join('images', image_id + ".jpg")
         cv_img = cv2.imread(test_img_path, cv2.IMREAD_COLOR)
         # VMRN forward process
-        demo.forward_process(cv_img, save_res=True, id = image_id)
+        demo.forward_process(cv_img, expr, save_res=True, id = image_id, img_path=test_img_path)
 

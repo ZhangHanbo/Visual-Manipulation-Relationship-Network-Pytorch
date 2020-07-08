@@ -40,11 +40,11 @@ class MattNetV2(object):
         self.model_opt = infos['opt']
         self.word_to_ix = infos['word_to_ix']
         self.ix_to_att = {ix: att for att, ix in infos['att_to_ix'].items()}
-        self.model = self.load_matnet_model(model_path, self.model_opt)
+        self.model = self.load_mattnet_model(model_path, self.model_opt)
         print('MattNet [%s_%s\'s %s] loaded in %.2f seconds.' %
             (args.dataset, args.splitBy, args.model_id, time.time()-tic))
 
-    def load_matnet_model(self, checkpoint_path, opt):
+    def load_mattnet_model(self, checkpoint_path, opt):
         # load MatNet model from pre-trained checkpoint_path
         tic = time.time()
         model = JointMatching(opt)
