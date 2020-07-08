@@ -19,7 +19,6 @@ from utils.net_utils import _smooth_l1_loss, weights_normal_init
 class fasterRCNN(objectDetector):
     """ faster RCNN """
     def __init__(self, classes, class_agnostic, feat_name, feat_list=('conv4',), pretrained = True):
-
         super(fasterRCNN, self).__init__(classes, class_agnostic, feat_name, feat_list, pretrained)
         ##### Important to set model to eval mode before evaluation ####
         self.FeatExt.eval()
@@ -79,9 +78,12 @@ class fasterRCNN(objectDetector):
     def _get_obj_det_result(self, pooled_feat):
         # feed pooled features to top model
         pooled_feat = self._obj_head_to_tail(pooled_feat)
+        print(pooled_feat.shape)
         # compute object classification probability
         cls_score = self.RCNN_cls_score(pooled_feat)
+        print(cls_score.shape)
         cls_prob = F.softmax(cls_score)
+        print(cls_prob.shape)
         # compute bbox offset
         bbox_pred = self.RCNN_bbox_pred(pooled_feat)
         return cls_score, cls_prob, bbox_pred
@@ -187,7 +189,14 @@ class fasterRCNN(objectDetector):
         img_index = torch.cat(img_index, dim = 0).type_as(obj_boxes)
         obj_boxes = torch.cat([img_index, obj_boxes], dim = -1)
 
-        pool5 = self._roi_pooling(self.base_feat_cache, obj_boxes.view(-1,5))
+        pool5 = self._roi_pooling(self.base_feat_cache, obj_boxes.view(-1,5)) # (n, 1024, 7, 7)
         print(pool5.shape)
         spatial_fc7 = self.FeatExt.layer4(pool5) # (n, 2048, 7, 7)
         return pool5, spatial_fc7
+    
+    def get_base_feat(self, images):
+        '''
+        images, (bs, 3, h, w)
+        '''
+        base_feats = self.FeatExt(images)
+        return base_feats

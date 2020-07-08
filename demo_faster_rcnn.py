@@ -44,12 +44,16 @@ class fasterRCNNDemo(object):
 
     def fasterRCNN_forward_process(self, image, save_res = False, id = ""):
         data_batch = prepare_data_batch_from_cvimage(image, is_cuda = True)
+        print("im_info {}".format(data_batch[1]))
+
         result = self.RCNN(data_batch)
         rois = result[0][0][:,1:5].data
         cls_prob = result[1][0].data
         bbox_pred = result[2][0].data
         obj_boxes = objdet_inference(cls_prob, bbox_pred, data_batch[1][0], rois,
                                      class_agnostic=False, for_vis=True, recover_imscale=True)
+        print('obj_boxes: {}'.format(obj_boxes))
+
         obj_classes = obj_boxes[:, -1]
         obj_boxes = obj_boxes[:, :-1]
         num_box = obj_boxes.shape[0]
