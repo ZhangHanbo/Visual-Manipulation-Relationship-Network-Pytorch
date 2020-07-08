@@ -119,7 +119,8 @@ def _get_image_blob(roidb):
         im = np.concatenate((im,im,im), axis=2)
 
     # BGR to RGB
-    im = im[:, :, ::-1]
+    if cfg.PRETRAIN_TYPE == "pytorch":
+        im = im[:, :, ::-1]
 
     im = im.astype(np.float32, copy=False)
     return im

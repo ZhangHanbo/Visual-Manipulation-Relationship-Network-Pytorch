@@ -23,18 +23,6 @@ model_urls = {
     'vgg19_bn': 'https://download.pytorch.org/models/vgg19_bn-c79401a0.pth',
 }
 
-local_model_paths = {
-    'vgg11': 'data/pretrained_model/vgg11-bbd30ac9.pth',
-    'vgg13': 'data/pretrained_model/vgg13-c768596a.pth',
-    'vgg16': 'data/pretrained_model/vgg16-397923af.pth',
-    'vgg19': 'data/pretrained_model/vgg19-dcbb9e9d.pth',
-    'vgg11_bn': 'data/pretrained_model/vgg11_bn-6002323d.pth',
-    'vgg13_bn': 'data/pretrained_model/vgg13_bn-abd245e5.pth',
-    'vgg16_bn': 'data/pretrained_model/vgg16_bn-6c64b313.pth',
-    'vgg19_bn': 'data/pretrained_model/vgg19_bn-c79401a0.pth',
-}
-
-
 class VGG(featExtractor):
     '''
     VGG model
@@ -173,6 +161,24 @@ cfgs = {
 }
 
 def vgg_initializer(name, feat_list, pretrained = False):
+    if cfg.PRETRAIN_TYPE == "pytorch":
+        local_model_paths = {
+            'vgg11': 'data/pretrained_model/vgg11-bbd30ac9.pth',
+            'vgg13': 'data/pretrained_model/vgg13-c768596a.pth',
+            'vgg16': 'data/pretrained_model/vgg16-397923af.pth',
+            'vgg19': 'data/pretrained_model/vgg19-dcbb9e9d.pth',
+            'vgg11_bn': 'data/pretrained_model/vgg11_bn-6002323d.pth',
+            'vgg13_bn': 'data/pretrained_model/vgg13_bn-abd245e5.pth',
+            'vgg16_bn': 'data/pretrained_model/vgg16_bn-6c64b313.pth',
+            'vgg19_bn': 'data/pretrained_model/vgg19_bn-c79401a0.pth',
+        }
+    elif cfg.PRETRAIN_TYPE == "caffe":
+        local_model_paths = {
+            'vgg16': 'data/pretrained_model/vgg16_caffe.pth',
+        }
+    else:
+        raise RuntimeError("Please specify caffe or pytorch pretrained model to use.")
+
     cfg_dict = {
         "vgg11": {"cfg": "A", "bn": False},
         "vgg13": {"cfg": "B", "bn": False},
