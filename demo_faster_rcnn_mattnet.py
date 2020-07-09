@@ -206,7 +206,7 @@ class fasterRCNNMattNetDemo(object):
         if save_res:
             obj_det_img = self.data_viewer.draw_objdet(image.copy(),
                 np.concatenate((obj_boxes, np.expand_dims(obj_classes, 1)), axis=1), o_inds=list(range(num_box)))
-            cv2.imwrite("images/" + id + "object_det.png", obj_det_img)
+            cv2.imwrite("images/1/" + id + "object_det.png", obj_det_img)
 
         # add to dets
         dets = []
@@ -230,8 +230,10 @@ class fasterRCNNMattNetDemo(object):
         print(obj_boxes)
         obj_boxes = torch.from_numpy(obj_boxes).cuda()
         obj_boxes = obj_boxes.unsqueeze(0)
-        print(obj_boxes)
-        pool5, fc7 = self.RCNN.box_to_spatial_fc7(obj_boxes)
+        # print(obj_boxes)
+        img_scale = data_batch[1][0][2]
+        print("img_scale {}".format(img_scale))
+        pool5, fc7 = self.RCNN.box_to_spatial_fc7(obj_boxes, img_scale)
         print('pool5 shape {}'.format(pool5.shape))
         print('fc7 shape {}'.format(fc7.shape))
         lfeats = self.compute_lfeats(det_ids, Dets, image) # location feature against the image
@@ -415,7 +417,7 @@ if __name__ == '__main__':
         if expr == 'break':
             break
         # read cv image
-        test_img_path = os.path.join('images', image_id + ".jpg")
+        test_img_path = os.path.join('images', image_id)
         cv_img = cv2.imread(test_img_path, cv2.IMREAD_COLOR)
         # VMRN forward process
         demo.forward_process(cv_img, expr, save_res=True, id = image_id, img_path=test_img_path)

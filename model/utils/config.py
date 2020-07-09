@@ -523,6 +523,18 @@ def parse_args():
                       help='whether to visualize training data',
                       action='store_true')
 
+  # TODO mattnet
+  parser.add_argument('--imdb_name', default='coco_minus_refer',
+                      help='image databased trained on.')
+  parser.add_argument('--net_name', default='res101')
+  parser.add_argument('--iters', default=1250000, type=int)
+  parser.add_argument('--tag', default='notime')
+
+  parser.add_argument('--ref_dataset', type=str, default='refcoco',
+                      help='dataset name: refclef, refcoco, refcoco+, refcocog')
+  parser.add_argument('--splitBy', type=str, default='unc',
+                      help='splitBy: unc, google, berkeley')
+
   args = parser.parse_args()
   return args
 
