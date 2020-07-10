@@ -67,7 +67,7 @@ def main(args):
 
     # feats_h5
     feats_dir=osp.join(MATTNET_DIR, 'cache/feats', dataset_splitBy, 'rcnn',
-                        '%s_%s_%s' % (args.net_name, args.imdb_name, args.tag))
+                        '%s_%s_%s' % (args.net_name, args.ref_imdb_name, args.tag))
     if not osp.isdir(feats_dir):
         os.makedirs(feats_dir)
 
@@ -75,17 +75,17 @@ def main(args):
     for i, image in enumerate(images):
         file_name = image['file_name']
         img_path = osp.join(IMAGE_DIR, file_name)
-        print(img_path)
-        image = cv2.imread(img_path, cv2.IMREAD_COLOR)
-        data_batch = prepare_data_batch_from_cvimage(image, is_cuda=True)
+        # print(img_path)
+        img = cv2.imread(img_path, cv2.IMREAD_COLOR)
+        data_batch = prepare_data_batch_from_cvimage(img, is_cuda=True)
 
         # !!! Here img_scale[x] should be equal to img_scale[y]
         # TODO, to add assert
         feat = RCNN.get_base_feat(data_batch)  # (1, 1024, x, y)
         feat = feat.data.cpu().numpy()
         im_info = data_batch[1][:, :3].cpu().numpy()  # (H, W, img_scale)
-        print('feat {}'.format(feat.shape))
-        print('im_info {}'.format(im_info.shape))
+        # print('feat {}'.format(feat.shape))
+        # print('im_info {}'.format(im_info.shape))
 
         # write
         feat_h5 = osp.join(feats_dir, str(image['image_id'])+'.h5')
@@ -96,6 +96,8 @@ def main(args):
         if i % 10 == 0:
             print('%s/%s image_id[%s] size[%s] im_scale[%.2f] writen.' %
                   (i+1, len(images), image['image_id'], feat.shape, im_info[0][2]))
+        # if i >= 1000:
+        #     break
 
     print('Done.')
 

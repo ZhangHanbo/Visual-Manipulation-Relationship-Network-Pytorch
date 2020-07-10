@@ -180,26 +180,26 @@ class fasterRCNN(objectDetector):
 
         return rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox, rois_label
     
-    def box_to_spatial_fc7(self, obj_boxes, img_scale):
+    def box_to_spatial_fc7(self, base_feat, obj_boxes, img_scale):
         # obj_boxes: bs x N x 4 Tensor. bs: batch size, N: number of boxes on each image
         # obj_boxes[i]: N x 4 Tensor, meaning the boxes on the ith image.
-        assert obj_boxes.shape[0] == self.batch_size, "Batch size does not match."
+        # assert obj_boxes.shape[0] == self.batch_size, "Batch size does not match."
        
         img_index = [torch.ones(obj_boxes.shape[1]).unsqueeze(0).unsqueeze(-1) * i for i in range(obj_boxes.shape[0])]
         img_index = torch.cat(img_index, dim = 0).type_as(obj_boxes)
         scaled_boxes = obj_boxes * img_scale
         rois = torch.cat([img_index, scaled_boxes], dim = -1)
 
-        pool5 = self._roi_pooling(self.base_feat_cache, rois.view(-1,5)) # (n, 1024, 7, 7)
-        print(pool5.shape)
+        pool5 = self._roi_pooling(base_feat, rois.view(-1,5)) # (n, 1024, 7, 7)
+        #print(pool5.shape)
         spatial_fc7 = self.FeatExt.layer4(pool5) # (n, 2048, 7, 7)
         return pool5, spatial_fc7
 
-    def box_to_pool5_fc7(self, obj_boxes, base_feat, img_scale):
+    def box_to_pool5_fc7(self, base_feat, obj_boxes, img_scale):
         # obj_boxes: bs x N x 4 Tensor. bs: batch size, N: number of boxes on each image
         # obj_boxes[i]: N x 4 Tensor, meaning the boxes on the ith image.
-        assert obj_boxes.shape[0] == self.batch_size, "Batch size does not match."
-       
+        
+        # print('obj_boxes {}'.format(obj_boxes.shape))
         img_index = [torch.ones(obj_boxes.shape[1]).unsqueeze(0).unsqueeze(-1) * i for i in range(obj_boxes.shape[0])]
         img_index = torch.cat(img_index, dim = 0).type_as(obj_boxes)
         scaled_boxes = obj_boxes * img_scale
@@ -216,7 +216,7 @@ class fasterRCNN(objectDetector):
         images, (bs, 3, h, w)
         '''
         im_data = data_batch[0]
-        print(im_data.shape)
-        print(im_data.get_device())
+        # print(im_data.shape)
+        # print(im_data.get_device())
         base_feats = self.FeatExt(im_data)
         return base_feats
