@@ -180,6 +180,9 @@ class fasterRCNN(objectDetector):
 
         return rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox, rois_label
     
+    def get_base_feat_cache(self):
+        return self.base_feat_cache
+
     def box_to_spatial_fc7(self, base_feat, obj_boxes, img_scale):
         # obj_boxes: bs x N x 4 Tensor. bs: batch size, N: number of boxes on each image
         # obj_boxes[i]: N x 4 Tensor, meaning the boxes on the ith image.

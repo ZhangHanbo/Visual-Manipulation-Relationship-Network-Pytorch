@@ -66,7 +66,7 @@ class fasterRCNNMattNetDemo(object):
         parser = argparse.ArgumentParser()
         parser.add_argument('--dataset', type=str, default='refcoco', help='dataset name: refclef, refcoco, refcoco+, refcocog')
         parser.add_argument('--splitBy', type=str, default='unc', help='splitBy: unc, google, berkeley')
-        parser.add_argument('--model_id', type=str, default='mrcn_cmr_with_st', help='model id name')
+        parser.add_argument('--model_id', type=str, default='rcnn_cmr_with_st', help='model id name')
         args = parser.parse_args('')
         self.mattnet = MattNetV2(args)
 
@@ -206,7 +206,10 @@ class fasterRCNNMattNetDemo(object):
         if save_res:
             obj_det_img = self.data_viewer.draw_objdet(image.copy(),
                 np.concatenate((obj_boxes, np.expand_dims(obj_classes, 1)), axis=1), o_inds=list(range(num_box)))
+            # cv2.imshow('img', obj_det_img)
+            # cv2.waitkey(0)
             cv2.imwrite("images/1/" + id + "object_det.png", obj_det_img)
+            print("Image written!!!")
 
         # add to dets
         dets = []
@@ -233,7 +236,7 @@ class fasterRCNNMattNetDemo(object):
         # print(obj_boxes)
         img_scale = data_batch[1][0][2]
         print("img_scale {}".format(img_scale))
-        pool5, fc7 = self.RCNN.box_to_spatial_fc7(obj_boxes, img_scale)
+        pool5, fc7 = self.RCNN.box_to_spatial_fc7(self.RCNN.get_base_feat_cache(), obj_boxes, img_scale)
         print('pool5 shape {}'.format(pool5.shape))
         print('fc7 shape {}'.format(fc7.shape))
         lfeats = self.compute_lfeats(det_ids, Dets, image) # location feature against the image
@@ -417,8 +420,8 @@ if __name__ == '__main__':
         if expr == 'break':
             break
         # read cv image
-        test_img_path = os.path.join('images', image_id)
+        test_img_path = os.path.join('images/1', image_id)
         cv_img = cv2.imread(test_img_path, cv2.IMREAD_COLOR)
         # VMRN forward process
-        demo.forward_process(cv_img, expr, save_res=True, id = image_id, img_path=test_img_path)
+        demo.forward_process(cv_img, expr, save_res=True, id = os.path.splitext(image_id)[0], img_path=test_img_path)
 

@@ -9,6 +9,8 @@ ITERS=1250000
 TAG="notime"
 NET="res101"
 ID="rcnn_cmr_with_st"
+CHECKPOINT=18301
+CHECKEPOCH=13
 
 CUDA_VISIBLE_DEVICES=${GPU_ID} python ./train_mattnet.py \
     --ref_imdb_name ${IMDB} \
@@ -24,5 +26,5 @@ CUDA_VISIBLE_DEVICES=${GPU_ID} python ./train_mattnet.py \
     --frame faster_rcnn \
     --net res101 \
     --cuda \
-    --checkpoint 4576 \
-    --checkepoch 4
+    --checkpoint ${CHECKPOINT} \
+    --checkepoch ${CHECKEPOCH}
