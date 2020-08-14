@@ -25,7 +25,8 @@ import torch
 import torch.nn as nn
 
 this_dir = osp.dirname(__file__)
-MATTNET_DIR = osp.join(this_dir, 'model/mattnet')
+# MATTNET_DIR = osp.join(this_dir, 'model/mattnet')
+MATTNET_DIR = '/media/peacock-rls/My Passport/mattnet'
 
 def load_model(checkpoint_path, opt):
   tic = time.time()
@@ -42,7 +43,7 @@ def evaluate(args):
   opt = vars(args)
   # make other options
   opt['dataset_splitBy'] = opt['ref_dataset'] + '_' + opt['splitBy']
-  opt['split'] = 'testA' # 'split: testAB or val, etc')
+  opt['split'] = 'testB' # 'split: testAB or val, etc')
   opt['verbose'] = 1 # help='if we want to print the testing progress')
 
   # set up loader
@@ -70,8 +71,8 @@ def evaluate(args):
   loader.loadFeats({'ann': ann_feats})
 
   # check model_info and params
-  assert model_opt['dataset'] == opt['dataset']
-  assert model_opt['splitBy'] == opt['splitBy']
+  # assert model_opt['dataset'] == opt['dataset']
+  # assert model_opt['splitBy'] == opt['splitBy']
 
   # evaluate on the split, 
   # predictions = [{sent_id, sent, gd_ann_id, pred_ann_id, pred_score, sub_attn, loc_attn, weights}]
@@ -95,9 +96,9 @@ def evaluate(args):
     json.dump({'predictions': predictions, 'acc': acc, 'overall': overall}, of)
 
   # write to results.txt
-  f = open(MATTNET_DIR, 'experiments/easy_results.txt', 'a')
-  f.write('[%s][%s], id[%s]\'s acc is %.2f%%\n' % \
-          (opt['dataset_splitBy'], opt['split'], opt['id'], acc*100.0))
+  # f = open(MATTNET_DIR, 'experiments/easy_results.txt', 'a')
+  # f.write('[%s][%s], id[%s]\'s acc is %.2f%%\n' % \
+  #         (opt['dataset_splitBy'], opt['split'], opt['id'], acc*100.0))
 
 
 if __name__ == '__main__':

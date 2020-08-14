@@ -66,7 +66,7 @@ class fasterRCNNMattNetDemo(object):
         parser = argparse.ArgumentParser()
         parser.add_argument('--dataset', type=str, default='refcoco', help='dataset name: refclef, refcoco, refcoco+, refcocog')
         parser.add_argument('--splitBy', type=str, default='unc', help='splitBy: unc, google, berkeley')
-        parser.add_argument('--model_id', type=str, default='rcnn_cmr_with_st', help='model id name')
+        parser.add_argument('--model_id', type=str, default='rcnn_cmr_with_st_from_pretrained', help='model id name')
         args = parser.parse_args('')
         self.mattnet = MattNetV2(args)
 
@@ -276,6 +276,8 @@ class fasterRCNNMattNetDemo(object):
         self.show_boxes(img_path, xywh_to_xyxy(np.vstack([entry['pred_box']])), ['blue'], texts=None)
         plt.show()
 
+        return entry
+
     def show_boxes(self, img_path, boxes, colors, texts=None, masks=None):
         # boxes [[xyxy]]
         img = imread(img_path)
@@ -423,5 +425,5 @@ if __name__ == '__main__':
         test_img_path = os.path.join('images/1', image_id)
         cv_img = cv2.imread(test_img_path, cv2.IMREAD_COLOR)
         # VMRN forward process
-        demo.forward_process(cv_img, expr, save_res=True, id = os.path.splitext(image_id)[0], img_path=test_img_path)
+        res = demo.forward_process(cv_img, expr, save_res=True, id = os.path.splitext(image_id)[0], img_path=test_img_path)
 

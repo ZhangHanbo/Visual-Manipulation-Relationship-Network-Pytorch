@@ -24,14 +24,15 @@ from model.utils.blob import prepare_data_batch_from_cvimage
 this_dir = osp.dirname(__file__)
 MATTNET_DIR = osp.join(this_dir, 'model/mattnet')
 sys.path.insert(0, osp.join(MATTNET_DIR, 'lib/loaders'))
+MATTNET_DIR = '/media/peacock-rls/My Passport/mattnet'
 
 # dataloader
 from loader import Loader
 
 def main(args):
     dataset_splitBy = args.ref_dataset + '_' + args.splitBy
-    if not osp.isdir(osp.join('cache/feats/', dataset_splitBy)):
-        os.makedirs(osp.join('cache/feats/', dataset_splitBy))
+    if not osp.isdir(osp.join(MATTNET_DIR, 'cache/feats/', dataset_splitBy)):
+        os.makedirs(osp.join(MATTNET_DIR, 'cache/feats/', dataset_splitBy))
 
     # Image Directory
     if 'coco' in dataset_splitBy:

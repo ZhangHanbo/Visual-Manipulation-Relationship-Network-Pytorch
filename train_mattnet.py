@@ -28,7 +28,8 @@ import torch.nn as nn
 from torch.autograd import Variable
 
 this_dir = osp.dirname(__file__)
-MATTNET_DIR = osp.join(this_dir, 'model/mattnet')
+# MATTNET_DIR = osp.join(this_dir, 'model/mattnet')
+MATTNET_DIR = '/media/peacock-rls/My Passport/mattnet'
 
 # train one iter
 def lossFun(loader, optimizer, model, mm_crit, att_crit, opt, iter):
@@ -89,7 +90,7 @@ def main(args):
 
   # initialize
   opt['dataset_splitBy'] = opt['ref_dataset'] + '_' + opt['splitBy']
-  checkpoint_dir = osp.join(opt['checkpoint_path'], opt['dataset_splitBy'])
+  checkpoint_dir = osp.join(MATTNET_DIR, opt['checkpoint_path'], opt['dataset_splitBy'])
   if not osp.isdir(checkpoint_dir): os.makedirs(checkpoint_dir)
 
   # set random seed
@@ -108,17 +109,28 @@ def main(args):
                        '%s_%s_%s_ann_feats.h5' % (opt['net_name'], opt['ref_imdb_name'], opt['tag']))
   loader.loadFeats({'ann': ann_feats})
 
-  # set up model
-  opt['vocab_size']= loader.vocab_size
-  opt['fc7_dim']   = loader.fc7_dim
-  opt['pool5_dim'] = loader.pool5_dim
-  opt['num_atts']  = loader.num_atts
-  model = JointMatching(opt)
-
-  # resume from previous checkpoint
   infos = {}
-  if opt['start_from'] is not None:
-    pass
+
+  if opt['start_from'] is None:
+    # set up model
+    opt['vocab_size']= loader.vocab_size
+    opt['fc7_dim']   = loader.fc7_dim
+    opt['pool5_dim'] = loader.pool5_dim
+    opt['num_atts']  = loader.num_atts
+    model = JointMatching(opt)
+  else:
+    # resume from previous checkpoint
+    model_path = osp.join(MATTNET_DIR, opt['checkpoint_path'], opt['dataset_splitBy'], opt['start_from'] + '.pth')
+    print('loading pre-trained checkpoint {}'.format(model_path))
+    checkpoint = torch.load(model_path)
+    checkpoint_opt = checkpoint['opt']
+    model = JointMatching(checkpoint_opt)
+    opt['vocab_size']= checkpoint_opt['vocab_size']
+    opt['fc7_dim']   = checkpoint_opt['fc7_dim']
+    opt['pool5_dim'] = checkpoint_opt['pool5_dim']
+    opt['num_atts']  = checkpoint_opt['num_atts']
+    model.load_state_dict(checkpoint['model'].state_dict(), strict=False)
+
   iter = infos.get('iter', 0)
   epoch = infos.get('epoch', 0)
   val_accuracies = infos.get('val_accuracies', [])

@@ -24,7 +24,7 @@ from model.utils.blob import prepare_data_batch_from_cvimage
 this_dir = osp.dirname(__file__)
 MATTNET_DIR = osp.join(this_dir, 'model/mattnet')
 sys.path.insert(0, osp.join(MATTNET_DIR, 'lib/loaders'))
-
+MATTNET_DIR = '/media/peacock-rls/My Passport/mattnet'
 # dataloader
 from loader import Loader
 
@@ -106,7 +106,9 @@ def main(args):
     images = loader.images
     anns = loader.anns
     num_anns = len(anns)
-    assert sum([len(image['ann_ids']) for image in images]) == num_anns
+    sum_num_anns = sum([len(image['ann_ids']) for image in images])
+    print(sum_num_anns)
+    assert sum_num_anns == num_anns
 
     # load RCNN model
     conv_num = str(int(np.log2(cfg.RCNN_COMMON.FEAT_STRIDE[0])))
