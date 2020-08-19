@@ -12,10 +12,15 @@ from torch.autograd import Variable
 import math
 import torch.utils.model_zoo as model_zoo
 import pdb
+import os.path as osp
+
+THIS_DIR = osp.dirname(osp.abspath(__file__))
+ROOT_DIR = osp.join(THIS_DIR, '../..')
 
 from collections import OrderedDict
 
 from model.utils.net_utils import set_bn_fix, set_bn_eval
+
 
 
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
@@ -139,6 +144,7 @@ class ResNet(featExtractor):
                 m.bias.data.zero_()
 
         if pretrained_model_path is not None:
+            pretrained_model_path = osp.join(ROOT_DIR, pretrained_model_path)
             print("loading pretrained model: " + pretrained_model_path)
             state_dict = torch.load(pretrained_model_path)
             # self.load_state_dict({k:v for k,v in state_dict.items() if k in self.state_dict()})

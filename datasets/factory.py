@@ -13,7 +13,7 @@ from __future__ import print_function
 __sets = {}
 from datasets.pascal_voc import pascal_voc
 from datasets.coco import coco
-from datasets.refcoco import refcoco
+# from datasets.refcoco import refcoco
 from datasets.imagenet import imagenet
 from datasets.vg import vg
 from datasets.vmrd import vmrd

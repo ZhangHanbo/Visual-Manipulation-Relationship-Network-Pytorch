@@ -662,6 +662,9 @@ def read_cfgs():
     else:
         args.cfg_file = "cfgs/{}_{}_{}_ls.yml".format(args.dataset, args.frame, args.net) if args.large_scale \
         else "cfgs/{}_{}_{}.yml".format(args.dataset, args.frame, args.net)
+    
+    this_dir = osp.dirname(osp.abspath(__file__))
+    args.cfg_file = osp.join(this_dir, '../..', args.cfg_file)
     print("Using cfg file: " + args.cfg_file)
     if args.cfg_file is not None:
         cfg_from_file(args.cfg_file)
