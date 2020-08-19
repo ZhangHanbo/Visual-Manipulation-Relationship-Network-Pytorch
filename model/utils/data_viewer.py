@@ -100,7 +100,7 @@ class dataViewer(object):
         if dets.shape[0] == 0:
             return im
 
-        dets = dets[dets[:, 0] > 0].astype(np.int)
+        dets = dets[(dets[:,:8].sum(-1)) > 0].astype(np.int)
         num_grasp = dets.shape[0]
         for i in range(num_grasp):
             im = self.draw_single_grasp(im, dets[i], str(g_inds[i]) if g_inds is not None else None)
@@ -117,15 +117,15 @@ class dataViewer(object):
         if dets.shape[0] == 0:
             return im
 
-        dets = dets[dets[:,0] > 0].astype(np.int)
-        num_grasp = dets.shape[0]
+        dets = dets[(dets[:,:4].sum(-1)) > 0].astype(np.int)
+        num_box = dets.shape[0]
 
-        for i in range(num_grasp):
+        for i in range(num_box):
             cls = self.ind_to_class[dets[i, -1]]
             if o_inds is None:
                 im = self.draw_single_bbox(im, dets[i][:4], self.color_dict[cls], cls)
             else:
-                im = self.draw_single_bbox(im, dets[i][:4], self.color_dict[cls], '%s ind:%d' % (cls, o_inds[i]))
+                im = self.draw_single_bbox(im, dets[i][:4], self.color_dict[cls], '%s%d' % (cls, o_inds[i]))
         return im
 
     def draw_graspdet_with_owner(self, im, o_dets, g_dets, g_inds):
@@ -138,7 +138,7 @@ class dataViewer(object):
         """
         im = np.ascontiguousarray(im)
         if o_dets.shape[0] > 0:
-            o_inds = np.arange(o_dets.shape[0]) + 1
+            o_inds = np.arange(o_dets.shape[0])
             im = self.draw_objdet(im, o_dets, o_inds)
             im = self.draw_graspdet(im, g_dets, g_inds)
         return im
@@ -148,19 +148,59 @@ class dataViewer(object):
             return img
 
         mrt = create_mrt(rel_mat, class_names, rel_score)
+        # for e in mrt.edges():
+        #     print(e)
 
         fig = plt.figure(0, figsize=(3, 3))
-        pos = nx.kamada_kawai_layout(mrt)
-        nx.draw(mrt, pos, with_labels=True, arrowstyle='fancy', font_size=16,
-                    node_color='#FFF68F', node_shape='s', node_size=1000, labels={node:node for node in mrt.nodes()})
+        pos = nx.circular_layout(mrt)
+        nx.draw(mrt, pos, with_labels=True, font_size=16,
+                node_color='#FFF68F', node_shape='s', node_size=300, labels={node:node for node in mrt.nodes()})
         edge_labels = nx.get_edge_attributes(mrt, 'weight')
         nx.draw_networkx_edge_labels(mrt, pos, edge_labels=edge_labels)
         # grab the pixel buffer and dump it into a numpy array
         rel_img = fig2data(fig)
 
-        rel_img = cv2.resize(rel_img[:,:,:3], (250, 250), interpolation=cv2.INTER_LINEAR)
+        rel_img = cv2.resize(rel_img[:,:,:3], (300, 300), interpolation=cv2.INTER_LINEAR)
         # img = cv2.resize(img, (1000, 1000), interpolation=cv2.INTER_LINEAR)
-        img[:250, :250] = rel_img
+        if min(img.shape[:2]) < 300:
+            scalar = 300. / min(img.shape[:2])
+            img = cv2.resize(img, None, None, fx=scalar, fy=scalar, interpolation=cv2.INTER_LINEAR)
+        img[:300, :300] = rel_img
         plt.close(0)
 
         return img
+
+    def draw_caption(self, im, dets, captions):
+        im = np.ascontiguousarray(im)
+        if dets.shape[0] == 0:
+            return im
+
+        dets = dets[(dets[:,:4].sum(-1)) > 0].astype(np.int)
+        num_box = dets.shape[0]
+
+        for i in range(num_box):
+            cls = self.ind_to_class[dets[i, -1]]
+            im = self.draw_single_bbox(im, dets[i][:4], self.color_dict[cls], '{}'.format(captions[i]))
+        return im
+
+    def draw_image_caption(self, im, caption, test_bg_color=(0,0,0)):
+        text_rd = (im.shape[1], 25)
+        cv2.rectangle(im, (0, 0), text_rd, test_bg_color, -1)
+        cv2.putText(im, caption, (0, 20),
+                    cv2.FONT_HERSHEY_PLAIN,
+                    2, (255, 255, 255), thickness=2)
+        return im
+
+    def draw_grounding_probs(self, im, expr, dets, ground_probs):
+        im = np.ascontiguousarray(im)
+        self.draw_image_caption(im, expr)
+        if dets.shape[0] == 0:
+            return im
+        dets = dets[(dets[:,:4].sum(-1)) > 0].astype(np.int)
+        assert dets.shape[0] == ground_probs.shape[0]
+        num_box = dets.shape[0]
+
+        for i in range(num_box):
+            prob = '{:.2f}'.format(ground_probs[i])
+            im = self.draw_single_bbox(im, dets[i][:4], text_str=prob)
+        return im
