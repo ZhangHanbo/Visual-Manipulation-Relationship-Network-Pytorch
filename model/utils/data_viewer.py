@@ -193,7 +193,24 @@ class dataViewer(object):
 
     def draw_grounding_probs(self, im, expr, dets, ground_probs):
         im = np.ascontiguousarray(im)
+        # img_caption = 'user expr: {}, bg prob: {:.2f}'.format(expr, ground_probs[-1])
         self.draw_image_caption(im, expr)
+
+        # print(im.shape)
+
+        # get ind of highest prob
+        max_prob_ind = np.argmax(ground_probs)
+
+        # Draw bg prob
+        if max_prob_ind == len(ground_probs) - 1:
+            cv2.rectangle(im, (0, im.shape[0]), (100, im.shape[0]-20), (0, 255, 0), -1)
+        else:
+            cv2.rectangle(im, (0, im.shape[0]), (100, im.shape[0]-20), (163, 68, 187), -1)
+        cv2.putText(im, '{:.2f}'.format(ground_probs[-1]), (0, im.shape[0]),
+                    cv2.FONT_HERSHEY_PLAIN,
+                    2, (255, 255, 255), thickness=2)
+
+        ground_probs = ground_probs[:-1]
         if dets.shape[0] == 0:
             return im
         dets = dets[(dets[:,:4].sum(-1)) > 0].astype(np.int)
@@ -202,5 +219,8 @@ class dataViewer(object):
 
         for i in range(num_box):
             prob = '{:.2f}'.format(ground_probs[i])
-            im = self.draw_single_bbox(im, dets[i][:4], text_str=prob)
+            if i == max_prob_ind:
+                im = self.draw_single_bbox(im, dets[i][:4], bbox_color=(0, 255, 0), text_str=prob)
+            else:
+                im = self.draw_single_bbox(im, dets[i][:4], text_str=prob)
         return im
