@@ -388,9 +388,7 @@ def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agno
         if with_cls_score:
             all_box = np.concatenate([all_box, cls], axis = 1)
         else:
-            print('all_box', all_box)
-            print('cls', cls)
-            all_box[:, -1] = cls[:, 0]
+            all_box[:, -1] = cls
     return all_box
 
 def grasp_inference(cls_prob, box_output, im_info, box_prior = None, topN = False, recover_imscale = True):
@@ -600,9 +598,14 @@ def create_mrt(rel_mat, class_names=None, rel_score=None):
 
     node_num = np.max(np.where(rel_mat > 0)[0]) + 1
     if class_names is None:
+        # no other node information
         class_names = list(range(node_num))
+    elif isinstance(class_names[0], float):
+        # normalized confidence score
+        class_names = ["{:d}\n{:.2f}".format(i, cls) for i, cls in enumerate(class_names)]
     else:
-        class_names = [cls + str(i) for i, cls in enumerate(class_names)]
+        # class name
+        class_names = ["{:s}{:d}".format(cls, i) for i, cls in enumerate(class_names)]
 
     if rel_score is None:
         rel_score = np.zeros(rel_mat.shape, dtype=np.float32)
@@ -765,29 +768,31 @@ def leaf_prob(rel_prob_mat):
     parent_prob_mat += child_prob_mat.transpose(0, 1)
     return torch.cumprod(1 - parent_prob_mat, dim = -1)[:, -1]
 
-def inner_loop_planning(belief, planning_depth=2):
+def inner_loop_planning(belief, planning_depth=3):
     num_obj = belief["ground_prob"].shape[0] - 1 # exclude the virtual node
-    penalty_for_asking = -1
+    penalty_for_asking = -2
     # ACTIONS: Do you mean ... ? (num_obj) + Where is the target ? (1) + grasp object (num_obj)
     def grasp_reward_estimate(belief):
         # reward of grasping the corresponding object
         # return is a 1-D tensor including num_obj elements, indicating the reward of grasping the corresponding object.
-        leaf_desc_prob = belief["leaf_desc_prob"]
-        leaf_prob = torch.diag(leaf_desc_prob).unsqueeze(-1).repeat((1, num_obj + 1))
-        non_leaf_prob = 1. - leaf_prob
         ground_prob = belief["ground_prob"]
-        target_prob = ground_prob.unsqueeze(-1).repeat((1, num_obj + 1))
-        non_target_prob = 1 - target_prob
+        leaf_desc_tgt_prob = (belief["leaf_desc_prob"] * ground_prob.unsqueeze(0)).sum(-1)
+        leaf_prob = torch.diag(belief["leaf_desc_prob"])
+        not_leaf_prob = 1. - leaf_prob
+        target_prob = ground_prob
+        leaf_tgt_prob = leaf_prob * target_prob
+        leaf_desc_prob = leaf_desc_tgt_prob - leaf_tgt_prob
+        leaf_but_not_desc_tgt_prob = leaf_prob - leaf_desc_tgt_prob
 
         # grasp and the end
-        r_mat_1 = leaf_desc_prob * 0 + non_leaf_prob * (-10) + (leaf_prob - leaf_desc_prob) * (-5) \
-                  + non_target_prob * (-10)
-        r_1 = (r_mat_1 * ground_prob.unsqueeze(0)).sum(-1)[:-1] # exclude the virtual node
+        r_1 = not_leaf_prob * (-10) + leaf_but_not_desc_tgt_prob * (-10) + leaf_desc_prob * (-10)\
+                  + leaf_tgt_prob * (0)
+        r_1 = r_1[:-1] # exclude the virtual node
 
         # grasp and not the end
-        r_mat_2 = leaf_desc_prob * 0 + non_leaf_prob * (-10) + (leaf_prob - leaf_desc_prob) * (-5) \
-                  + target_prob * (-10)
-        r_2 = (r_mat_2 * ground_prob.unsqueeze(0)).sum(-1)[:-1]  # exclude the virtual node
+        r_2 = not_leaf_prob * (-10) + leaf_but_not_desc_tgt_prob * (-6) + leaf_desc_prob * (0)\
+                  + leaf_tgt_prob * (-10)
+        r_2 = r_2[:-1]  # exclude the virtual node
         return torch.cat([r_1, r_2], dim=0)
 
     def belief_update(belief):
@@ -917,7 +922,7 @@ if __name__ == '__main__':
     t_b = time.time()
     with torch.no_grad():
         belief["leaf_desc_prob"] = leaf_and_descendant_stats(prob_rel_mat)
-    belief["ground_prob"] = torch.Tensor([0.2, 0.07, 0.6, 0.13, 0.05, 0.0])
+    belief["ground_prob"] = torch.Tensor([0.543159559554254, 0.0, 0.0, 0.0, 0.0, 0.4568404404457461])
 
     # belief["leaf_desc_prob"] = belief["leaf_desc_prob"][:5, :5]
     # belief["ground_prob"] = torch.Tensor([0.11, 0.13, 0.11, 0.1, 0.09])
