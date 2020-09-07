@@ -328,7 +328,7 @@ def box_filter(box, box_scores, thresh, use_nms = True):
     return cls_dets, cls_scores, (inds.cpu().numpy())[order]
 
 def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agnostic = True,
-                     for_vis = False, recover_imscale = True, with_cls_score = False):
+                     for_vis = False, recover_imscale = True, with_cls_score=False):
     """
     :param cls_prob: predicted class info
     :param box_output: predicted bounding boxes (for anchor-based detection, it indicates deltas of boxes).
@@ -338,7 +338,6 @@ def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agno
     :param n_classes: number of object classes
     :param for_vis: the results are for visualization or validation of VMRN.
     :param recover_imscale: whether the predicted bounding boxes are recovered to the original scale.
-    :param with_cls_score: if for_vis and with_cls_score are both true, the class confidence score will be attached.
     :return: a list of bounding boxes, one class corresponding to one element. If for_vis, they will be concatenated.
     """
     assert box_output.dim() == 2, "Multi-instance batch inference has not been implemented."
@@ -370,6 +369,7 @@ def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agno
         pred_boxes = box_recover_scale_torch(pred_boxes, im_info[3], im_info[2])
 
     all_box = [[]]
+    all_scores = []
     if for_vis:
         cls = []
     for j in xrange(1, n_classes):
@@ -377,7 +377,8 @@ def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agno
             cls_boxes = pred_boxes
         else:
             cls_boxes = pred_boxes[:, j * 4:(j + 1) * 4]
-        cls_dets, cls_scores, _ = box_filter(cls_boxes, scores[:, j], thresh, use_nms = True)
+        cls_dets, cls_scores, keep_inds = box_filter(cls_boxes, scores[:, j], thresh, use_nms = True)
+        all_scores.append(scores.cpu().numpy()[keep_inds])
         cls_dets = np.concatenate((cls_dets, np.expand_dims(cls_scores, -1)), axis = -1)
         if for_vis:
             cls.append(j * np.ones((cls_dets.shape[0], 1)))
@@ -386,10 +387,15 @@ def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agno
         cls = np.concatenate(cls, axis=0)
         all_box = np.concatenate(all_box[1:], axis=0)
         if with_cls_score:
+            # print(cls.shape)
+            all_scores = np.concatenate(all_scores, axis = 0)
+            # print(all_scores.shape)
+            # print(all_box)
             all_box = np.concatenate([all_box, cls], axis = 1)
+            # print(all_box.shape)
         else:
             all_box[:, -1] = cls
-    return all_box
+    return all_box, all_scores
 
 def grasp_inference(cls_prob, box_output, im_info, box_prior = None, topN = False, recover_imscale = True):
     assert box_output.dim() == 2, "Multi-instance batch inference has not been implemented."
@@ -562,12 +568,12 @@ def rel_prob_to_mat(rel_cls_prob, num_obj):
     rel[rel >=3] = 3
 
     rel_mat = np.zeros((num_obj, num_obj), dtype=np.int32)
-    rel_score_mat = np.zeros((3, num_obj, num_obj), dtype=np.float32)
+    rel_score_mat = np.zeros((num_obj, num_obj), dtype=np.float32)
     counter = 0
     for o1 in range(num_obj):
         for o2 in range(o1 + 1, num_obj):
             rel_mat[o1, o2] = rel[counter]
-            rel_score_mat[:, o1, o2] = rel_cls_prob[counter]
+            rel_score_mat[o1, o2] = rel_score[counter]
             counter += 1
     for o1 in range(num_obj):
         for o2 in range(o1):
@@ -577,11 +583,8 @@ def rel_prob_to_mat(rel_cls_prob, num_obj):
                 rel_mat[o1, o2] = 3 - rel_mat[o2, o1]
             else:
                 raise RuntimeError
-            rel_score_mat[:, o1, o2] = rel_score_mat[:, o2, o1]
+            rel_score_mat[o1, o2] = rel_score_mat[o2, o1]
     return rel_mat, rel_score_mat
-
-def relscores_to_visscores(rel_score_mat):
-    return np.max(rel_score_mat, axis=0)
 
 def create_mrt(rel_mat, class_names=None, rel_score=None):
     # using relationship matrix to create manipulation relationship tree
@@ -598,14 +601,9 @@ def create_mrt(rel_mat, class_names=None, rel_score=None):
 
     node_num = np.max(np.where(rel_mat > 0)[0]) + 1
     if class_names is None:
-        # no other node information
         class_names = list(range(node_num))
-    elif isinstance(class_names[0], float):
-        # normalized confidence score
-        class_names = ["{:d}\n{:.2f}".format(i, cls) for i, cls in enumerate(class_names)]
     else:
-        # class name
-        class_names = ["{:s}{:d}".format(cls, i) for i, cls in enumerate(class_names)]
+        class_names = [cls + str(i) for i, cls in enumerate(class_names)]
 
     if rel_score is None:
         rel_score = np.zeros(rel_mat.shape, dtype=np.float32)
@@ -754,12 +752,9 @@ def leaf_and_descendant_stats(rel_prob_mat, sample_num = 1000):
             leaf_desc_prob += leaf_desc_mat
             count += 1
     leaf_desc_prob = leaf_desc_prob / count
-
-    leaf_desc_prob_with_v_node = torch.eye(mrt_shape[0] + 1).type_as(rel_prob_mat)
-    leaf_desc_prob_with_v_node[:mrt_shape[0], :mrt_shape[1]] = leaf_desc_prob
     if cuda_data:
-        leaf_desc_prob_with_v_node = leaf_desc_prob_with_v_node.cuda()
-    return leaf_desc_prob_with_v_node
+        leaf_desc_prob = leaf_desc_prob.cuda()
+    return leaf_desc_prob
 
 def leaf_prob(rel_prob_mat):
     # TODO: this function does not exclude the situations in which the MRT includes cycles.
@@ -768,48 +763,39 @@ def leaf_prob(rel_prob_mat):
     parent_prob_mat += child_prob_mat.transpose(0, 1)
     return torch.cumprod(1 - parent_prob_mat, dim = -1)[:, -1]
 
-def inner_loop_planning(belief, planning_depth=3):
-    num_obj = belief["ground_prob"].shape[0] - 1 # exclude the virtual node
+def inner_loop_planning(belief, planning_depth=4):
+    num_obj = belief["ground_prob"].shape[0]
     penalty_for_asking = -2
     # ACTIONS: Do you mean ... ? (num_obj) + Where is the target ? (1) + grasp object (num_obj)
     def grasp_reward_estimate(belief):
         # reward of grasping the corresponding object
         # return is a 1-D tensor including num_obj elements, indicating the reward of grasping the corresponding object.
+        leaf_desc_prob = belief["leaf_desc_prob"]
+        leaf_prob = torch.diag(leaf_desc_prob).unsqueeze(-1).repeat((1, num_obj))
+        non_leaf_prob = 1. - leaf_prob
         ground_prob = belief["ground_prob"]
-        leaf_desc_tgt_prob = (belief["leaf_desc_prob"] * ground_prob.unsqueeze(0)).sum(-1)
-        leaf_prob = torch.diag(belief["leaf_desc_prob"])
-        not_leaf_prob = 1. - leaf_prob
-        target_prob = ground_prob
-        leaf_tgt_prob = leaf_prob * target_prob
-        leaf_desc_prob = leaf_desc_tgt_prob - leaf_tgt_prob
-        leaf_but_not_desc_tgt_prob = leaf_prob - leaf_desc_tgt_prob
-
-        # grasp and the end
-        r_1 = not_leaf_prob * (-10) + leaf_but_not_desc_tgt_prob * (-10) + leaf_desc_prob * (-10)\
-                  + leaf_tgt_prob * (0)
-        r_1 = r_1[:-1] # exclude the virtual node
-
-        # grasp and not the end
-        r_2 = not_leaf_prob * (-10) + leaf_but_not_desc_tgt_prob * (-6) + leaf_desc_prob * (0)\
-                  + leaf_tgt_prob * (-10)
-        r_2 = r_2[:-1]  # exclude the virtual node
-        return torch.cat([r_1, r_2], dim=0)
+        r_mat = leaf_desc_prob * 20 + non_leaf_prob * (-20) + (leaf_prob - leaf_desc_prob) * (-5)
+        r = (r_mat * ground_prob.unsqueeze(0)).sum(-1)
+        return r
 
     def belief_update(belief):
-        I = torch.eye(belief["ground_prob"].shape[0]).type_as(belief["ground_prob"])
+        I = torch.eye(belief["ground_prob"].shape[0] + 1).type_as(belief["ground_prob"])
+
         updated_beliefs = []
         # Do you mean ... ?
         # Answer No
         beliefs_no = belief["ground_prob"].unsqueeze(0).repeat(num_obj + 1, 1)
+        beliefs_no = torch.cat([beliefs_no, 1 - beliefs_no.sum(-1, keepdim=True)], dim = -1)
         beliefs_no *= (1. - I)
-        beliefs_no /= torch.clamp(torch.sum(beliefs_no, dim = -1, keepdim=True), min=1e-10)
+        beliefs_no /= torch.sum(beliefs_no, dim = -1, keepdim=True)
         # Answer Yes
-        beliefs_yes = I.clone()
+        beliefs_yes = I[:num_obj].clone()
         for i in range(beliefs_no.shape[0] - 1):
             updated_beliefs.append([beliefs_no[i], beliefs_yes[i]])
-
-        # Is the target detected? Where is it?
-        updated_beliefs.append([beliefs_no[-1], I[-1],])
+        # Where is ... ?
+        I = I[:num_obj]
+        I[:, -1] = 1
+        updated_beliefs.append(list(I) + [beliefs_no[-1],])
         return updated_beliefs
 
     def is_onehot(vec, epsilon = 1e-2):
@@ -825,49 +811,37 @@ def inner_loop_planning(belief, planning_depth=3):
             ground_prob = belief["ground_prob"]
             new_beliefs = belief_update(belief)
             new_belief_dict = copy.deepcopy(belief)
-
-            # Q1
-            for i, new_belief in enumerate(new_beliefs[:-1]):
-                q = 0
-                for j, b in enumerate(new_belief):
-                    new_belief_dict["ground_prob"] = b
-                    # branches of asking questions
-                    if is_onehot(b):
-                        t_q = (penalty_for_asking + estimate_q_vec(new_belief_dict, planning_depth - 1).max())
-                    else:
-                        t_q = (penalty_for_asking + estimate_q_vec(new_belief_dict, current_d + 1).max())
-                    if j == 0:
-                        # Answer is No
-                        q += t_q * (1 - ground_prob[i])
-                    else:
-                        # Answer is Yes
-                        q += t_q * ground_prob[i]
-                q_vec.append(q.item())
-
-            # Q2
-            q = 0
-            new_belief = new_beliefs[-1]
-            for j, b in enumerate(new_belief):
-                new_belief_dict["ground_prob"] = b
-                if j == 0:
-                    # target has been detected
-                    if is_onehot(b):
-                        t_q = (penalty_for_asking + estimate_q_vec(new_belief_dict, planning_depth - 1).max())
-                    else:
-                        t_q = (penalty_for_asking + estimate_q_vec(new_belief_dict, current_d + 1).max())
-                    q += t_q * (1 - ground_prob[-1])
+            for i, new_belief in enumerate(new_beliefs):
+                if len(new_belief) == 2:
+                    q = 0
+                    for j, b in enumerate(new_belief):
+                        new_belief_dict["ground_prob"] = b[:num_obj]
+                        # branches of asking questions
+                        if is_onehot(b):
+                            t_q = (penalty_for_asking + estimate_q_vec(new_belief_dict, planning_depth - 1).max())
+                        else:
+                            t_q = (penalty_for_asking + estimate_q_vec(new_belief_dict, current_d + 1).max())
+                        if j == 0:
+                            # Answer is No
+                            q += t_q * (1 - ground_prob[i])
+                        else:
+                            # Answer is Yes
+                            q += t_q * ground_prob[i]
+                    q_vec.append(q.item())
                 else:
-                    new_belief_dict["leaf_desc_prob"][:, -1] = new_belief_dict["leaf_desc_prob"][:, :-1].sum(-1) / num_obj
-                    t_q = (penalty_for_asking + estimate_q_vec(new_belief_dict, planning_depth - 1).max())
-                    q += t_q * ground_prob[-1]
-            q_vec.append(q.item())
+                    q = 0
+                    for b in new_belief[:-1]:
+                        new_belief_dict["ground_prob"] = b[:5]
+                        q += penalty_for_asking + estimate_q_vec(new_belief_dict, planning_depth - 1).max()
+                    q = q / (len(new_belief) - 1)
+                    q *= 1 - ground_prob.sum()
+                    new_belief_dict["ground_prob"] = new_belief[-1][:5]
+                    q += ground_prob.sum() * (penalty_for_asking + estimate_q_vec(new_belief_dict, planning_depth - 1).max())
+                    q_vec.append(q.item())
+
             return torch.Tensor(q_vec).type_as(belief["ground_prob"])
     q_vec = estimate_q_vec(belief, 0)
-    print("Q Value for Each Action: ")
-    print(q_vec.tolist()[:num_obj])
-    print(q_vec.tolist()[num_obj:2*num_obj])
-    print(q_vec.tolist()[2*num_obj:3*num_obj])
-    print(q_vec.tolist()[3*num_obj])
+    print("Q Value for Each Action: ", q_vec.tolist())
     return torch.argmax(q_vec).item()
 
 if __name__ == '__main__':
@@ -922,10 +896,7 @@ if __name__ == '__main__':
     t_b = time.time()
     with torch.no_grad():
         belief["leaf_desc_prob"] = leaf_and_descendant_stats(prob_rel_mat)
-    belief["ground_prob"] = torch.Tensor([0.543159559554254, 0.0, 0.0, 0.0, 0.0, 0.4568404404457461])
-
-    # belief["leaf_desc_prob"] = belief["leaf_desc_prob"][:5, :5]
-    # belief["ground_prob"] = torch.Tensor([0.11, 0.13, 0.11, 0.1, 0.09])
+    belief["ground_prob"] = torch.Tensor([0.4, 0.1, 0.3, 0.08, 0.06])
     print(inner_loop_planning(belief))
     print(time.time() - t_b)
     pass
