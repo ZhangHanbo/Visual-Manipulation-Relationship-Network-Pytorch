@@ -844,6 +844,9 @@ def inner_loop_planning(belief, planning_depth=4):
     print("Q Value for Each Action: ", q_vec.tolist())
     return torch.argmax(q_vec).item()
 
+def relscores_to_visscores(rel_score_mat):
+    return np.max(rel_score_mat, axis=0)
+
 if __name__ == '__main__':
 
     # rel_mat = [[0,1,1,3,3],
@@ -900,3 +903,4 @@ if __name__ == '__main__':
     print(inner_loop_planning(belief))
     print(time.time() - t_b)
     pass
+
