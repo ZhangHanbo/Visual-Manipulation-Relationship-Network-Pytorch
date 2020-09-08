@@ -36,7 +36,6 @@ except NameError:
 
 # <<<< obsolete
 
-
 class pascal_voc(imdb):
     def __init__(self, image_set, year, devkit_path=None):
         imdb.__init__(self, 'voc_' + year + '_' + image_set)
@@ -113,7 +112,7 @@ class pascal_voc(imdb):
         """
         Return the default path where PASCAL VOC is expected to be installed.
         """
-        return os.path.join(cfg.DATA_DIR, 'VOCdevkit')
+        return os.path.join(cfg.DATA_DIR, 'VOCdevkit' + self._year)
 
     def gt_roidb(self):
         """
@@ -135,6 +134,72 @@ class pascal_voc(imdb):
         print('wrote gt roidb to {}'.format(cache_file))
 
         return gt_roidb
+
+    def selective_search_roidb(self):
+        """
+        Return the database of selective search regions of interest.
+        Ground-truth ROIs are also included.
+
+        This function loads/saves from/to a cache file to speed up future calls.
+        """
+        cache_file = os.path.join(self.cache_path,
+                                  self.name + '_selective_search_roidb.pkl')
+
+        if os.path.exists(cache_file):
+            with open(cache_file, 'rb') as fid:
+                roidb = pickle.load(fid)
+            print('{} ss roidb loaded from {}'.format(self.name, cache_file))
+            return roidb
+
+        if int(self._year) == 2007 or self._image_set != 'test':
+            gt_roidb = self.gt_roidb()
+            ss_roidb = self._load_selective_search_roidb(gt_roidb)
+            roidb = imdb.merge_roidbs(gt_roidb, ss_roidb)
+        else:
+            roidb = self._load_selective_search_roidb(None)
+        with open(cache_file, 'wb') as fid:
+            pickle.dump(roidb, fid, pickle.HIGHEST_PROTOCOL)
+        print('wrote ss roidb to {}'.format(cache_file))
+
+        return roidb
+
+    def rpn_roidb(self):
+        if int(self._year) == 2007 or self._image_set != 'test':
+            gt_roidb = self.gt_roidb()
+            rpn_roidb = self._load_rpn_roidb(gt_roidb)
+            roidb = imdb.merge_roidbs(gt_roidb, rpn_roidb)
+        else:
+            roidb = self._load_rpn_roidb(None)
+
+        return roidb
+
+    def _load_rpn_roidb(self, gt_roidb):
+        filename = self.config['rpn_file']
+        print('loading {}'.format(filename))
+        assert os.path.exists(filename), \
+            'rpn data not found at: {}'.format(filename)
+        with open(filename, 'rb') as f:
+            box_list = pickle.load(f)
+        return self.create_roidb_from_box_list(box_list, gt_roidb)
+
+    def _load_selective_search_roidb(self, gt_roidb):
+        filename = os.path.abspath(os.path.join(cfg.DATA_DIR,
+                                                'selective_search_data',
+                                                self.name + '.mat'))
+        assert os.path.exists(filename), \
+            'Selective search data not found at: {}'.format(filename)
+        raw_data = sio.loadmat(filename)['boxes'].ravel()
+
+        box_list = []
+        for i in xrange(raw_data.shape[0]):
+            boxes = raw_data[i][:, (1, 0, 3, 2)] - 1
+            keep = ds_utils.unique_boxes(boxes)
+            boxes = boxes[keep, :]
+            keep = ds_utils.filter_small_boxes(boxes, self.config['min_size'])
+            boxes = boxes[keep, :]
+            box_list.append(boxes)
+
+        return self.create_roidb_from_box_list(box_list, gt_roidb)
 
     def _load_pascal_annotation(self, index):
         """
@@ -186,6 +251,7 @@ class pascal_voc(imdb):
                 'gt_classes': gt_classes,
                 'gt_ishard': ishards,
                 'gt_overlaps': overlaps,
+                'flipped': False,
                 'seg_areas': seg_areas,
                 'rotated': 0}
 
@@ -283,7 +349,6 @@ class pascal_voc(imdb):
         status = subprocess.call(cmd, shell=True)
 
     def evaluate_detections(self, all_boxes, output_dir):
-        output_dir = os.path.join(output_dir, 'Precesion_Recall')
         self._write_voc_results_file(all_boxes)
         map = self._do_python_eval(output_dir)
         if self.config['matlab_eval']:

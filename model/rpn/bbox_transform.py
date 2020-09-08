@@ -12,7 +12,6 @@ import torch
 import numpy as np
 import pdb
 
-# TODO: CHECK ALL FUNCTIONS IN THIS FILE WHETEHR TO BE COMPATIBLE WITH ALL MODELS
 def bbox_transform(ex_rois, gt_rois):
     ex_widths = ex_rois[:, 2] - ex_rois[:, 0] + 1.0
     ex_heights = ex_rois[:, 3] - ex_rois[:, 1] + 1.0
@@ -76,55 +75,33 @@ def bbox_transform_batch(ex_rois, gt_rois):
     return targets
 
 def bbox_transform_inv(boxes, deltas, batch_size):
+    if boxes.dim() == 2:
+        boxes = boxes.expand_as(deltas)
 
-    # one prior with a batch of deltas
-    if boxes.dim() == 2 and deltas.dim() == 3:
-        boxes = boxes.unsqueeze(0)
+    widths = boxes[:, :, 2] - boxes[:, :, 0] + 1.0
+    heights = boxes[:, :, 3] - boxes[:, :, 1] + 1.0
+    ctr_x = boxes[:, :, 0] + 0.5 * widths
+    ctr_y = boxes[:, :, 1] + 0.5 * heights
 
-    assert boxes.dim() == deltas.dim()
+    dx = deltas[:, :, 0::4]
+    dy = deltas[:, :, 1::4]
+    dw = deltas[:, :, 2::4]
+    dh = deltas[:, :, 3::4]
 
-    if deltas.dim() == 2:
-        widths = boxes[:, 2] - boxes[:, 0] + 1.0
-        heights = boxes[:, 3] - boxes[:, 1] + 1.0
-        ctr_x = boxes[:, 0] + 0.5 * widths
-        ctr_y = boxes[:, 1] + 0.5 * heights
+    pred_ctr_x = dx * widths.unsqueeze(2) + ctr_x.unsqueeze(2)
+    pred_ctr_y = dy * heights.unsqueeze(2) + ctr_y.unsqueeze(2)
+    pred_w = torch.exp(dw) * widths.unsqueeze(2)
+    pred_h = torch.exp(dh) * heights.unsqueeze(2)
 
-        dx = deltas[:, 0::4]
-        dy = deltas[:, 1::4]
-        dw = deltas[:, 2::4]
-        dh = deltas[:, 3::4]
-
-        pred_ctr_x = dx * widths.unsqueeze(1) + ctr_x.unsqueeze(1)
-        pred_ctr_y = dy * heights.unsqueeze(1) + ctr_y.unsqueeze(1)
-        pred_w = torch.exp(dw) * widths.unsqueeze(1)
-        pred_h = torch.exp(dh) * heights.unsqueeze(1)
-
-        pred_boxes = deltas.clone()
-        pred_boxes[:, 0::4] = pred_ctr_x - 0.5 * pred_w
-        pred_boxes[:, 1::4] = pred_ctr_y - 0.5 * pred_h
-        pred_boxes[:, 2::4] = pred_ctr_x + 0.5 * pred_w
-        pred_boxes[:, 3::4] = pred_ctr_y + 0.5 * pred_h
-    elif deltas.dim() == 3:
-        widths = boxes[:, :, 2] - boxes[:, :, 0] + 1.0
-        heights = boxes[:, :, 3] - boxes[:, :, 1] + 1.0
-        ctr_x = boxes[:, :, 0] + 0.5 * widths
-        ctr_y = boxes[:, :, 1] + 0.5 * heights
-
-        dx = deltas[:, :, 0::4]
-        dy = deltas[:, :, 1::4]
-        dw = deltas[:, :, 2::4]
-        dh = deltas[:, :, 3::4]
-
-        pred_ctr_x = dx * widths.unsqueeze(2) + ctr_x.unsqueeze(2)
-        pred_ctr_y = dy * heights.unsqueeze(2) + ctr_y.unsqueeze(2)
-        pred_w = torch.exp(dw) * widths.unsqueeze(2)
-        pred_h = torch.exp(dh) * heights.unsqueeze(2)
-
-        pred_boxes = deltas.clone()
-        pred_boxes[:, :, 0::4] = pred_ctr_x - 0.5 * pred_w
-        pred_boxes[:, :, 1::4] = pred_ctr_y - 0.5 * pred_h
-        pred_boxes[:, :, 2::4] = pred_ctr_x + 0.5 * pred_w
-        pred_boxes[:, :, 3::4] = pred_ctr_y + 0.5 * pred_h
+    pred_boxes = deltas.clone()
+    # x1
+    pred_boxes[:, :, 0::4] = pred_ctr_x - 0.5 * pred_w
+    # y1
+    pred_boxes[:, :, 1::4] = pred_ctr_y - 0.5 * pred_h
+    # x2
+    pred_boxes[:, :, 2::4] = pred_ctr_x + 0.5 * pred_w
+    # y2
+    pred_boxes[:, :, 3::4] = pred_ctr_y + 0.5 * pred_h
 
     return pred_boxes
 
@@ -150,17 +127,12 @@ def clip_boxes_batch(boxes, im_shape, batch_size):
 
 def clip_boxes(boxes, im_shape, batch_size):
 
-    if boxes.dim() == 2:
-        boxes[:, 0::4].clamp_(0, im_shape[1] - 1)
-        boxes[:, 1::4].clamp_(0, im_shape[0] - 1)
-        boxes[:, 2::4].clamp_(0, im_shape[1] - 1)
-        boxes[:, 3::4].clamp_(0, im_shape[0] - 1)
-    else:
-        for i in range(batch_size):
-            boxes[i,:,0::4].clamp_(0, im_shape[i, 1]-1)
-            boxes[i,:,1::4].clamp_(0, im_shape[i, 0]-1)
-            boxes[i,:,2::4].clamp_(0, im_shape[i, 1]-1)
-            boxes[i,:,3::4].clamp_(0, im_shape[i, 0]-1)
+    for i in range(batch_size):
+        boxes[i,:,0::4].clamp_(0, im_shape[i, 1]-1)
+        boxes[i,:,1::4].clamp_(0, im_shape[i, 0]-1)
+        boxes[i,:,2::4].clamp_(0, im_shape[i, 1]-1)
+        boxes[i,:,3::4].clamp_(0, im_shape[i, 0]-1)
+
     return boxes
 
 
@@ -286,17 +258,3 @@ def bbox_overlaps_batch(anchors, gt_boxes):
         raise ValueError('anchors input dimension is not correct.')
 
     return overlaps
-
-def bbox_xy_to_xywh(boxes):
-    assert boxes.shape[-1] % 4 == 0
-    if len(boxes.shape) == 2:
-        w = boxes[:, 2::4] - boxes[:, 0::4]
-        h = boxes[:, 3::4] - boxes[:, 1::4]
-        boxes[:, 2::4] = w
-        boxes[:, 3::4] = h
-    elif len(boxes.shape) == 3:
-        w = boxes[:, :, 2::4] - boxes[:, :, 0::4]
-        h = boxes[:, :, 3::4] - boxes[:, :, 1::4]
-        boxes[:, :, 2::4] = w
-        boxes[:, :, 3::4] = h
-    return boxes

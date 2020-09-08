@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 
 from model.utils.config import cfg
 from model.utils.net_utils import create_mrt
+from sklearn.manifold import TSNE
 
 def fig2data(fig):
     """
@@ -43,9 +44,13 @@ class dataViewer(object):
                            (140, 68, 187), (0, 102, 255), (153, 214, 255), (255, 102, 0)]
         self.classes = classes
         self.num_classes = len(self.classes)
+        # Extend color_pool so that it is longer than classes
+        self.color_pool = (self.num_classes / len(self.color_pool) + 1) * self.color_pool
         self.class_to_ind = dict(zip(self.classes, xrange(self.num_classes)))
         self.ind_to_class = dict(zip(xrange(self.num_classes), self.classes))
         self.color_dict = dict(zip(self.classes, self.color_pool[:self.num_classes]))
+
+        self.TSNE = TSNE(n_components=2, init='pca')
 
     def draw_single_bbox(self, img, bbox, bbox_color=(163, 68, 187), text_str="", test_bg_color = None):
         if test_bg_color is None:
@@ -113,14 +118,14 @@ class dataViewer(object):
             return im
 
         dets = dets[dets[:,0] > 0].astype(np.int)
-        num_grasp = dets.shape[0]
+        num_box = dets.shape[0]
 
-        for i in range(num_grasp):
+        for i in range(num_box):
             cls = self.ind_to_class[dets[i, -1]]
             if o_inds is None:
                 im = self.draw_single_bbox(im, dets[i][:4], self.color_dict[cls], cls)
             else:
-                im = self.draw_single_bbox(im, dets[i][:4], self.color_dict[cls], '%s ind:%d' % (cls, o_inds[i]))
+                im = self.draw_single_bbox(im, dets[i][:4], self.color_dict[cls], '%s%d' % (cls, o_inds[i]))
         return im
 
     def draw_graspdet_with_owner(self, im, o_dets, g_dets, g_inds):
@@ -133,26 +138,47 @@ class dataViewer(object):
         """
         im = np.ascontiguousarray(im)
         if o_dets.shape[0] > 0:
-            o_inds = np.arange(o_dets.shape[0]) + 1
+            o_inds = np.arange(o_dets.shape[0])
             im = self.draw_objdet(im, o_dets, o_inds)
             im = self.draw_graspdet(im, g_dets, g_inds)
         return im
 
-    def draw_mrt(self, img, rel_mat):
+    def draw_mrt(self, img, rel_mat, class_names = None, rel_score = None):
         if rel_mat.shape[0] == 0:
             return img
 
-        mrt = create_mrt(rel_mat)
+        mrt = create_mrt(rel_mat, class_names, rel_score)
+        for e in mrt.edges():
+            print(e)
 
         fig = plt.figure(0, figsize=(3, 3))
-        nx.draw_kamada_kawai(mrt, with_labels=True, arrowstyle='fancy', font_size=16,
-                             node_color='#FFF68F', node_shape='s', node_size=2000)
+        pos = nx.circular_layout(mrt)
+        nx.draw(mrt, pos, with_labels=True, arrowstyle='fancy', font_size=16,
+                    node_color='#FFF68F', node_shape='s', node_size=300, labels={node:node for node in mrt.nodes()})
+        edge_labels = nx.get_edge_attributes(mrt, 'weight')
+        nx.draw_networkx_edge_labels(mrt, pos, edge_labels=edge_labels)
         # grab the pixel buffer and dump it into a numpy array
         rel_img = fig2data(fig)
 
-        rel_img = cv2.resize(rel_img[:,:,:3], (250, 250), interpolation=cv2.INTER_LINEAR)
+        rel_img = cv2.resize(rel_img[:,:,:3], (500, 500), interpolation=cv2.INTER_LINEAR)
         # img = cv2.resize(img, (1000, 1000), interpolation=cv2.INTER_LINEAR)
-        img[:250, :250] = rel_img
+        if min(img.shape[:2]) < 500:
+            scalar = 500. / min(img.shape[:2])
+            img = cv2.resize(img, None, None, fx=scalar, fy=scalar, interpolation=cv2.INTER_LINEAR)
+        img[:500, :500] = rel_img
         plt.close(0)
 
         return img
+
+    def draw_caption(self, im, dets, captions):
+        im = np.ascontiguousarray(im)
+        if dets.shape[0] == 0:
+            return im
+
+        dets = dets[dets[:, 0] > 0].astype(np.int)
+        num_box = dets.shape[0]
+
+        for i in range(num_box):
+            cls = self.ind_to_class[dets[i, -1]]
+            im = self.draw_single_bbox(im, dets[i][:4], self.color_dict[cls], '{}'.format(captions[i]))
+        return im

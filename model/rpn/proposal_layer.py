@@ -17,7 +17,8 @@ import yaml
 from model.utils.config import cfg
 from .generate_anchors import generate_anchors
 from .bbox_transform import bbox_transform_inv, clip_boxes, clip_boxes_batch
-from model.roi_layers import nms
+from model.nms.nms_wrapper import nms
+
 import pdb
 
 DEBUG = False
@@ -28,13 +29,12 @@ class _ProposalLayer(nn.Module):
     transformations to a set of regular boxes (called "anchors").
     """
 
-    def __init__(self, feat_stride, scales, ratios, include_rois_score = False):
+    def __init__(self, feat_stride, scales, ratios):
         super(_ProposalLayer, self).__init__()
 
         self._feat_stride = feat_stride
         self._scales = scales
         self._ratios = ratios
-        self._include_rois_score = include_rois_score
         if isinstance(feat_stride,list):
             self._anchors = []
             self._num_anchors = []
@@ -154,10 +154,7 @@ class _ProposalLayer(nn.Module):
         proposals_keep = proposals
         _, order = torch.sort(scores_keep, 1, True)
 
-        if self._include_rois_score:
-            output = scores.new(batch_size, post_nms_topN, 6).zero_()
-        else:
-            output = scores.new(batch_size, post_nms_topN, 5).zero_()
+        output = scores.new(batch_size, post_nms_topN, 5).zero_()
         for i in range(batch_size):
             # # 3. remove predicted boxes with either height or width < threshold
             # # (NOTE: convert min_size to input image scale stored in im_info[2])
@@ -178,7 +175,7 @@ class _ProposalLayer(nn.Module):
             # 7. take after_nms_topN (e.g. 300)
             # 8. return the top proposals (-> RoIs top)
 
-            keep_idx_i = nms(proposals_single, scores_single.squeeze(1), nms_thresh)
+            keep_idx_i = nms(torch.cat((proposals_single, scores_single), 1), nms_thresh, force_cpu=not cfg.USE_GPU_NMS)
             keep_idx_i = keep_idx_i.long().view(-1)
 
             if post_nms_topN > 0:
@@ -190,9 +187,8 @@ class _ProposalLayer(nn.Module):
             # padding 0 at the end.
             num_proposal = proposals_single.size(0)
             output[i,:,0] = i
-            output[i,:num_proposal,1:5] = proposals_single
-            if self._include_rois_score:
-                output[i, :num_proposal, 5:] = scores_single
+            output[i,:num_proposal,1:] = proposals_single
+
 
         return output
 

@@ -1,9 +1,12 @@
+"""
 # --------------------------------------------------------
-# Visual Detection: State-of-the-Art
-# Copyright: Hanbo Zhang
+# Copyright (c) 2018 Xi'an Jiaotong University
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Hanbo Zhang
+# Modified from https://github.com/amdegroot/ssd.pytorch/blob/master/ssd.py
 # --------------------------------------------------------
+"""
+
 
 import torch
 import torch.nn as nn
@@ -14,10 +17,8 @@ from model.ssd.default_bbox_generator import PriorBox
 import torch.nn.init as init
 from model.ssd.multi_bbox_loss import MultiBoxLoss
 from model.utils.config import cfg
+from basenet.resnet import resnet18,resnet34,resnet50,resnet101,resnet152
 import torchvision as tv
-
-from model.utils.net_utils import weights_xavier_init
-from Detectors import objectDetector
 
 class L2Norm(nn.Module):
     def __init__(self,n_channels, scale):
@@ -38,19 +39,29 @@ class L2Norm(nn.Module):
         out = self.weight.unsqueeze(0).unsqueeze(2).unsqueeze(3).expand_as(x) * x
         return out
 
-class SSD(objectDetector):
+class _SSD(nn.Module):
+    """Single Shot Multibox Architecture
+    The network is composed of a base VGG network followed by the
+    added multibox conv layers.  Each multibox layer branches into
+        1) conv2d for class conf scores
+        2) conv2d for localization predictions
+        3) associated priorbox layer to produce default bounding
+           boxes specific to the layer's feature map size.
+    See: https://arxiv.org/pdf/1512.02325.pdf for more details.
+    Args:
+        phase: (string) Can be "test" or "train"
+        size: input image size
+        base: VGG16 layers for input, size of either 300 or 500
+        extras: extra layers that feed to multibox loc and conf layers
+        head: "multibox head" consists of loc and conf conv layers
+    """
 
-    def __init__(self, classes, class_agnostic, feat_name, feat_list=('conv3', 'conv4'), pretrained = True):
-        super(SSD, self).__init__(classes, class_agnostic, feat_name, feat_list, pretrained)
-        self.FeatExt.feat_layer["conv3"][0].ceil_mode = True
-        ##### Important to set model to eval mode before evaluation ####
-        self.FeatExt.eval()
-        rand_img = torch.Tensor(1, 3, 300, 300)
-        rand_feat = self.FeatExt(rand_img)
-        self.FeatExt.train()
-        n_channels = [f.size(1) for f in rand_feat]
+    def __init__(self, classes):
+        super(_SSD, self).__init__()
 
-        self.size = cfg.SCALES[0]
+        self.size = cfg.TRAIN.COMMON.INPUT_SIZE
+        self.classes = classes
+        self.num_classes = len(self.classes)
         self.priors_cfg = self._init_prior_cfg()
         self.priorbox = PriorBox(self.priors_cfg)
         self.priors_xywh = Variable(self.priorbox.forward())
@@ -67,66 +78,10 @@ class SSD(objectDetector):
         # Layer learns to scale the l2 normalized features from conv4_3
         self.L2Norm = L2Norm(512, 20)
         self.softmax = nn.Softmax(dim=-1)
-        self.criterion = MultiBoxLoss(self.n_classes)
 
-        mbox_cfg = []
-        for i in cfg.SSD.PRIOR_ASPECT_RATIO:
-            mbox_cfg.append(2 * len(i) + 2)
+        self.criterion = MultiBoxLoss(self.num_classes)
 
-        self.extra_conv = nn.ModuleList()
-        self.loc = nn.ModuleList()
-        self.conf = nn.ModuleList()
-
-        # conv 4_3 detector
-        self.loc.append(
-            nn.Conv2d(n_channels[0], mbox_cfg[0] * 4 if self.class_agnostic else mbox_cfg[0] * 4 * self.n_classes
-                      , kernel_size=3, padding=1))
-        self.conf.append(nn.Conv2d(n_channels[0], mbox_cfg[0] * self.n_classes, kernel_size=3, padding=1))
-
-        # conv 7 detector
-        self.extra_conv.append(nn.Sequential(
-            nn.MaxPool2d(kernel_size=3, stride=1, padding=1),
-            nn.Conv2d(512, 1024, kernel_size=3, padding=6, dilation=6),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(1024, 1024, kernel_size=1),
-            nn.ReLU(inplace=True)))
-        self.loc.append(nn.Conv2d(1024, mbox_cfg[1] * 4 if self.class_agnostic else mbox_cfg[1] * 4 * self.n_classes,
-                                  kernel_size=3, padding=1))
-        self.conf.append(nn.Conv2d(1024, mbox_cfg[1] * self.n_classes, kernel_size=3, padding=1))
-
-        def add_extra_conv(extra_conv, loc, conf, in_c, mid_c, out_c, downsamp, mbox, n_cls, cag):
-            extra_conv.append(nn.Sequential(
-                nn.Conv2d(in_c, mid_c, kernel_size=1),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(mid_c, out_c, kernel_size=3, stride=2 if downsamp else 1, padding=1 if downsamp else 0),
-                nn.ReLU(inplace=True),
-            ))
-            loc.append(nn.Conv2d(out_c, mbox * 4 if cag else mbox * 4 * n_cls, kernel_size=3, padding=1))
-            conf.append(nn.Conv2d(out_c, mbox * n_cls, kernel_size=3, padding=1))
-
-        add_extra_conv(self.extra_conv, self.loc, self.conf, 1024, 256, 512, True, mbox_cfg[2], self.n_classes, self.class_agnostic)
-        add_extra_conv(self.extra_conv, self.loc, self.conf, 512, 128, 256, True, mbox_cfg[3], self.n_classes, self.class_agnostic)
-        add_extra_conv(self.extra_conv, self.loc, self.conf, 256, 128, 256, False, mbox_cfg[4], self.n_classes, self.class_agnostic)
-        add_extra_conv(self.extra_conv, self.loc, self.conf, 256, 128, 256, False, mbox_cfg[5], self.n_classes, self.class_agnostic)
-
-        self.iter_counter = 0
-
-    def _get_obj_det_result(self, sources):
-        loc = []
-        conf = []
-        # apply multibox head to source layers
-        for (x, l, c) in zip(sources, self.loc, self.conf):
-            loc.append(l(x).permute(0, 2, 3, 1).contiguous())
-            conf.append(c(x).permute(0, 2, 3, 1).contiguous())
-
-        loc = torch.cat([o.view(o.size(0), -1) for o in loc], 1)
-        conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)
-
-        loc = loc.view(loc.size(0), -1, 4)
-        conf = conf.view(conf.size(0), -1, self.n_classes)
-        return loc, conf
-
-    def forward(self, data_batch):
+    def forward(self, x, im_info, gt_boxes, num_boxes):
         """Applies network layers and ops on input image(s) x.
         Args:
             x: input image or batch of images. Shape: [batch,3,300,300].
@@ -142,55 +97,69 @@ class SSD(objectDetector):
                     2: localization layers, Shape: [batch,num_priors*4]
                     3: priorbox layers, Shape: [2,num_priors*4]
         """
-        x = data_batch[0]
-        im_info = data_batch[1]
-        gt_boxes = data_batch[2]
-        num_boxes = data_batch[3]
+        sources = list()
+        loc = list()
+        conf = list()
 
-        if self.training:
-            self.iter_counter += 1
+        # apply vgg up to conv4_3 relu
+        if isinstance(self.base, nn.ModuleList):
+            for layer in self.base:
+                x = layer(x)
+        else:
+            x = self.base(x)
 
-        sources = []
+        s = self.L2Norm(x)
+        sources.append(s)
 
-        s0, x = self.FeatExt(x)
-        s0 = self.L2Norm(s0)
-        sources.append(s0)
+        # apply vgg up to fc7
+        for conv in self.SSD_feat_layers:
+            x = conv(x)
+        sources.append(x)
 
-        for m in self.extra_conv:
-            x = m(x)
-            sources.append(x)
+        # apply extra layers and cache source layer outputs
+        for k, v in enumerate(self.extras):
+            x = F.relu(v(x), inplace=True)
+            if k % 2 == 1:
+                sources.append(x)
 
-        loc, conf = self._get_obj_det_result(sources)
-        SSD_loss_cls, SSD_loss_bbox = 0, 0
+        # apply multibox head to source layers
+        for (x, l, c) in zip(sources, self.loc, self.conf):
+            loc.append(l(x).permute(0, 2, 3, 1).contiguous())
+            conf.append(c(x).permute(0, 2, 3, 1).contiguous())
+
+        loc = torch.cat([o.view(o.size(0), -1) for o in loc], 1)
+        conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)
+
+        loc = loc.view(loc.size(0), -1, 4)
+        conf = conf.view(conf.size(0), -1, self.num_classes)
+
         if self.training:
             predictions = (
                 loc,
                 conf,
                 self.priors.type_as(loc)
             )
-            SSD_loss_bbox, SSD_loss_cls = self.criterion(predictions, gt_boxes, num_boxes)
+            # targets = torch.cat([gt_boxes[:,:,:4] / self.size, gt_boxes[:,:,4:5]],dim=2)
+            targets = gt_boxes
+            SSD_loss_bbox, SSD_loss_cls = self.criterion(predictions, targets, num_boxes)
+        else:
+            SSD_loss_cls = 0
+            SSD_loss_bbox = 0
+
         conf = self.softmax(conf)
 
         return loc, conf, SSD_loss_bbox, SSD_loss_cls
 
     def create_architecture(self):
         self._init_modules()
-        self._init_weights()
-
-    def _init_modules(self):
-        pass
-
-    def _init_weights(self):
         def weights_init(m):
             def xavier(param):
                 init.xavier_uniform(param)
-
             if isinstance(m, nn.Conv2d):
                 xavier(m.weight.data)
                 m.bias.data.zero_()
-
         # initialize newly added layers' weights with xavier method
-        self.extra_conv.apply(weights_init)
+        self.extras.apply(weights_init)
         self.loc.apply(weights_init)
         self.conf.apply(weights_init)
 
@@ -205,3 +174,97 @@ class SSD(objectDetector):
             'clip':cfg.SSD.PRIOR_CLIP
         }
         return prior_cfg
+
+class vgg16(_SSD):
+    # TODO: SUPPORT VGG19
+    def __init__(self, num_classes, pretrained=False):
+        super(vgg16 , self).__init__(num_classes)
+        self._pretrained = pretrained
+        self.module_path = "data/pretrained_model/vgg16_reducedfc.pth"
+        self._bbox_dim = 4
+
+    def _init_modules(self):
+        # TODO: ADD CONFIGS INTO CONFIT.PY
+        base_cfg = [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'C', 512, 512, 512, 'M',
+                    512, 512, 512]
+
+        extras_cfg = [256, 'S', 512, 128, 'S', 256, 128, 256, 128, 256]
+
+        mbox_cfg = []
+        for i in cfg.SSD.PRIOR_ASPECT_RATIO:
+            mbox_cfg.append(2 * len(i) + 2)
+
+        base, extras, head = self.multibox(self.vgg(base_cfg, 3),
+                                         self.add_extras(extras_cfg, 1024),
+                                         mbox_cfg, self.num_classes, self._bbox_dim)
+        # init base net
+        self.base = nn.ModuleList(base)
+        vgg_weights = torch.load(self.module_path)
+
+        if self._pretrained:
+            self.base.load_state_dict(vgg_weights)
+
+        self.SSD_feat_layers = self.base[23:]
+        self.base = self.base[:23]
+
+        self.extras = nn.ModuleList(extras)
+        self.loc = nn.ModuleList(head[0])
+        self.conf = nn.ModuleList(head[1])
+
+    def add_extras(self, cfg, i, batch_norm=False):
+        # Extra layers added to VGG for feature scaling
+        layers = []
+        in_channels = i
+        flag = False
+        for k, v in enumerate(cfg):
+            # if last layer is S, skip to next v.
+            if in_channels != 'S':
+                if v == 'S':
+                    layers += [nn.Conv2d(in_channels, cfg[k + 1],
+                                         kernel_size=(1, 3)[flag], stride=2, padding=1)]
+                else:
+                    layers += [nn.Conv2d(in_channels, v, kernel_size=(1, 3)[flag])]
+                flag = not flag
+            in_channels = v
+        return layers
+
+    def multibox(self, vgg, extra_layers, cfg, num_classes, bbox_dim):
+        loc_layers = []
+        conf_layers = []
+        vgg_source = [21, -2]
+        for k, v in enumerate(vgg_source):
+            loc_layers += [nn.Conv2d(vgg[v].out_channels,
+                                     cfg[k] * bbox_dim, kernel_size=3, padding=1)]
+            conf_layers += [nn.Conv2d(vgg[v].out_channels,
+                                      cfg[k] * num_classes, kernel_size=3, padding=1)]
+        for k, v in enumerate(extra_layers[1::2], 2):
+            loc_layers += [nn.Conv2d(v.out_channels, cfg[k]
+                                     * bbox_dim, kernel_size=3, padding=1)]
+            conf_layers += [nn.Conv2d(v.out_channels, cfg[k]
+                                      * num_classes, kernel_size=3, padding=1)]
+        return vgg, extra_layers, (loc_layers, conf_layers)
+
+    # This function is derived from torchvision VGG make_layers()
+    # https://github.com/pytorch/vision/blob/master/torchvision/models/vgg.py
+    def vgg(self, cfg, i, batch_norm=False):
+        layers = []
+        in_channels = i
+        for v in cfg:
+            if v == 'M':
+                layers += [nn.MaxPool2d(kernel_size=2, stride=2)]
+            elif v == 'C':
+                layers += [nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)]
+            else:
+                conv2d = nn.Conv2d(in_channels, v, kernel_size=3, padding=1)
+                if batch_norm:
+                    layers += [conv2d, nn.BatchNorm2d(v), nn.ReLU(inplace=True)]
+                else:
+                    layers += [conv2d, nn.ReLU(inplace=True)]
+                in_channels = v
+        pool5 = nn.MaxPool2d(kernel_size=3, stride=1, padding=1)
+        conv6 = nn.Conv2d(512, 1024, kernel_size=3, padding=6, dilation=6)
+        conv7 = nn.Conv2d(1024, 1024, kernel_size=1)
+        layers += [pool5, conv6,
+                   nn.ReLU(inplace=True), conv7, nn.ReLU(inplace=True)]
+        return layers
+

@@ -1,16 +1,22 @@
 # --------------------------------------------------------
-# Visual Detection: State-of-the-Art
-# Copyright: Hanbo Zhang
+# Copyright (c) 2018 Xi'an Jiaotong University
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Hanbo Zhang
 # --------------------------------------------------------
 
-
 from __future__ import absolute_import
+import random
+import torch
 import torch.nn as nn
+import torch.nn.functional as F
+import torchvision.models as models
+from torch.autograd import Variable
+import numpy as np
 from model.utils.config import cfg
 
-from model.roi_layers import ROIAlign, ROIPool
+from model.roi_pooling.modules.roi_pool import _RoIPooling
+from model.roi_crop.modules.roi_crop import _RoICrop
+from model.roi_align.modules.roi_align import RoIAlignAvg
 
 from model.op2l.rois_pair_expanding_layer import _RoisPairExpandingLayer
 from model.op2l.object_pairing_layer import _ObjPairLayer
@@ -23,8 +29,8 @@ class _OP2L(nn.Module):
         self.OP2L_rois_pairing = _RoisPairExpandingLayer()
         self.OP2L_object_pair = _ObjPairLayer(self._isex)
 
-        self.OP2L_roi_pool = ROIPool((cfg.RCNN_COMMON.POOLING_SIZE, cfg.RCNN_COMMON.POOLING_SIZE), 1.0 / 16.0)
-        self.OP2L_roi_align = ROIAlign((cfg.RCNN_COMMON.POOLING_SIZE, cfg.RCNN_COMMON.POOLING_SIZE), 1.0 / 16.0, 0)
+        self.OP2L_roi_pool = _RoIPooling(pool_height, pool_width, pool_scaler)
+        self.OP2L_roi_align = RoIAlignAvg(pool_height, pool_width, pool_scaler)
 
     def forward(self, feats, rois, batch_size, obj_num):
         """

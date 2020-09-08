@@ -286,6 +286,7 @@ class vg(imdb):
                 'gt_overlaps' : overlaps,
                 'width' : width,
                 'height': height,
+                'flipped' : False,
                 'seg_areas' : seg_areas,
                 'rotated': 0}
 

@@ -1,12 +1,10 @@
 from __future__ import print_function
 from __future__ import absolute_import
 # --------------------------------------------------------
-# Visual Detection: State-of-the-Art
-# Copyright: Hanbo Zhang
+# Copyright (c) 2018 Xi'an Jiaotong University
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Hanbo Zhang
 # --------------------------------------------------------
-
 
 import xml.dom.minidom as minidom
 
@@ -60,8 +58,8 @@ class cornell(imdb):
             else devkit_path
         # Example Cornell/origin
         self._data_path = os.path.join(self._devkit_path, version)
-        self._classes = ('__background__',  # always index 0
-                         'obj')
+        self._classes = ('background',  # always index 0
+                         'grasp')
         self._class_to_ind = dict(zip(self.classes, xrange(self.num_classes)))
         self._image_ext = '.png'
         self._image_index = self._load_image_set_index()
@@ -193,6 +191,7 @@ class cornell(imdb):
 
         return {'grasps': boxes[keep],
                 'boxes': obj_boxes,
+                'flipped': False,
                 'rotated': 0}
 
     def evaluate_detections(self, all_boxes, output_dir=None):
@@ -210,8 +209,7 @@ class cornell(imdb):
         failed_list = []
         for im_ind, index in enumerate(self.image_index):
             total += 1
-            # only keep top-1 detection
-            det_result = grasps[im_ind][:1]
+            det_result = grasps[im_ind]
             if det_result.size != 0:
                 anno = self._load_annotation(index)
                 anno = anno['grasps']

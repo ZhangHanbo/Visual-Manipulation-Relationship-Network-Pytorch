@@ -1,6 +1,4 @@
 EXP_DIR: res101
-SCALES: [320,]
-FIXED_INPUT_SIZE : True
 TRAIN:
   COMMON:
     LEARNING_RATE : 0.002
@@ -11,10 +9,18 @@ TRAIN:
     IMS_PER_BATCH : 32
     DISPLAY : 20
     BBOX_NORMALIZE_TARGETS_PRECOMPUTED: True
+    FIXED_INPUT_SIZE : True
     # AUGMENTATION : True # When this is True, remember to go to utils/augmantation.py to config augmentation.
+    # AUGMENTER: Augmentation_Grasp()
+    INPUT_SIZE : 320
   FCGN:
     BBOX_POSITIVE_WEIGHTS: 2.0
     ANGLE_THRESH: 22.5
+TEST:
+  COMMON:
+    FIXED_INPUT_SIZE: True
+    # AUGMENTATION : True # When this is True, remember to go to utils/augmantation.py to config augmentation.
+    # AUGMENTER: Augmentation_Grasp_Test()
 FCGN:
   FEAT_STRIDE : [16]
   ANCHOR_ANGLES : [-67.5, -22.5, 22.5, 67.5]

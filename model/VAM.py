@@ -1,10 +1,10 @@
+"""
 # --------------------------------------------------------
-# Visual Detection: State-of-the-Art
-# Copyright: Hanbo Zhang
+# Copyright (c) 2018 Xi'an Jiaotong University
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Hanbo Zhang
 # --------------------------------------------------------
-
+"""
 
 import torch
 import torch.nn as nn
@@ -16,9 +16,15 @@ from model.ssd.default_bbox_generator import PriorBox
 import torch.nn.init as init
 from model.ssd.multi_bbox_loss import MultiBoxLoss
 from model.utils.config import cfg
-from model.roi_layers.nms import nms
+from model.nms.nms_wrapper import nms
 from model.rpn.bbox_transform import bbox_overlaps
 
+from roi_pooling.modules.roi_pool import _RoIPooling
+from roi_crop.modules.roi_crop import _RoICrop
+from roi_align.modules.roi_align import RoIAlignAvg
+
+from model.op2l.object_pairing_layer import _ObjPairLayer
+from model.op2l.rois_pair_expanding_layer import  _RoisPairExpandingLayer
 from model.op2l.op2l import _OP2L
 
 import torchvision
@@ -72,7 +78,7 @@ class SSD(nn.Module):
 
     def __init__(self, classes):
         super(SSD, self).__init__()
-        self.size = cfg.SCALES[0]
+        self.size = cfg.TRAIN.COMMON.INPUT_SIZE
         self.classes = classes
         self.num_classes = len(self.classes)
         self.priors_cfg = self._init_prior_cfg()
@@ -94,11 +100,11 @@ class SSD(nn.Module):
         self._isex = cfg.TRAIN.VMRN.ISEX
         self.VMRN_rel_op2l = _OP2L(cfg.VMRN.OP2L_POOLING_SIZE, cfg.VMRN.OP2L_POOLING_SIZE, 1.0/8.0, self._isex)
 
-        self.iter_counter = 0
+        self._train_iter_conter = 0
 
         self.criterion = MultiBoxLoss(self.num_classes)
 
-    def forward(self, data_batch):
+    def forward(self, x, im_info, gt_boxes, num_boxes, rel_mat):
         """Applies network layers and ops on input image(s) x.
         Args:
             x: input image or batch of images. Shape: [batch,3,300,300].
@@ -115,14 +121,7 @@ class SSD(nn.Module):
                     3: priorbox layers, Shape: [2,num_priors*4]
         """
 
-        x = data_batch[0]
-        im_info = data_batch[1]
-        gt_boxes = data_batch[2]
-        num_boxes = data_batch[3]
-        rel_mat = data_batch[4]
-
-        if self.training:
-            self.iter_counter += 1
+        self._train_iter_conter += 1
 
         input_imgs = x.clone()
 
@@ -184,7 +183,7 @@ class SSD(nn.Module):
 
         # online data
         if self.training:
-            if self.iter_counter > cfg.TRAIN.VMRN.ONLINEDATA_BEGIN_ITER:
+            if self._train_iter_conter > cfg.TRAIN.VMRN.ONLINEDATA_BEGIN_ITER:
                 obj_rois, obj_num = self._obj_det(conf, loc, self.batch_size, im_info)
                 obj_rois = obj_rois.type_as(gt_boxes)
                 obj_num = obj_num.type_as(num_boxes)
@@ -369,7 +368,7 @@ class SSD(nn.Module):
                 cls_dets = torch.cat((cls_boxes, cls_scores.unsqueeze(1)), 1)
                 # cls_dets = torch.cat((cls_boxes, cls_scores), 1)
                 cls_dets = cls_dets[order]
-                keep = nms(cls_dets[:, :4], cls_dets[:, 4], cfg.TEST.COMMON.NMS)
+                keep = nms(cls_dets, cfg.TEST.COMMON.NMS)
                 cls_dets = cls_dets[keep.view(-1).long()]
 
                 final_keep = torch.nonzero(cls_dets[:, -1] > cfg.TEST.COMMON.OBJ_DET_THRESHOLD).squeeze()
@@ -470,7 +469,7 @@ class SSD(nn.Module):
         return prior_cfg
 
     def resume_iter(self, epoch, iter_per_epoch):
-        self.iter_counter = epoch * iter_per_epoch
+        self._train_iter_conter = epoch * iter_per_epoch
 
 class vgg16(SSD):
     def __init__(self, num_classes, pretrained=False):

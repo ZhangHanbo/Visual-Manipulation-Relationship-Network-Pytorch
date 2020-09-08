@@ -6,23 +6,19 @@
 # --------------------------------------------------------
 """
 
+import random
+import torch
 import torch.nn as nn
-import abc
+import torch.nn.functional as F
+from torch.autograd import Variable
+import numpy as np
 
-class header(nn.Module):
-    __metaclass__ = abc.ABCMeta
+class _RCNN_header(nn.Module):
     def __init__(self, input_dim, n_classes, class_agnostic):
-        super(header, self).__init__()
+        super(_RCNN_header, self).__init__()
         self.input_dim = input_dim
         self.n_classes = n_classes
         self.class_agnostic = class_agnostic
-        self.header = None
-        self.conf = None
-        self.loc = None
 
     def forward(self, x):
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def _make_header(self):
         raise NotImplementedError

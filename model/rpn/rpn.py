@@ -9,9 +9,14 @@ from .proposal_layer import _ProposalLayer
 from .anchor_target_layer import _AnchorTargetLayer
 from model.utils.net_utils import _smooth_l1_loss
 
+import numpy as np
+import math
+import pdb
+import time
+
 class _RPN(nn.Module):
     """ region proposal network """
-    def __init__(self, din, anchor_scales, anchor_ratios, feat_stride, include_rois_score = False):
+    def __init__(self, din, anchor_scales, anchor_ratios, feat_stride):
         super(_RPN, self).__init__()
         
         self.din = din  # get depth of input feature map, e.g., 512
@@ -33,7 +38,7 @@ class _RPN(nn.Module):
         self.RPN_bbox_pred = nn.Conv2d(512, self.nc_bbox_out, 1, 1, 0)
 
         # define proposal layer, which is used to filter good proposals (default number: 300)
-        self.RPN_proposal = _ProposalLayer(self.feat_stride, self.anchor_scales, self.anchor_ratios, include_rois_score)
+        self.RPN_proposal = _ProposalLayer(self.feat_stride, self.anchor_scales, self.anchor_ratios)
 
         # define anchor target layer
         self.RPN_anchor_target = _AnchorTargetLayer(self.feat_stride, self.anchor_scales, self.anchor_ratios)
@@ -218,7 +223,7 @@ class _RPN(nn.Module):
             rpn_label = torch.index_select(rpn_label.view(-1), 0, rpn_keep.data)
             rpn_label = Variable(rpn_label.long())
 
-            # print('rpn fg/bg:'+ str(int((rpn_label==1).sum())) +'/' +str(int((rpn_label==0).sum())))
+            print('rpn fg/bg:'+ str(int((rpn_label==1).sum())) +'/' +str(int((rpn_label==0).sum())))
             # FOCAL LOSS
             if cfg.TRAIN.RCNN_COMMON.RPN_USE_FOCAL_LOSS:
                 rpn_cls_prob = torch.index_select(all_rpn_cls_prob.view(-1, 2), 0, rpn_keep)

@@ -35,6 +35,8 @@ class imdb(object):
     self._roidb = None
     self._widths = None
     self._heights = None
+    self._num_origin = None
+    self._origin_flag = True
     self._roidb_handler = self.default_roidb
     # Use this dict for storing dataset specific config options
     self.config = {}
@@ -69,7 +71,11 @@ class imdb(object):
 
   @property
   def roidb(self):
-    # A roidb is a list of dictionaries for data loading.
+    # A roidb is a list of dictionaries, each with the following keys:
+    #   boxes
+    #   gt_overlaps
+    #   gt_classes
+    #   flipped
     if self._roidb is not None:
       return self._roidb
     self._roidb = self.roidb_handler()
@@ -124,9 +130,126 @@ class imdb(object):
     self._heights = self._get_heights()
     return self._heights
 
+  @property
+  def num_origin(self):
+    if self._num_origin is not None:
+      return self._num_origin
+    assert self._origin_flag, "image index has been changed before calling num_origin."
+    self._num_origin = self.num_images
+    return self._num_origin
+
   def _get_heights(self):
     return [PIL.Image.open(self.image_path_at(i)).size[1]
             for i in range(self.num_images)]
+
+  def append_flipped_images(self):
+    num_images = self.num_images
+    # this line can not be removed since you should make sure that
+    # num_origin is initialized before modifying image_index
+    num_origin = self.num_origin
+    widths = self.widths
+    heights = self.heights
+
+    for i in range(num_images):
+      entry = {'flipped': True}
+      entry['rotated'] = self.roidb[i]['rotated']
+      w = widths[i]
+      if 'boxes' in self.roidb[i]:
+        boxes = self.roidb[i]['boxes'].copy()
+        boxes[:, 0::2] = w - (boxes[:, 0::2].copy())[:,::-1] - 1
+        assert (boxes[:, 2] >= boxes[:, 0]).all()
+        entry['boxes'] = boxes
+        if 'gt_classes' in self.roidb[i]:
+          entry['gt_classes'] = self.roidb[i]['gt_classes']
+      if 'grasps' in self.roidb[i]:
+        grasps = self.roidb[i]['grasps'].copy()
+        if grasps.size>0:
+          grasps[:, 0::2] = w - grasps[:, 0::2].copy() - 1
+        entry['grasps'] = grasps
+        if 'grasp_inds' in self.roidb[i]:
+          entry['grasp_inds'] = self.roidb[i]['grasp_inds']
+      if 'gt_overlaps' in self.roidb[i]:
+        entry['gt_overlaps'] = self.roidb[i]['gt_overlaps']
+      # vmrd data entry
+      if 'nodeinds' in self.roidb[i]:
+        entry['nodeinds'] = self.roidb[i]['nodeinds'].copy()
+      if 'fathers' in self.roidb[i]:
+        entry['fathers'] = copy.deepcopy(self.roidb[i]['fathers'])
+      if 'children' in self.roidb[i]:
+        entry['children'] = copy.deepcopy(self.roidb[i]['children'])
+      self.roidb.append(entry)
+    self._image_index = self._image_index * 2
+    self._origin_flag = False
+    self._widths = self._widths * 2
+    self._heights = self._heights * 2
+
+  def append_rotated_images(self):
+    num_images = self.num_images
+    # this line can not be removed since you should make sure that
+    # num_origin is initialized before modifying image_index
+    num_origin = self.num_origin
+    widths = self.widths
+    heights = self.heights
+
+    # rotate coordinates of bounding boxes and grasps
+    def rotcoords(coords, rot, w, h, isbbox=False):
+      new_coords = np.zeros(coords.shape)
+      # (y, w-x)
+      if rot == 1:
+        new_coords[:, 0::2] = coords[:, 1::2]
+        new_coords[:, 1::2] = w - coords[:, 0::2] - 1
+      # (w-x, h-y)
+      elif rot == 2:
+        new_coords[:, 0::2] = w - coords[:, 0::2] - 1
+        new_coords[:, 1::2] = h - coords[:, 1::2] - 1
+      # (h-y,x)
+      elif rot == 3:
+        new_coords[:, 0::2] = h - coords[:, 1::2] - 1
+        new_coords[:, 1::2] = coords[:, 0::2]
+      if isbbox:
+        new_coords = np.concatenate(
+          (np.minimum(new_coords[:, 0:1], new_coords[:, 2:3]),
+           np.minimum(new_coords[:, 1:2], new_coords[:, 3:4]),
+           np.maximum(new_coords[:, 0:1], new_coords[:, 2:3]),
+           np.maximum(new_coords[:, 1:2], new_coords[:, 3:4]))
+          , axis=1)
+      return new_coords
+    # totally 3 rotation angles
+    for r in range(1,4):
+      for i in range(num_images):
+        entry = {}
+        assert not self.roidb[i]['flipped'], "Images should be rotated first."
+        entry['flipped'] = False
+        entry['rotated'] = r
+        if 'boxes' in self.roidb[i]:
+          boxes = self.roidb[i]['boxes'].copy()
+          boxes = rotcoords(boxes, r, widths[i], heights[i], True)
+          assert (boxes[:, 2] >= boxes[:, 0]).all()
+          entry['boxes'] = boxes
+          if 'gt_classes' in self.roidb[i]:
+            entry['gt_classes'] = self.roidb[i]['gt_classes']
+        if 'grasps' in self.roidb[i]:
+          grasps = self.roidb[i]['grasps'].copy()
+          if grasps.size > 0:
+            grasps = rotcoords(grasps, r, widths[i], heights[i], False)
+          entry['grasps'] = grasps
+          if 'grasp_inds' in self.roidb[i]:
+            entry['grasp_inds'] = self.roidb[i]['grasp_inds']
+        if 'gt_overlaps' in self.roidb[i]:
+          entry['gt_overlaps'] = self.roidb[i]['gt_overlaps']
+        # vmrd data entry
+        if 'nodeinds' in self.roidb[i]:
+          entry['nodeinds'] = self.roidb[i]['nodeinds'].copy()
+        if 'fathers' in self.roidb[i]:
+          entry['fathers'] = copy.deepcopy(self.roidb[i]['fathers'])
+        if 'children' in self.roidb[i]:
+          entry['children'] = copy.deepcopy(self.roidb[i]['children'])
+        self.roidb.append(entry)
+
+    self._image_index = self._image_index * 4
+    self._origin_flag = False
+    self._widths, self._heights = \
+      (self._widths + self._heights) * 2, (self._heights + self._widths) * 2
 
   def evaluate_recall(self, candidate_boxes=None, thresholds=None,
                       area='all', limit=None):
@@ -217,6 +340,48 @@ class imdb(object):
     ar = recalls.mean()
     return {'ar': ar, 'recalls': recalls, 'thresholds': thresholds,
             'gt_overlaps': gt_overlaps}
+
+  def create_roidb_from_box_list(self, box_list, gt_roidb):
+    assert len(box_list) == self.num_images, \
+      'Number of boxes must match number of ground-truth images'
+    roidb = []
+    for i in range(self.num_images):
+      boxes = box_list[i]
+      num_boxes = boxes.shape[0]
+      overlaps = np.zeros((num_boxes, self.num_classes), dtype=np.float32)
+
+      if gt_roidb is not None and gt_roidb[i]['boxes'].size > 0:
+        gt_boxes = gt_roidb[i]['boxes']
+        gt_classes = gt_roidb[i]['gt_classes']
+        gt_overlaps = bbox_overlaps(boxes.astype(np.float),
+                                    gt_boxes.astype(np.float))
+        argmaxes = gt_overlaps.argmax(axis=1)
+        maxes = gt_overlaps.max(axis=1)
+        I = np.where(maxes > 0)[0]
+        overlaps[I, gt_classes[argmaxes[I]]] = maxes[I]
+
+      overlaps = scipy.sparse.csr_matrix(overlaps)
+      roidb.append({
+        'boxes': boxes,
+        'gt_classes': np.zeros((num_boxes,), dtype=np.int32),
+        'gt_overlaps': overlaps,
+        'flipped': False,
+        'seg_areas': np.zeros((num_boxes,), dtype=np.float32),
+      })
+    return roidb
+
+  @staticmethod
+  def merge_roidbs(a, b):
+    assert len(a) == len(b)
+    for i in range(len(a)):
+      a[i]['boxes'] = np.vstack((a[i]['boxes'], b[i]['boxes']))
+      a[i]['gt_classes'] = np.hstack((a[i]['gt_classes'],
+                                      b[i]['gt_classes']))
+      a[i]['gt_overlaps'] = scipy.sparse.vstack([a[i]['gt_overlaps'],
+                                                 b[i]['gt_overlaps']])
+      a[i]['seg_areas'] = np.hstack((a[i]['seg_areas'],
+                                     b[i]['seg_areas']))
+    return a
 
   def competition_mode(self, on):
     """Turn competition mode on or off."""

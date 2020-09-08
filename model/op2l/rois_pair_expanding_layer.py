@@ -1,10 +1,8 @@
 # --------------------------------------------------------
-# Visual Detection: State-of-the-Art
-# Copyright: Hanbo Zhang
+# Copyright (c) 2018 Xi'an Jiaotong University
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Hanbo Zhang
 # --------------------------------------------------------
-
 
 import torch
 import torch.nn as nn

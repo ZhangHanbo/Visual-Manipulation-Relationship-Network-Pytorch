@@ -1,12 +1,10 @@
 from __future__ import print_function
 from __future__ import absolute_import
 # --------------------------------------------------------
-# Visual Detection: State-of-the-Art
-# Copyright: Hanbo Zhang
+# Copyright (c) 2018 Xi'an Jiaotong University
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Hanbo Zhang
 # --------------------------------------------------------
-
 
 import xml.dom.minidom as minidom
 
@@ -24,6 +22,8 @@ from .imdb import imdb
 import cv2
 
 import pdb
+
+from model.utils.net_utils import draw_grasp
 
 # TODO: make fast_rcnn irrelevant
 # >>>> obsolete, because it depends on sth outside of this project
@@ -57,8 +57,8 @@ class jacquard(imdb):
             else devkit_path
         # Example Cornell/origin
         self._data_path = self._devkit_path
-        self._classes = ('__background__',  # always index 0
-                         'obj')
+        self._classes = ('background',  # always index 0
+                         'grasp')
         self._class_to_ind = dict(zip(self.classes, xrange(self.num_classes)))
         self._image_ext = '.png'
         self._image_index = self._load_image_set_index()
@@ -174,6 +174,15 @@ class jacquard(imdb):
         return np.concatenate([x + vec1x, y + vec1y, x - vec2x, y - vec2y,
                           x - vec1x, y - vec1y, x + vec2x, y + vec2y], 1)
 
+    def _show_label(self, index, grasps):
+        imagename = index + '_RGB.png'
+        labels = grasps[::10]
+        points = self._labels_to_points(labels)
+        img = cv2.imread(imagename)
+        img = draw_grasp(img, points)
+        cv2.imwrite('test.png', img)
+        pdb.set_trace()
+
     def _load_annotation(self, index):
         """
         Load image and bounding boxes info from XML file in the PASCAL VOC
@@ -197,6 +206,7 @@ class jacquard(imdb):
         # self._show_label(index, grasps)
         return {'grasps': grasps,
                 'boxes': boxes,
+                'flipped': False,
                 'rotated': 0}
 
     def evaluate_detections(self, all_boxes, output_dir=None):
