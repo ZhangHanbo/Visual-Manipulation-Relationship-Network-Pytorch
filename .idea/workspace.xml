@@ -2,10 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c9b880e4-a6e3-414a-b387-4aa4ff30b986" name="Default" comment="">
-      <change afterPath="$PROJECT_DIR$/model/nms/_ext/nms/_nms.so" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/deployment.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/deployment.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cfgs/vmrdcompv1_all_in_one_res101.yml" beforeDir="false" afterPath="$PROJECT_DIR$/cfgs/vmrdcompv1_all_in_one_res101.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/datasets/vmrd.py" beforeDir="false" afterPath="$PROJECT_DIR$/datasets/vmrd.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -227,6 +226,7 @@
       <workItem from="1586017762717" duration="867000" />
       <workItem from="1586076426862" duration="8018000" />
       <workItem from="1600743663768" duration="999000" />
+      <workItem from="1600757704199" duration="569000" />
     </task>
     <servers />
   </component>
