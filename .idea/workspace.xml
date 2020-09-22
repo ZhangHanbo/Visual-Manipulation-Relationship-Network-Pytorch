@@ -2,10 +2,10 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c9b880e4-a6e3-414a-b387-4aa4ff30b986" name="Default" comment="">
-      <change beforePath="$PROJECT_DIR$/model/psroi_pooling/src/psroi_pooling.cu.o" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/psroi_pooling/src/psroi_pooling_cuda.c" beforeDir="false" afterPath="$PROJECT_DIR$/model/psroi_pooling/src/psroi_pooling_cuda.c" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/psroi_pooling/src/psroi_pooling_kernel.cu" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model/psroi_pooling/src/psroi_pooling_kernel.h" beforeDir="false" />
+      <change afterPath="$PROJECT_DIR$/model/nms/_ext/nms/_nms.so" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/deployment.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/deployment.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -20,9 +20,9 @@
     <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$jacquard_dataset_gen.coverage" NAME="jacquard_dataset_gen Coverage Results" MODIFIED="1549445002845" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$test.coverage" NAME="test Coverage Results" MODIFIED="1526990247439" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$efficientnet.coverage" NAME="efficientnet Coverage Results" MODIFIED="1585220393316" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/model/basenet" />
-    <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$showlabel__1_.coverage" NAME="showlabel (1) Coverage Results" MODIFIED="1551077509174" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="/Volumes/Extreme SSD/Jacquard/Jacquard_Dataset_0/1a3efcaaf8db9957a010c31b9816f48b" />
+    <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$showlabel__1_.coverage" NAME="showlabel (1) Coverage Results" MODIFIED="1551077509174" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/../../../Extreme SSD/Jacquard/Jacquard_Dataset_0/1a3efcaaf8db9957a010c31b9816f48b" />
     <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$resnet.coverage" NAME="resnet Coverage Results" MODIFIED="1584509330831" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/model/basenet" />
-    <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$showlabel.coverage" NAME="showlabel Coverage Results" MODIFIED="1549424673805" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="/Volumes/Extreme SSD/Jacquard/Jacquard_Dataset_0/1a1ec1cfe633adcdebbf11b1629fc16a" />
+    <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$showlabel.coverage" NAME="showlabel Coverage Results" MODIFIED="1549424673805" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/../../../Extreme SSD/Jacquard/Jacquard_Dataset_0/1a1ec1cfe633adcdebbf11b1629fc16a" />
     <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$FasterRCNN.coverage" NAME="FasterRCNN Coverage Results" MODIFIED="1584407268651" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/model" />
     <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$trainval_net.coverage" NAME="main Coverage Results" MODIFIED="1585554541113" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
@@ -48,22 +48,23 @@
   <component name="PropertiesComponent">
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/model/nms/_ext/nms" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
     <property name="two.files.diff.last.used.file" value="$PROJECT_DIR$/../ingress-proj/ingress_ros/src/ingress_srv/ingress_srv.py" />
   </component>
   <component name="RecentsManager">
-    <key name="CopyFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/cfgs" />
-      <recent name="$PROJECT_DIR$/model/basenet" />
-      <recent name="$PROJECT_DIR$/model" />
-    </key>
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$" />
       <recent name="$PROJECT_DIR$/demos" />
       <recent name="$PROJECT_DIR$/model/header" />
       <recent name="$PROJECT_DIR$/data" />
       <recent name="$PROJECT_DIR$/data/Jacquard" />
+    </key>
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/model/nms/_ext/nms" />
+      <recent name="$PROJECT_DIR$/cfgs" />
+      <recent name="$PROJECT_DIR$/model/basenet" />
+      <recent name="$PROJECT_DIR$/model" />
     </key>
   </component>
   <component name="RunManager" selected="Python.main">
@@ -154,7 +155,7 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/main.py" />
-      <option name="PARAMETERS" value="--net vgg16 --frame faster_rcnn_vmrn --dataset vmrdcompv1 --cuda --test --checkpoint 704 --checkepoch 25" />
+      <option name="PARAMETERS" value="--net res101 --frame all_in_one --dataset vmrdcompv1 --cuda" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -225,6 +226,7 @@
       <workItem from="1585978694150" duration="20283000" />
       <workItem from="1586017762717" duration="867000" />
       <workItem from="1586076426862" duration="8018000" />
+      <workItem from="1600743663768" duration="999000" />
     </task>
     <servers />
   </component>
@@ -232,105 +234,46 @@
     <option name="version" value="1" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="440" y="192" key="#Deployment" timestamp="1586149521668">
+    <state x="440" y="192" key="#Deployment" timestamp="1600744780438">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state x="440" y="192" key="#Deployment/0.0.1680.1050@0.0.1680.1050" timestamp="1586149521668" />
-    <state x="304" y="188" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1586149583188">
+    <state x="440" y="192" key="#Deployment/-1920.0.1920.1080/0.0.1680.1050@0.0.1680.1050" timestamp="1600744780438" />
+    <state x="304" y="188" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1600744930309">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state x="304" y="188" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1586149583188" />
-    <state x="304" y="198" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.23.1680.980@0.23.1680.980" timestamp="1586014163259" />
-    <state x="578" y="280" key="#com.intellij.refactoring.safeDelete.UnsafeUsagesDialog" timestamp="1586086642863">
+    <state x="304" y="188" key="#com.intellij.execution.impl.EditConfigurationsDialog/-1920.0.1920.1080/0.0.1680.1050@0.0.1680.1050" timestamp="1600744930309" />
+    <state width="1638" height="337" key="GridCell.Tab.0.bottom" timestamp="1600744932986">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state x="578" y="280" key="#com.intellij.refactoring.safeDelete.UnsafeUsagesDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1586086642863" />
-    <state x="100" y="100" width="1480" height="850" key="DiffContextDialog" timestamp="1586084671345">
-      <screen x="0" y="23" width="1680" height="973" />
-    </state>
-    <state x="100" y="100" width="1480" height="850" key="DiffContextDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1586084560550" />
-    <state x="100" y="100" width="1480" height="850" key="DiffContextDialog/0.23.1680.973@0.23.1680.973" timestamp="1586084671345" />
-    <state x="594" y="296" key="EnvironmentVariablesDialog" timestamp="1586012225363">
+    <state width="1638" height="337" key="GridCell.Tab.0.bottom/-1920.0.1920.1080/0.0.1680.1050@0.0.1680.1050" timestamp="1600744932986" />
+    <state width="1638" height="337" key="GridCell.Tab.0.center" timestamp="1600744932984">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state x="594" y="296" key="EnvironmentVariablesDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1586012225363" />
-    <state width="1638" height="337" key="GridCell.Tab.0.bottom" timestamp="1586149545536">
+    <state width="1638" height="337" key="GridCell.Tab.0.center/-1920.0.1920.1080/0.0.1680.1050@0.0.1680.1050" timestamp="1600744932984" />
+    <state width="1638" height="337" key="GridCell.Tab.0.left" timestamp="1600744932983">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1638" height="337" key="GridCell.Tab.0.bottom/0.0.1680.1050@0.0.1680.1050" timestamp="1586149545536" />
-    <state width="1638" height="337" key="GridCell.Tab.0.bottom/0.23.1680.967@0.23.1680.967" timestamp="1586052821694" />
-    <state width="1638" height="365" key="GridCell.Tab.0.bottom/0.23.1680.972@0.23.1680.972" timestamp="1586077871524" />
-    <state width="1638" height="327" key="GridCell.Tab.0.bottom/0.23.1680.978@0.23.1680.978" timestamp="1586013788321" />
-    <state width="1180" height="302" key="GridCell.Tab.0.bottom/0.23.1680.980@0.23.1680.980" timestamp="1586017483410" />
-    <state width="1638" height="337" key="GridCell.Tab.0.center" timestamp="1586149545535">
+    <state width="1638" height="337" key="GridCell.Tab.0.left/-1920.0.1920.1080/0.0.1680.1050@0.0.1680.1050" timestamp="1600744932983" />
+    <state width="1638" height="337" key="GridCell.Tab.0.right" timestamp="1600744932985">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1638" height="337" key="GridCell.Tab.0.center/0.0.1680.1050@0.0.1680.1050" timestamp="1586149545535" />
-    <state width="1638" height="337" key="GridCell.Tab.0.center/0.23.1680.967@0.23.1680.967" timestamp="1586052821693" />
-    <state width="1638" height="365" key="GridCell.Tab.0.center/0.23.1680.972@0.23.1680.972" timestamp="1586077871522" />
-    <state width="1638" height="327" key="GridCell.Tab.0.center/0.23.1680.978@0.23.1680.978" timestamp="1586013788319" />
-    <state width="1180" height="302" key="GridCell.Tab.0.center/0.23.1680.980@0.23.1680.980" timestamp="1586017483410" />
-    <state width="1638" height="337" key="GridCell.Tab.0.left" timestamp="1586149545534">
+    <state width="1638" height="337" key="GridCell.Tab.0.right/-1920.0.1920.1080/0.0.1680.1050@0.0.1680.1050" timestamp="1600744932985" />
+    <state x="341" y="164" key="SettingsEditor" timestamp="1600744885221">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1638" height="337" key="GridCell.Tab.0.left/0.0.1680.1050@0.0.1680.1050" timestamp="1586149545534" />
-    <state width="1638" height="337" key="GridCell.Tab.0.left/0.23.1680.967@0.23.1680.967" timestamp="1586052821692" />
-    <state width="1638" height="365" key="GridCell.Tab.0.left/0.23.1680.972@0.23.1680.972" timestamp="1586077871521" />
-    <state width="1638" height="327" key="GridCell.Tab.0.left/0.23.1680.978@0.23.1680.978" timestamp="1586013788318" />
-    <state width="1180" height="302" key="GridCell.Tab.0.left/0.23.1680.980@0.23.1680.980" timestamp="1586017483409" />
-    <state width="1638" height="337" key="GridCell.Tab.0.right" timestamp="1586149545536">
+    <state x="341" y="164" key="SettingsEditor/-1920.0.1920.1080/0.0.1680.1050@0.0.1680.1050" timestamp="1600744885221" />
+    <state x="601" y="254" key="com.jetbrains.plugins.remotesdk.ui.RemoteMappingsConfiguration" timestamp="1600744882619">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1638" height="337" key="GridCell.Tab.0.right/0.0.1680.1050@0.0.1680.1050" timestamp="1586149545536" />
-    <state width="1638" height="337" key="GridCell.Tab.0.right/0.23.1680.967@0.23.1680.967" timestamp="1586052821693" />
-    <state width="1638" height="365" key="GridCell.Tab.0.right/0.23.1680.972@0.23.1680.972" timestamp="1586077871523" />
-    <state width="1638" height="327" key="GridCell.Tab.0.right/0.23.1680.978@0.23.1680.978" timestamp="1586013788320" />
-    <state width="1180" height="302" key="GridCell.Tab.0.right/0.23.1680.980@0.23.1680.980" timestamp="1586017483410" />
-    <state width="1638" height="365" key="GridCell.Tab.1.bottom" timestamp="1586085819797">
+    <state x="601" y="254" key="com.jetbrains.plugins.remotesdk.ui.RemoteMappingsConfiguration/-1920.0.1920.1080/0.0.1680.1050@0.0.1680.1050" timestamp="1600744882619" />
+    <state x="729" y="265" key="ftp.server.browser" timestamp="1600744881317">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1638" height="365" key="GridCell.Tab.1.bottom/0.0.1680.1050@0.0.1680.1050" timestamp="1586085819797" />
-    <state width="1638" height="365" key="GridCell.Tab.1.bottom/0.23.1680.967@0.23.1680.967" timestamp="1586052821645" />
-    <state width="1638" height="365" key="GridCell.Tab.1.bottom/0.23.1680.972@0.23.1680.972" timestamp="1586080187943" />
-    <state width="1638" height="327" key="GridCell.Tab.1.bottom/0.23.1680.978@0.23.1680.978" timestamp="1586013803780" />
-    <state width="1180" height="327" key="GridCell.Tab.1.bottom/0.23.1680.980@0.23.1680.980" timestamp="1586017483405" />
-    <state width="1638" height="365" key="GridCell.Tab.1.center" timestamp="1586085819796">
+    <state x="729" y="265" key="ftp.server.browser/-1920.0.1920.1080/0.0.1680.1050@0.0.1680.1050" timestamp="1600744881317" />
+    <state x="711" y="429" key="publish.login" timestamp="1600744795541">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1638" height="365" key="GridCell.Tab.1.center/0.0.1680.1050@0.0.1680.1050" timestamp="1586085819796" />
-    <state width="1638" height="365" key="GridCell.Tab.1.center/0.23.1680.967@0.23.1680.967" timestamp="1586052821644" />
-    <state width="1638" height="365" key="GridCell.Tab.1.center/0.23.1680.972@0.23.1680.972" timestamp="1586080187941" />
-    <state width="1638" height="327" key="GridCell.Tab.1.center/0.23.1680.978@0.23.1680.978" timestamp="1586013803778" />
-    <state width="1180" height="327" key="GridCell.Tab.1.center/0.23.1680.980@0.23.1680.980" timestamp="1586017483404" />
-    <state width="1638" height="365" key="GridCell.Tab.1.left" timestamp="1586085819796">
-      <screen x="0" y="0" width="1680" height="1050" />
-    </state>
-    <state width="1638" height="365" key="GridCell.Tab.1.left/0.0.1680.1050@0.0.1680.1050" timestamp="1586085819796" />
-    <state width="1638" height="365" key="GridCell.Tab.1.left/0.23.1680.967@0.23.1680.967" timestamp="1586052821643" />
-    <state width="1638" height="365" key="GridCell.Tab.1.left/0.23.1680.972@0.23.1680.972" timestamp="1586080187941" />
-    <state width="1638" height="327" key="GridCell.Tab.1.left/0.23.1680.978@0.23.1680.978" timestamp="1586013803777" />
-    <state width="1180" height="327" key="GridCell.Tab.1.left/0.23.1680.980@0.23.1680.980" timestamp="1586017483404" />
-    <state width="1638" height="365" key="GridCell.Tab.1.right" timestamp="1586085819797">
-      <screen x="0" y="0" width="1680" height="1050" />
-    </state>
-    <state width="1638" height="365" key="GridCell.Tab.1.right/0.0.1680.1050@0.0.1680.1050" timestamp="1586085819797" />
-    <state width="1638" height="365" key="GridCell.Tab.1.right/0.23.1680.967@0.23.1680.967" timestamp="1586052821644" />
-    <state width="1638" height="365" key="GridCell.Tab.1.right/0.23.1680.972@0.23.1680.972" timestamp="1586080187942" />
-    <state width="1638" height="327" key="GridCell.Tab.1.right/0.23.1680.978@0.23.1680.978" timestamp="1586013803780" />
-    <state width="1180" height="327" key="GridCell.Tab.1.right/0.23.1680.980@0.23.1680.980" timestamp="1586017483405" />
-    <state x="341" y="164" key="SettingsEditor" timestamp="1586149469849">
-      <screen x="0" y="0" width="1680" height="1050" />
-    </state>
-    <state x="341" y="164" key="SettingsEditor/0.0.1680.1050@0.0.1680.1050" timestamp="1586149469849" />
-    <state x="494" y="347" key="com.intellij.ide.util.TipDialog" timestamp="1586076429523">
-      <screen x="0" y="0" width="1680" height="1050" />
-    </state>
-    <state x="494" y="347" key="com.intellij.ide.util.TipDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1586076429523" />
-    <state x="494" y="345" key="com.intellij.ide.util.TipDialog/0.23.1680.975@0.23.1680.975" timestamp="1585879041713" />
-    <state x="899" y="202" key="ftp.server.browser" timestamp="1586149462635">
-      <screen x="0" y="0" width="1680" height="1050" />
-    </state>
-    <state x="899" y="202" key="ftp.server.browser/0.0.1680.1050@0.0.1680.1050" timestamp="1586149462635" />
+    <state x="711" y="429" key="publish.login/-1920.0.1920.1080/0.0.1680.1050@0.0.1680.1050" timestamp="1600744795541" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -357,7 +300,7 @@
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$demo_ingress_vmrn.coverage" NAME="demo_ingress_vmrn Coverage Results" MODIFIED="1586086023466" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$main.coverage" NAME="main Coverage Results" MODIFIED="1586149533888" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$main.coverage" NAME="main Coverage Results" MODIFIED="1600744932975" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$demo_ingress.coverage" NAME="demo_ingress Coverage Results" MODIFIED="1585999183285" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Visual_Manipulation_Relationship_Network_Pytorch$net_utils.coverage" NAME="net_utils Coverage Results" MODIFIED="1586146938600" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/model/utils" />
   </component>

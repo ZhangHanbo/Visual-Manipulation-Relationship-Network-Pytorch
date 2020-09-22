@@ -559,6 +559,13 @@ def train():
             loss.backward()
             if args.net == "vgg16":
                  clip_gradient(Network, 10.)
+            totalnorm = 0
+            for p in Network.parameters():
+                if p.requires_grad and p.grad is not None:
+                    modulenorm = p.grad.data.norm()
+                    totalnorm += modulenorm ** 2
+            totalnorm = np.sqrt(totalnorm.item())
+            print(totalnorm)
             optimizer.step()
 
             # record training information
