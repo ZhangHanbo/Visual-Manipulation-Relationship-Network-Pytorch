@@ -366,7 +366,9 @@ def rel_prob_to_mat(rel_cls_prob, num_obj):
                 rel_mat[o1, o2] = 3 - rel_mat[o2, o1]
             else:
                 raise RuntimeError
-            rel_score_mat[:, o1, o2] = rel_score_mat[:, o2, o1]
+            rel_score_mat[:, o1, o2] = [rel_score_mat[:, o2, o1][1],
+                                        rel_score_mat[:, o2, o1][0],
+                                        rel_score_mat[:, o2, o1][2]]
     return rel_mat, rel_score_mat
 
 
