@@ -13,7 +13,7 @@ import torch.nn.init as init
 from model.utils.config import cfg
 from model.rpn.bbox_transform import bbox_overlaps_batch
 from model.fcgn.bbox_transform_grasp import points2labels
-from model.utils.net_utils import _smooth_l1_loss, _affine_grid_gen
+from model.utils.net_utils import _smooth_l1_loss, _affine_grid_gen, weight_kaiming_init, set_bn_eval, set_bn_fix
 from model.basenet.resnet import Bottleneck
 import numpy as np
 from model.FasterRCNN import fasterRCNN
@@ -32,6 +32,10 @@ class MGN(fasterRCNN, FCGN):
         if not self.use_objdet_branch:
             # if do not use object detection branch, RPN plays the role of object instance detection.
             self.RCNN_rpn.RPN_proposal._include_rois_score = True
+
+        self._fix_fasterRCNN = cfg.MGN.FIX_OBJDET
+        if self._fix_fasterRCNN:
+            self._fixed_keys = []
 
     def _grasp_anchor_transform(self):
         return torch.cat([
@@ -255,9 +259,25 @@ class MGN(fasterRCNN, FCGN):
 
         return anchors
 
-    def create_architecture(self):
+    def create_architecture(self, object_detector_path=''):
         self._init_modules()
         self._init_weights()
+
+        if self._fix_fasterRCNN:
+            assert object_detector_path != '', "An pretrained object detector should be specified for VMRN."
+            object_detector = torch.load(object_detector_path)
+            self._load_and_fix_object_detector(object_detector['model'])
+
+    def _load_and_fix_object_detector(self, object_model):
+        """
+        To use this function, you need to make sure that all keys in object_model match the ones in the target model.
+        """
+        self._fixed_keys = set([key.split('.')[0] for key in object_model.keys()])
+        self.load_state_dict(object_model, strict=False)
+        for name, module in self.named_children():
+            if name in self._fixed_keys:
+                for p in module.parameters(): p.requires_grad = False
+                module.apply(set_bn_fix)
 
     def _init_modules_resnet(self):
         fasterRCNN._init_modules_resnet(self)
@@ -294,13 +314,14 @@ class MGN(fasterRCNN, FCGN):
     def _init_weights(self):
         fasterRCNN._init_weights(self)
         FCGN._init_weights(self)
-        # initialize grasp top
-        def kaiming_init(m):
-            def xavier(param):
-                init.kaiming_normal(param, nonlinearity='relu')
-            if isinstance(m, nn.Conv2d):
-                xavier(m.weight.data)
-        self.MGN_top.apply(kaiming_init)
+        self.MGN_top.apply(weight_kaiming_init)
 
     def _MGN_head_to_tail(self, feats):
         return self.MGN_top(feats)
+
+    def train(self, mode=True):
+        nn.Module.train(self, mode)
+        if mode and self._fix_fasterRCNN:
+            for name, module in self.named_children():
+                if name in self._fixed_keys:
+                    module.eval()

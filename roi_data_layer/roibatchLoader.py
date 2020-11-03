@@ -42,6 +42,9 @@ class roibatchLoader(data.Dataset):
         self.data_size = len(self.ratio_list)
         self.cls_list = cls_list
 
+        self.pixel_means = cfg.PIXEL_MEANS if cfg.PRETRAIN_TYPE == "pytorch" else cfg.PIXEL_MEANS_CAFFE
+        self.pixel_stds = cfg.PIXEL_STDS if cfg.PRETRAIN_TYPE == "pytorch" else np.array([[[1., 1., 1.]]])
+
         self.augmentation = augmentation
         if self.augmentation:
             self.augImageOnly = None
@@ -80,7 +83,7 @@ class objdetRoibatchLoader(roibatchLoader):
         blob['im_info'][2:4] = (im_scale['y'], im_scale['x'])
         blob['gt_boxes'][:, :-1][:, 0::2] *= im_scale['x']
         blob['gt_boxes'][:, :-1][:, 1::2] *= im_scale['y']
-        blob['data'] = image_normalize(blob['data'], mean=cfg.PIXEL_MEANS, std=cfg.PIXEL_STDS)
+        blob['data'] = image_normalize(blob['data'], mean=self.pixel_means, std=self.pixel_stds)
         return blob
 
     def _boxPostProcess(self, gt_boxes):
@@ -144,7 +147,7 @@ class graspdetRoibatchLoader(roibatchLoader):
         blob['im_info'][2:4] = (im_scale['y'], im_scale['x'])
         blob['gt_grasps'][:, 0::2] *= im_scale['x']
         blob['gt_grasps'][:, 1::2] *= im_scale['y']
-        blob['data'] = image_normalize(blob['data'], mean=cfg.PIXEL_MEANS, std=cfg.PIXEL_STDS)
+        blob['data'] = image_normalize(blob['data'], mean=self.pixel_means, std=self.pixel_stds)
         return blob
 
     def _graspPostProcess(self, gt_grasps, gt_grasp_inds = None):
@@ -206,7 +209,7 @@ class vmrdetRoibatchLoader(objdetRoibatchLoader):
         blob['im_info'][2:4] = (im_scale['y'], im_scale['x'])
         blob['gt_boxes'][:, :-1][:, 0::2] *= im_scale['x']
         blob['gt_boxes'][:, :-1][:, 1::2] *= im_scale['y']
-        blob['data'] = image_normalize(blob['data'], mean=cfg.PIXEL_MEANS, std=cfg.PIXEL_STDS)
+        blob['data'] = image_normalize(blob['data'], mean=self.pixel_means, std=self.pixel_stds)
         blob['node_inds'] = blob['node_inds'][keep]
         blob['parent_lists'] = [blob['parent_lists'][p_ind] for p_ind in list(keep)]
         blob['child_lists'] = [blob['child_lists'][c_ind] for c_ind in list(keep)]
@@ -266,8 +269,12 @@ class vmrdetRoibatchLoader(objdetRoibatchLoader):
             assert data.size(1) == im_info[0] and data.size(2) == im_info[1]
             return data, im_info, gt_boxes, keep.size(0), rel_mat
         else:
-            gt_boxes = torch.FloatTensor([1, 1, 1, 1, 1])
-            num_boxes = 0
+            if cfg.TRAIN.COMMON.USE_ODLOSS:
+                gt_boxes = torch.FloatTensor([1, 1, 1, 1, 1])
+                num_boxes = 0
+            else:
+                gt_boxes = torch.from_numpy(blobs['gt_boxes'])
+                num_boxes = gt_boxes.shape[0]
             rel_mat = torch.FloatTensor([0])
             return data, im_info, gt_boxes, num_boxes, rel_mat
 
@@ -578,8 +585,12 @@ class vmrdetMulInSizeRoibatchLoader(vmrdetRoibatchLoader, objdetMulInSizeRoibatc
 
         else:
             data = data.permute(2, 0, 1).contiguous()
-            gt_boxes = torch.FloatTensor([1, 1, 1, 1, 1])
-            num_boxes = 0
+            if cfg.TRAIN.COMMON.USE_ODLOSS:
+                gt_boxes = torch.FloatTensor([1, 1, 1, 1, 1])
+                num_boxes = 0
+            else:
+                gt_boxes = torch.from_numpy(blobs['gt_boxes'])
+                num_boxes = gt_boxes.shape[0]
             rel_mat = torch.FloatTensor([0])
             return data, im_info, gt_boxes, num_boxes, rel_mat
 
@@ -613,7 +624,7 @@ class roigdetMulInSizeRoibatchLoader(graspMulInSizeRoibatchLoader, objdetMulInSi
         blob['gt_grasps'][:, 1::2] *= im_scale['y']
         blob['node_inds'] = blob['node_inds'][keep_b]
         blob['gt_grasp_inds'] = blob['gt_grasp_inds'][keep_g]
-        blob['data'] = image_normalize(blob['data'], mean=cfg.PIXEL_MEANS, std=cfg.PIXEL_STDS)
+        blob['data'] = image_normalize(blob['data'], mean=self.pixel_means, std=self.pixel_stds)
         return blob
 
     def _graspIndsPostProcess(self, grasp_inds, shuffle_inds, node_inds):
@@ -688,10 +699,14 @@ class roigdetMulInSizeRoibatchLoader(graspMulInSizeRoibatchLoader, objdetMulInSi
             return data, im_info, gt_boxes, gt_grasps, keep.size(0), num_grasps, gt_grasp_inds
         else:
             data = data.permute(2, 0, 1).contiguous()
-            gt_boxes = torch.FloatTensor([1, 1, 1, 1, 1])
+            if cfg.TRAIN.COMMON.USE_ODLOSS:
+                gt_boxes = torch.FloatTensor([1, 1, 1, 1, 1])
+                num_boxes = 0
+            else:
+                gt_boxes = torch.from_numpy(blobs['gt_boxes'])
+                num_boxes = gt_boxes.shape[0]
             gt_grasps = torch.FloatTensor([1, 1, 1, 1, 1, 1, 1, 1])
             gt_grasp_inds = torch.LongTensor([0])
-            num_boxes = 0
             num_grasps = 0
             return data, im_info, gt_boxes, gt_grasps, num_boxes, num_grasps, gt_grasp_inds
 
@@ -724,7 +739,7 @@ class allInOneMulInSizeRoibatchLoader(roigdetMulInSizeRoibatchLoader, vmrdetMulI
         blob['gt_grasps'][:, 0::2] *= im_scale['x']
         blob['gt_grasps'][:, 1::2] *= im_scale['y']
         blob['gt_grasp_inds'] = blob['gt_grasp_inds'][keep_g]
-        blob['data'] = image_normalize(blob['data'], mean=cfg.PIXEL_MEANS, std=cfg.PIXEL_STDS)
+        blob['data'] = image_normalize(blob['data'], mean=self.pixel_means, std=self.pixel_stds)
         blob['node_inds'] = blob['node_inds'][keep_b]
         blob['parent_lists'] = [blob['parent_lists'][p_ind] for p_ind in list(keep_b)]
         blob['child_lists'] = [blob['child_lists'][c_ind] for c_ind in list(keep_b)]
@@ -792,10 +807,14 @@ class allInOneMulInSizeRoibatchLoader(roigdetMulInSizeRoibatchLoader, vmrdetMulI
             return data, im_info, gt_boxes, gt_grasps, keep.size(0), num_grasps, rel_mat, gt_grasp_inds
         else:
             data = data.permute(2, 0, 1).contiguous()
-            gt_boxes = torch.FloatTensor([1, 1, 1, 1, 1])
+            if cfg.TRAIN.COMMON.USE_ODLOSS:
+                gt_boxes = torch.FloatTensor([1, 1, 1, 1, 1])
+                num_boxes = 0
+            else:
+                gt_boxes = torch.from_numpy(blobs['gt_boxes'])
+                num_boxes = gt_boxes.shape[0]
             gt_grasps = torch.FloatTensor([1, 1, 1, 1, 1, 1, 1, 1])
             gt_grasp_inds = torch.LongTensor([0])
-            num_boxes = 0
             num_grasps = 0
             rel_mat = torch.FloatTensor([0])
             return data, im_info, gt_boxes, gt_grasps, num_boxes, num_grasps, rel_mat, gt_grasp_inds
@@ -814,7 +833,7 @@ class ssdbatchLoader(objdetRoibatchLoader):
             ])
             self.augObjdet = Compose([
                 RandomMirror(),
-                Expand(mean = cfg.PIXEL_MEANS * 255.),
+                Expand(mean = self.pixel_means * 255. if cfg.PRETRAIN_TYPE == "pytorch" else self.pixel_means),
                 RandomSampleCrop(),
             ])
 
@@ -850,7 +869,7 @@ class svmrnbatchLoader(vmrdetRoibatchLoader):
             ])
             self.augObjdet = Compose([
                 RandomMirror(),
-                Expand(mean=cfg.PIXEL_MEANS * 255.),
+                Expand(mean= self.pixel_means * 255. if cfg.PRETRAIN_TYPE == "pytorch" else self.pixel_means),
                 # TODO: allow to damage bounding boxes while prevent deleting them when doing random crop
                 RandomCropKeepBoxes(),
             ])
@@ -879,6 +898,7 @@ class fvmrnbatchLoader(vmrdetMulInSizeRoibatchLoader):
                 RandomMirror(),
                 # TODO: allow to damage bounding boxes while prevent deleting them when doing random crop
                 RandomCropKeepBoxes(),
+                Expand(mean = self.pixel_means * 255. if cfg.PRETRAIN_TYPE == "pytorch" else self.pixel_means, keep_size=True),
             ])
 
 class roignbatchLoader(roigdetMulInSizeRoibatchLoader):
@@ -895,9 +915,9 @@ class roignbatchLoader(roigdetMulInSizeRoibatchLoader):
             ])
             self.augObjdet = Compose([
                 RandomMirror(),
-                Expand(mean=cfg.PIXEL_MEANS),
                 # TODO: allow to damage bounding boxes while prevent deleting them when doing random crop
                 RandomCropKeepBoxes(keep_shape=True),
+                Expand(mean = self.pixel_means * 255. if cfg.PRETRAIN_TYPE == "pytorch" else self.pixel_means, keep_size=True),
             ])
 
 class fallinonebatchLoader(allInOneMulInSizeRoibatchLoader):
@@ -914,8 +934,15 @@ class fallinonebatchLoader(allInOneMulInSizeRoibatchLoader):
             ])
             self.augObjdet = Compose([
                 RandomMirror(),
-                Expand(mean=cfg.PIXEL_MEANS),
                 # TODO: allow to damage bounding boxes while prevent deleting them when doing random crop
-                RandomCropKeepBoxes(keep_shape=True),
+                # RandomCropKeepBoxes(keep_shape=True),
+                RandomCropKeepBoxes(),
+                Expand(mean = self.pixel_means * 255. if cfg.PRETRAIN_TYPE == "pytorch" else self.pixel_means, keep_size=True),
             ])
 
+# TODO: Implement caption generation batch loader.
+class captionRoiBatchLoader(objdetMulInSizeRoibatchLoader):
+    def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True,
+                 cls_list=None, augmentation = False):
+        super(captionRoiBatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes,
+                                             training, cls_list, augmentation)

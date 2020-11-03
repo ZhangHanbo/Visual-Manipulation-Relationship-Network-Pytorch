@@ -30,14 +30,6 @@ model_urls = {
     'resnet152': 'https://s3.amazonaws.com/pytorch/models/resnet152-b121ed2d.pth',
 }
 
-local_model_paths = {
-    'res152': 'data/pretrained_model/resnet152-b121ed2d.pth',
-    'res101': 'data/pretrained_model/resnet101-5d3b4d8f.pth',
-    'res50': 'data/pretrained_model/resnet50-19c8e357.pth',
-    'res34': 'data/pretrained_model/resnet34-333f7ec4.pth',
-    'res18': 'data/pretrained_model/resnet18-5c106cde.pth',
-}
-
 def conv3x3(in_planes, out_planes, stride=1):
     "3x3 convolution with padding"
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
@@ -129,12 +121,13 @@ class ResNet(featExtractor):
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
+        # self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
 
         # it is slightly better whereas slower to set stride = 1
-        # self.layer4 = self._make_layer(block, 512, layers[3], stride=1)
+        self.layer4 = self._make_layer(block, 512, layers[3], stride=1)
 
-        self.avgpool = nn.AvgPool2d(7)
+        # self.avgpool = nn.AvgPool2d(7)
+        self.avgpool = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Linear(512 * block.expansion, num_classes)
 
         for m in self.modules():
@@ -281,6 +274,24 @@ def resnet152(feat_list, pretrained_model_path):
     return model
 
 def resnet_initializer(name, feat_list, pretrained = False):
+    if cfg.PRETRAIN_TYPE == "pytorch":
+        local_model_paths = {
+            'res152': 'data/pretrained_model/resnet152-b121ed2d.pth',
+            'res101': 'data/pretrained_model/resnet101-5d3b4d8f.pth',
+            'res50': 'data/pretrained_model/resnet50-19c8e357.pth',
+            'res34': 'data/pretrained_model/resnet34-333f7ec4.pth',
+            'res18': 'data/pretrained_model/resnet18-5c106cde.pth',
+        }
+    elif cfg.PRETRAIN_TYPE == "caffe":
+        local_model_paths = {
+            'res152': 'data/pretrained_model/resnet152_caffe.pth',
+            'res101': 'data/pretrained_model/resnet101_caffe.pth',
+            'res50': 'data/pretrained_model/resnet50_caffe.pth',
+            'res34': 'data/pretrained_model/resnet34_caffe.pth',
+            'res18': 'data/pretrained_model/resnet18_caffe.pth',
+        }
+    else:
+        raise RuntimeError("Please specify caffe or pytorch pretrained model to use.")
     cfg_dict = {
         "res18": {"block": BasicBlock, "layer_cfg": [2, 2, 2, 2]},
         "res34": {"block": BasicBlock, "layer_cfg": [3, 4, 6, 3]},

@@ -14,7 +14,7 @@ from rpn.rpn import _RPN
 from model.roi_layers import ROIAlign, ROIPool
 from rpn.proposal_target_layer_cascade import _ProposalTargetLayer
 from Detectors import objectDetector
-from utils.net_utils import _smooth_l1_loss
+from utils.net_utils import _smooth_l1_loss, weights_normal_init
 
 class fasterRCNN(objectDetector):
     """ faster RCNN """
@@ -111,22 +111,11 @@ class fasterRCNN(objectDetector):
         self._init_weights()
 
     def _init_weights(self):
-        def normal_init(m, mean, stddev, truncated=False):
-            """
-            weight initalizer: truncated normal and random normal.
-            """
-            # x is a parameter
-            if truncated:
-                m.weight.data.normal_().fmod_(2).mul_(stddev).add_(mean)  # not a perfect approximation
-            else:
-                m.weight.data.normal_(mean, stddev)
-                m.bias.data.zero_()
-
-        normal_init(self.RCNN_rpn.RPN_Conv, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-        normal_init(self.RCNN_rpn.RPN_cls_score, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-        normal_init(self.RCNN_rpn.RPN_bbox_pred, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-        normal_init(self.RCNN_cls_score, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-        normal_init(self.RCNN_bbox_pred, 0, 0.001, cfg.TRAIN.COMMON.TRUNCATED)
+        weights_normal_init(self.RCNN_rpn.RPN_Conv, 0.01, 0.)
+        weights_normal_init(self.RCNN_rpn.RPN_cls_score, 0.01, 0.)
+        weights_normal_init(self.RCNN_rpn.RPN_bbox_pred, 0.01, 0.)
+        weights_normal_init(self.RCNN_cls_score, 0.01, 0.)
+        weights_normal_init(self.RCNN_bbox_pred, 0.001, 0.)
 
     def _init_modules(self):
 

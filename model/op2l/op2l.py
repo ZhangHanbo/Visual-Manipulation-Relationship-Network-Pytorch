@@ -43,4 +43,4 @@ class _OP2L(nn.Module):
         elif cfg.VMRN.OP2L_POOLING_MODE == 'pool':
             pooled_feat = self.OP2L_roi_pool(feats, paired_rois.view(-1,5))
         obj_pair_feats = self.OP2L_object_pair(pooled_feat, batch_size, obj_num)
-        return obj_pair_feats
+        return obj_pair_feats, paired_rois

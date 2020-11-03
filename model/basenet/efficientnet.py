@@ -10,6 +10,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 from torch.utils import model_zoo
+from model.utils.config import cfg
 
 ########################################################################
 ############### HELPERS FUNCTIONS FOR MODEL ARCHITECTURE ###############
@@ -317,16 +318,19 @@ url_map = {
     'efficientnet-b7': 'http://storage.googleapis.com/public-models/efficientnet/efficientnet-b7-dcc49843.pth',
 }
 
-local_model_paths = {
-    'efficientnet-b0': 'data/pretrained_model/efficientnet-b0-355c32eb.pth',
-    'efficientnet-b1': 'data/pretrained_model/efficientnet-b1-f1951068.pth',
-    'efficientnet-b2': 'data/pretrained_model/efficientnet-b2-8bb594d6.pth',
-    'efficientnet-b3': 'data/pretrained_model/efficientnet-b3-5fb5a3c3.pth',
-    'efficientnet-b4': 'data/pretrained_model/efficientnet-b4-6ed6700e.pth',
-    'efficientnet-b5': 'data/pretrained_model/efficientnet-b5-b6417697.pth',
-    'efficientnet-b6': 'data/pretrained_model/efficientnet-b6-c76e70fd.pth',
-    'efficientnet-b7': 'data/pretrained_model/efficientnet-b7-dcc49843.pth',
-}
+if cfg.PRETRAIN_TYPE == "pytorch":
+    local_model_paths = {
+        'efficientnet-b0': 'data/pretrained_model/efficientnet-b0-355c32eb.pth',
+        'efficientnet-b1': 'data/pretrained_model/efficientnet-b1-f1951068.pth',
+        'efficientnet-b2': 'data/pretrained_model/efficientnet-b2-8bb594d6.pth',
+        'efficientnet-b3': 'data/pretrained_model/efficientnet-b3-5fb5a3c3.pth',
+        'efficientnet-b4': 'data/pretrained_model/efficientnet-b4-6ed6700e.pth',
+        'efficientnet-b5': 'data/pretrained_model/efficientnet-b5-b6417697.pth',
+        'efficientnet-b6': 'data/pretrained_model/efficientnet-b6-c76e70fd.pth',
+        'efficientnet-b7': 'data/pretrained_model/efficientnet-b7-dcc49843.pth',
+    }
+else:
+    local_model_paths = {}
 
 def load_pretrained_weights(model, model_name, load_fc=True):
     """ Loads pretrained weights, and downloads if loading for the first time. """

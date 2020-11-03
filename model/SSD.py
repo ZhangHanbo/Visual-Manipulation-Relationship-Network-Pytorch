@@ -181,18 +181,13 @@ class SSD(objectDetector):
         pass
 
     def _init_weights(self):
-        def weights_init(m):
-            def xavier(param):
-                init.xavier_uniform(param)
-
-            if isinstance(m, nn.Conv2d):
-                xavier(m.weight.data)
-                m.bias.data.zero_()
+        from functools import partial
+        xavier_init = partial(weights_xavier_init, gain=1., bias=0., distribution='uniform')
 
         # initialize newly added layers' weights with xavier method
-        self.extra_conv.apply(weights_init)
-        self.loc.apply(weights_init)
-        self.conf.apply(weights_init)
+        self.extra_conv.apply(xavier_init)
+        self.loc.apply(xavier_init)
+        self.conf.apply(xavier_init)
 
     def _init_prior_cfg(self):
         prior_cfg = {

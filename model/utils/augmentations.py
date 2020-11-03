@@ -624,8 +624,9 @@ class RandomVerticalRotate(object):
         return image, boxes, grasps, boxes_keep, grasps_keep
 
 class Expand(object):
-    def __init__(self, mean):
+    def __init__(self, mean, keep_size = False):
         self.mean = mean
+        self.keep_size = keep_size
 
     def __call__(self, image, boxes=None, grasps=None, boxes_keep=None, grasps_keep=None):
         if random.randint(2):
@@ -637,14 +638,15 @@ class Expand(object):
         top = random.uniform(0, height * ratio - height)
 
         # to ensure that when using expanding in Faster_RCNN, the image size should fit the padding data.
+
         if height > width:
-            expand_image = np.zeros(
-                (int(np.floor(height * ratio)), int(np.ceil(width * ratio)), depth),
-                dtype=image.dtype)
+            new_height = int(np.floor(height * ratio))
+            new_width = int(np.ceil(width * ratio))
         else:
-            expand_image = np.zeros(
-                (int(np.ceil(height * ratio)), int(np.floor(width * ratio)), depth),
-                dtype=image.dtype)
+            new_height = int(np.ceil(height * ratio))
+            new_width = int(np.floor(width * ratio))
+
+        expand_image = np.zeros((new_height, new_width, depth), dtype=image.dtype)
 
         expand_image[:, :, :] = self.mean
         expand_image[int(top):int(top + height),
@@ -660,6 +662,18 @@ class Expand(object):
             grasps = grasps.copy()
             ori_shape = grasps.shape
             grasps = (grasps.reshape((-1, 2)) + (int(left), int(top))).reshape(ori_shape)
+
+        if self.keep_size:
+            # resize
+            image = cv2.resize(image,(width, height))
+            scaler_y = float(new_height) / float(height)
+            scaler_x = float(new_width) / float(width)
+            if boxes is not None:
+                boxes[:, :-1][:, 0::2] /= scaler_x
+                boxes[:, :-1][:, 1::2] /= scaler_y
+            if grasps is not None:
+                grasps[:, 0::2] /= scaler_x
+                grasps[:, 1::2] /= scaler_y
 
         return image, boxes, grasps, boxes_keep, grasps_keep
 

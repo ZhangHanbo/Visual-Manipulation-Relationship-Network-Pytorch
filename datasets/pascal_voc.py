@@ -45,12 +45,12 @@ class pascal_voc(imdb):
         self._devkit_path = self._get_default_path() if devkit_path is None \
             else devkit_path
         self._data_path = os.path.join(self._devkit_path, 'VOC' + self._year)
-        self._classes = ('__background__',  # always index 0
+        self._classes = ['__background__',  # always index 0
                          'aeroplane', 'bicycle', 'bird', 'boat',
                          'bottle', 'bus', 'car', 'cat', 'chair',
                          'cow', 'diningtable', 'dog', 'horse',
                          'motorbike', 'person', 'pottedplant',
-                         'sheep', 'sofa', 'train', 'tvmonitor')
+                         'sheep', 'sofa', 'train', 'tvmonitor']
         self._class_to_ind = dict(zip(self.classes, xrange(self.num_classes)))
         self._image_ext = '.jpg'
         self._image_index = self._load_image_set_index()
@@ -83,7 +83,7 @@ class pascal_voc(imdb):
         """
         Return the absolute path to image i in the image sequence.
         """
-        return i
+        return self._image_index[i]
 
     def image_path_from_index(self, index):
         """
@@ -204,7 +204,8 @@ class pascal_voc(imdb):
         return path
 
     def _write_voc_results_file(self, all_boxes):
-        for cls_ind, cls in enumerate(self.classes):
+        for cls in self.classes:
+            cls_ind = self._class_to_ind[cls]
             if cls == '__background__':
                 continue
             print('Writing {} VOC results file'.format(cls))
@@ -240,7 +241,7 @@ class pascal_voc(imdb):
         print('VOC07 metric? ' + ('Yes' if use_07_metric else 'No'))
         if not os.path.isdir(output_dir):
             os.mkdir(output_dir)
-        for i, cls in enumerate(self._classes):
+        for cls in self._classes:
             if cls == '__background__':
                 continue
             filename = self._get_voc_results_file_template().format(cls)

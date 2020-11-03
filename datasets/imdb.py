@@ -10,7 +10,12 @@ from __future__ import print_function
 
 import os
 import os.path as osp
+
+# Here we use cv2 instead of PIL.Image because in very rare cases, the results
+# of cv2.imread and PIL.Image.open are different, which will cause errors later.
+import cv2
 import PIL
+
 from model.utils.cython_bbox import bbox_overlaps
 import numpy as np
 import scipy.sparse
@@ -38,6 +43,9 @@ class imdb(object):
     self._roidb_handler = self.default_roidb
     # Use this dict for storing dataset specific config options
     self.config = {}
+    self._class_to_ind = {}
+
+    self.set_proposal_method(cfg.TRAIN.COMMON.PROPOSAL_METHOD)
 
   @property
   def name(self):
@@ -95,7 +103,7 @@ class imdb(object):
   def default_roidb(self):
     raise NotImplementedError
 
-  def evaluate_detections(self, all_boxes, output_dir=None):
+  def evaluate_detections(self, all_boxes, output_dir):
     """
     all_boxes is a list of length number-of-classes.
     Each list element is a list of length number-of-images.
@@ -106,27 +114,29 @@ class imdb(object):
     """
     raise NotImplementedError
 
-  def _get_widths(self):
-    return [PIL.Image.open(self.image_path_at(i)).size[0]
-            for i in range(self.num_images)]
+  def _get_widths_and_heights(self):
+    ws = []
+    hs = []
+    print("Initialize image widths and heights...")
+    for i in range(self.num_images):
+      im = PIL.Image.open(self.image_path_at(i))
+      ws.append(im.size[0])
+      hs.append(im.size[1])
+    return ws, hs
 
   @property
   def widths(self):
     if self._widths is not None:
       return self._widths
-    self._widths = self._get_widths()
+    self._widths, self._heights = self._get_widths_and_heights()
     return self._widths
 
   @property
   def heights(self):
     if self._heights is not None:
       return self._heights
-    self._heights = self._get_heights()
+    self._widths, self._heights = self._get_widths_and_heights()
     return self._heights
-
-  def _get_heights(self):
-    return [PIL.Image.open(self.image_path_at(i)).size[1]
-            for i in range(self.num_images)]
 
   def evaluate_recall(self, candidate_boxes=None, thresholds=None,
                       area='all', limit=None):
@@ -221,3 +231,9 @@ class imdb(object):
   def competition_mode(self, on):
     """Turn competition mode on or off."""
     pass
+
+  def _update_roidb(self):
+    for r in self._roidb:
+      for i in range(r['gt_classes'].shape[0]):
+        cls_name = self._classes[r['gt_classes'][i]]
+        r['gt_classes'][i] = self._class_to_ind[cls_name]

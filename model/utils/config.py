@@ -46,16 +46,13 @@ __C.TRAIN.COMMON.SNAPSHOT_AFTER_TEST = False
 __C.TRAIN.COMMON.SUMMARY_INTERVAL = 180 # The time interval for saving tensorflow summaries
 # Images to use per minibatch
 __C.TRAIN.COMMON.IMS_PER_BATCH = 1
-# Use horizontally-flipped images during training?
-__C.TRAIN.COMMON.USE_FLIPPED = True
+
 __C.TRAIN.COMMON.MAX_SIZE = 1000 # Max pixel size of the longest side of a scaled input image
 # Overlap required between a ROI and ground-truth box in order for that ROI to
 # be used as a bounding-box regression training example
 __C.TRAIN.COMMON.BBOX_THRESH = 0.5
 __C.TRAIN.COMMON.SNAPSHOT_ITERS = 5000 # Iterations between snapshots
-# solver.prototxt specifies the snapshot path prefix, this adds an optional
-# infix to yield the path: <prefix>[_<infix>]_iters_XYZ.caffemodel
-__C.TRAIN.COMMON.SNAPSHOT_PREFIX = 'res101_faster_rcnn'
+
 # __C.TRAIN.COMMON.SNAPSHOT_INFIX = ''
 # Normalize the targets (subtract empirical mean, divide by empirical stddev)
 __C.TRAIN.COMMON.BBOX_NORMALIZE_TARGETS = True
@@ -78,6 +75,7 @@ __C.TRAIN.COMMON.USE_FOCAL_LOSS = False
 __C.TRAIN.COMMON.FOCAL_LOSS_GAMMA = 2
 __C.TRAIN.COMMON.FOCAL_LOSS_ALPHA = 0.25
 __C.TRAIN.COMMON.BBOX_REG = True # Train bounding-box regressors
+__C.TRAIN.COMMON.USE_ODLOSS = True
 
 # RCNN params
 __C.TRAIN.RCNN_COMMON.USE_GT = False # Whether to add ground truth boxes to the pool when sampling regions
@@ -148,6 +146,15 @@ __C.TRAIN.VMRN.TRAINING_DATA = 'all'
 __C.TRAIN.VMRN.USE_REL_GRADIENTS = True
 # (o1,r,o2) and (o2,r',o1)
 __C.TRAIN.VMRN.ISEX = True
+__C.TRAIN.VMRN.RELCLS_GRAD = True
+
+# If true, during training, in each batch and each image, only one relation datum is selected to compute gradient.
+__C.TRAIN.VMRN.ONE_DATA_PER_IMG = False
+
+# True means the object detector is fixed during training, and a model path must be
+# specified when this option is enabled.
+__C.TRAIN.VMRN.FIX_OBJDET = False
+__C.TRAIN.VMRN.OBJ_MODEL_PATH = 'output/coco+vmrd/res101/faster_rcnn_1_9_25724.pth'
 
 #
 # Testing options
@@ -241,7 +248,10 @@ __C.DEDUP_BOXES = 1. / 16.
 # We use the same pixel mean for all networks even though it's not exactly what
 # they were trained with
 __C.PIXEL_MEANS = np.array([[[0.485, 0.456, 0.406]]])
+__C.PIXEL_MEANS_CAFFE = np.array([[[102.9801, 115.9465, 122.7717]]])
 __C.PIXEL_STDS = np.array([[[0.229, 0.224, 0.225]]])
+
+__C.PRETRAIN_TYPE = "caffe"
 # For reproducibility
 __C.RNG_SEED = 3
 # A small number that's used many times
@@ -279,6 +289,11 @@ __C.RCNN_COMMON.ANCHOR_RATIOS = [0.5,1,2]
 # Feature stride for RPN
 __C.RCNN_COMMON.FEAT_STRIDE = [16, ]
 __C.RCNN_COMMON.CROP_RESIZE_WITH_MAX_POOL = True
+# The output layer of faster RCNN is determined by the dataset. If you want to train the model using some combined
+# datasets (e.g. coco+pascal_voc) but test the model using a single dataset (e.g. pascal_voc), you need to specify
+# this parameter to the combined one (e.g. coco+pascal_voc) so that the output layer matches the one you used in
+# training.
+__C.RCNN_COMMON.OUT_LAYER = ''
 
 __C.VMRN = edict()
 __C.VMRN.OP2L_POOLING_MODE = 'pool'
@@ -289,7 +304,10 @@ __C.VMRN.CHILD = 2
 __C.VMRN.NOREL = 3
 # use shared weights in relationship network
 __C.VMRN.SHARE_WEIGHTS = False
-
+__C.VMRN.RELATION_CLASSIFIER = "UVTransE"
+__C.VMRN.UVTRANSE_REGULARIZATION = 1.0
+__C.VMRN.USE_CRF = False
+__C.VMRN.SCORE_POSTPROC=False
 
 __C.SSD = edict()
 __C.SSD.FEATURE_MAPS = [38, 19, 10, 5, 3, 1]
@@ -319,6 +337,8 @@ __C.MGN = edict()
 __C.MGN.USE_ADAPTIVE_ANCHOR = False
 __C.MGN.OBJECT_GRASP_BALANCE = 1.0
 __C.MGN.USE_FIXED_SIZE_ROI = False
+__C.MGN.FIX_OBJDET = False
+__C.MGN.OBJ_MODEL_PATH = ''
 
 import pdb
 def get_output_dir(imdb, weights_filename):
@@ -505,54 +525,70 @@ def parse_args():
   args = parser.parse_args()
   return args
 
+def dataset_name_to_cfg(name):
+    data_config = {}
+    if name == "pascal_voc":
+        data_config['train'] = "voc_2007_trainval"
+        data_config['val'] = "voc_2007_test"
+        data_config['cfgs'] = ['MAX_NUM_GT_BOXES', '20']
+    elif name == "pascal_voc_0712":
+        data_config['train'] = "voc_2007_trainval+voc_2012_trainval"
+        data_config['val'] = "voc_2007_test"
+        data_config['cfgs'] = ['MAX_NUM_GT_BOXES', '20']
+    elif name == "coco":
+        data_config['train'] = "coco_2017_train"
+        data_config['val'] = "coco_2017_val"
+        data_config['cfgs'] = ['MAX_NUM_GT_BOXES', '50']
+    elif name == "imagenet":
+        data_config['train'] = "imagenet_train"
+        data_config['val'] = "imagenet_val"
+        data_config['cfgs'] = ['MAX_NUM_GT_BOXES', '30']
+    elif name == "vg":
+        # train sizes: train, smalltrain, minitrain
+        # train scale: ['150-50-20', '150-50-50', '500-150-80', '750-250-150', '1750-700-450', '1600-400-20']
+        data_config['train'] = "vg_1600-400-20_train"
+        data_config['val'] = "vg_1600-400-20_val"
+        data_config['cfgs'] = ['MAX_NUM_GT_BOXES', '50']
+    elif name == 'vmrdcompv1':
+        data_config['train'] = "vmrd_compv1_trainval"
+        data_config['val'] = "vmrd_compv1_test"
+        data_config['cfgs'] = ['MAX_NUM_GT_BOXES', '20']
+    elif name == 'vmrdext':
+        data_config['train'] = "vmrd_ext_trainval"
+        data_config['val'] = "vmrd_compv1_test"
+        data_config['cfgs'] = ['MAX_NUM_GT_BOXES', '50']
+    elif name == 'coco+vmrd':
+        data_config['train'] = "coco_2017_train+vmrd_compv1_trainval"
+        data_config['val'] = "coco_2017_val+vmrd_compv1_test"
+        data_config['cfgs'] = ['MAX_NUM_GT_BOXES', '50']
+    elif name == 'refcoco':
+        data_config['train'] = "refcocog_umd_train"
+        data_config['val'] = "refcocog_umd_val"
+        data_config['cfgs'] = ['MAX_NUM_GT_BOXES', '50']
+    elif name == 'bdds':
+        data_config['train'] = "bdds_trainval"
+        data_config['val'] = "bdds_test"
+        data_config['cfgs'] = ['MAX_NUM_GT_BOXES', '20']
+    elif name[:7] == 'cornell':
+        cornell = name.split('_')
+        data_config['train'] = 'cornell_{}_{}_trainval_{}'.format(cornell[1],cornell[2],cornell[3])
+        data_config['val'] = 'cornell_{}_{}_test_{}'.format(cornell[1],cornell[2],cornell[3])
+        data_config['cfgs'] = ['MAX_NUM_GT_BOXES', '50']
+    elif name[:8] == 'jacquard':
+        jacquard = name.split('_')
+        data_config['train'] = 'jacquard_{}_trainval_{}'.format(jacquard[1], jacquard[2])
+        data_config['val'] = 'jacquard_{}_test_{}'.format(jacquard[1], jacquard[2])
+        data_config['cfgs'] = ['MAX_NUM_GT_GRASPS', '1000']
+    else:
+        raise RuntimeError("The training set combination is not supported.")
+    return data_config
+
 def read_cfgs():
     args = parse_args()
     print('Called with args:')
     print(args)
-    if args.dataset == "pascal_voc":
-        args.imdb_name = "voc_2007_trainval"
-        args.imdbval_name = "voc_2007_test"
-        args.set_cfgs = ['MAX_NUM_GT_BOXES', '20']
-    elif args.dataset == "pascal_voc_0712":
-        args.imdb_name = "voc_2007_trainval+voc_2012_trainval"
-        args.imdbval_name = "voc_2007_test"
-        args.set_cfgs = ['MAX_NUM_GT_BOXES', '20']
-    elif args.dataset == "coco":
-        args.imdb_name = "coco_2014_train+coco_2014_valminusminival"
-        args.imdbval_name = "coco_2014_minival"
-        args.set_cfgs = ['MAX_NUM_GT_BOXES', '50']
-    elif args.dataset == "imagenet":
-        args.imdb_name = "imagenet_train"
-        args.imdbval_name = "imagenet_val"
-        args.set_cfgs = ['MAX_NUM_GT_BOXES', '30']
-    elif args.dataset == "vg":
-        # train sizes: train, smalltrain, minitrain
-        # train scale: ['150-50-20', '150-50-50', '500-150-80', '750-250-150', '1750-700-450', '1600-400-20']
-        args.imdb_name = "vg_150-50-50_minitrain"
-        args.imdbval_name = "vg_150-50-50_minival"
-        args.set_cfgs = ['MAX_NUM_GT_BOXES', '50']
-    elif args.dataset == 'vmrdcompv1':
-        args.imdb_name = "vmrd_compv1_trainval"
-        args.imdbval_name = "vmrd_compv1_test"
-        args.set_cfgs = ['MAX_NUM_GT_BOXES', '20']
-    elif args.dataset == "vg_vmrd":
-        args.imdb_name = "vmrd_compv1_trainval+vg_150-50-50_minitrain"
-        args.imdbval_name = "vmrd_compv1_test"
-        args.set_cfgs = ['MAX_NUM_GT_BOXES', '50']
-    elif args.dataset == 'bdds':
-        args.imdb_name = "bdds_trainval"
-        args.imdbval_name = "bdds_test"
-        args.set_cfgs = ['MAX_NUM_GT_BOXES', '20']
-    elif args.dataset[:7] == 'cornell':
-        cornell = args.dataset.split('_')
-        args.imdb_name = 'cornell_{}_{}_trainval_{}'.format(cornell[1],cornell[2],cornell[3])
-        args.imdbval_name = 'cornell_{}_{}_test_{}'.format(cornell[1],cornell[2],cornell[3])
-        args.set_cfgs = ['MAX_NUM_GT_BOXES', '50']
-    elif args.dataset[:8] == 'jacquard':
-        jacquard = args.dataset.split('_')
-        args.imdb_name = 'jacquard_{}_trainval_{}'.format(jacquard[1], jacquard[2])
-        args.imdbval_name = 'jacquard_{}_test_{}'.format(jacquard[1], jacquard[2])
-        args.set_cfgs = ['MAX_NUM_GT_GRASPS', '1000']
+    dataset_cfg = dataset_name_to_cfg(args.dataset)
+    args.imdb_name, args.imdbval_name, args.set_cfgs = dataset_cfg['train'], dataset_cfg['val'], dataset_cfg['cfgs']
     if args.dataset[:7] == 'cornell':
         args.cfg_file = "cfgs/cornell_{}_{}_ls.yml".format(args.frame, args.net) if args.large_scale \
         else "cfgs/cornell_{}_{}.yml".format(args.frame, args.net)

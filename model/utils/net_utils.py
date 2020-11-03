@@ -9,6 +9,8 @@ from model.utils.config import cfg
 from model.rpn.bbox_transform import bbox_transform_inv, clip_boxes
 from model.fcgn.bbox_transform_grasp import labels2points, grasp_decode
 from model.roi_layers import nms
+import time
+import copy
 
 import networkx as nx
 
@@ -69,7 +71,7 @@ def weight_kaiming_init(module, mode='fan_out', nonlinearity='relu', bias=0, dis
     else:
         assert distribution in ['uniform', 'normal']
         for m in module.modules():
-            if hasattr(m, 'weight'):
+            if hasattr(m, 'weight') and len(m.weight.shape) >= 2:
                 if distribution == 'uniform':
                     nn.init.kaiming_uniform_(
                         m.weight, mode=mode, nonlinearity=nonlinearity)
@@ -326,7 +328,7 @@ def box_filter(box, box_scores, thresh, use_nms = True):
     return cls_dets, cls_scores, (inds.cpu().numpy())[order]
 
 def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agnostic = True,
-                     for_vis = False, recover_imscale = True):
+                     for_vis = False, recover_imscale = True, with_cls_score = False):
     """
     :param cls_prob: predicted class info
     :param box_output: predicted bounding boxes (for anchor-based detection, it indicates deltas of boxes).
@@ -334,8 +336,9 @@ def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agno
     :param box_prior: anchors, RoIs, e.g.
     :param class_agnostic: whether the boxes are class-agnostic. For faster RCNN, it is class-specific by default.
     :param n_classes: number of object classes
-    :param for_vis: the results are for visualization or validation.
+    :param for_vis: the results are for visualization or validation of VMRN.
     :param recover_imscale: whether the predicted bounding boxes are recovered to the original scale.
+    :param with_cls_score: if for_vis and with_cls_score are both true, the class confidence score will be attached.
     :return: a list of bounding boxes, one class corresponding to one element. If for_vis, they will be concatenated.
     """
     assert box_output.dim() == 2, "Multi-instance batch inference has not been implemented."
@@ -367,6 +370,8 @@ def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agno
         pred_boxes = box_recover_scale_torch(pred_boxes, im_info[3], im_info[2])
 
     all_box = [[]]
+    if for_vis:
+        cls = []
     for j in xrange(1, n_classes):
         if class_agnostic:
             cls_boxes = pred_boxes
@@ -375,10 +380,15 @@ def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agno
         cls_dets, cls_scores, _ = box_filter(cls_boxes, scores[:, j], thresh, use_nms = True)
         cls_dets = np.concatenate((cls_dets, np.expand_dims(cls_scores, -1)), axis = -1)
         if for_vis:
-            cls_dets[:, -1] = j
+            cls.append(j * np.ones((cls_dets.shape[0], 1)))
         all_box.append(cls_dets)
     if for_vis:
-        return np.concatenate(all_box[1:], axis = 0)
+        cls = np.concatenate(cls, axis=0)
+        all_box = np.concatenate(all_box[1:], axis=0)
+        if with_cls_score:
+            all_box = np.concatenate([all_box, cls], axis = 1)
+        else:
+            all_box[:, -1] = cls
     return all_box
 
 def grasp_inference(cls_prob, box_output, im_info, box_prior = None, topN = False, recover_imscale = True):
@@ -436,15 +446,14 @@ def objgrasp_inference(o_cls_prob, o_box_output, g_cls_prob, g_box_output, im_in
     2 This function can only detect one image per invoking.
     """
     o_scores = o_cls_prob
-    rois = rois[:, 1:5]
     n_classes = o_cls_prob.shape[1]
 
     g_scores = g_cls_prob
 
     if for_vis:
-        o_thresh = 0.5
+        o_thresh = cfg.TEST.COMMON.OBJ_DET_THRESHOLD
     else:
-        o_thresh = 0.
+        o_thresh = 0.01
         topN_g = 1
 
     if not topN_g:
@@ -543,14 +552,22 @@ def rel_prob_to_mat(rel_cls_prob, num_obj):
     The input is Tensors and the output is np.array.
     """
 
-    if rel_cls_prob.size(0) == 0:
-        return np.array([], dtype=np.int32)
-    rel = torch.argmax(rel_cls_prob, dim = 1) + 1
+    if num_obj == 0:
+        return np.array([], dtype=np.int32), np.array([], dtype=np.float32)
+    elif num_obj == 1:
+        return np.array([0], dtype=np.int32), np.array([0], dtype=np.float32)
+
+    rel_score, rel = torch.max(rel_cls_prob, dim = 1)
+    rel += 1 # to make the label match the macro, i.e., cfg.VMRN.CHILD, cfg.VMRN.FATHER, cfg.VMRN.NO_REL
+    rel[rel >=3] = 3
+
     rel_mat = np.zeros((num_obj, num_obj), dtype=np.int32)
+    rel_score_mat = np.zeros((3, num_obj, num_obj), dtype=np.float32)
     counter = 0
     for o1 in range(num_obj):
         for o2 in range(o1 + 1, num_obj):
             rel_mat[o1, o2] = rel[counter]
+            rel_score_mat[:, o1, o2] = rel_cls_prob[counter]
             counter += 1
     for o1 in range(num_obj):
         for o2 in range(o1):
@@ -559,24 +576,52 @@ def rel_prob_to_mat(rel_cls_prob, num_obj):
             elif rel_mat[o2, o1] == 1 or rel_mat[o2, o1] == 2:
                 rel_mat[o1, o2] = 3 - rel_mat[o2, o1]
             else:
-                assert RuntimeError
-    return rel_mat
+                raise RuntimeError
+            rel_score_mat[:, o1, o2] = rel_score_mat[:, o2, o1]
+    return rel_mat, rel_score_mat
 
-def create_mrt(rel_mat):
+def relscores_to_visscores(rel_score_mat):
+    return np.max(rel_score_mat, axis=0)
+
+def create_mrt(rel_mat, class_names=None, rel_score=None):
     # using relationship matrix to create manipulation relationship tree
     mrt = nx.DiGraph()
 
+    if rel_mat.size == 0:
+        # No object is detected
+        return mrt
+    elif (rel_mat > 0).sum() == 0:
+        # No relation is detected, meaning that there is only one object in the scene
+        class_names = class_names or [0]
+        mrt.add_node(class_names[0])
+        return mrt
+
     node_num = np.max(np.where(rel_mat > 0)[0]) + 1
+    if class_names is None:
+        # no other node information
+        class_names = list(range(node_num))
+    elif isinstance(class_names[0], float):
+        # normalized confidence score
+        class_names = ["{:d}\n{:.2f}".format(i, cls) for i, cls in enumerate(class_names)]
+    else:
+        # class name
+        class_names = ["{:s}{:d}".format(cls, i) for i, cls in enumerate(class_names)]
+
+    if rel_score is None:
+        rel_score = np.zeros(rel_mat.shape, dtype=np.float32)
+
     for obj1 in xrange(node_num):
-        mrt.add_node(obj1)
+        mrt.add_node(class_names[obj1])
         for obj2 in xrange(obj1):
             if rel_mat[obj1, obj2].item() == cfg.VMRN.FATHER:
                 # OBJ1 is the father of OBJ2
-                mrt.add_edge(obj2, obj1)
+                mrt.add_edge(class_names[obj2], class_names[obj1],
+                             weight=np.round(rel_score[obj1, obj2].item(), decimals=2))
 
             if rel_mat[obj1, obj2].item() == cfg.VMRN.CHILD:
                 # OBJ1 is the father of OBJ2
-                mrt.add_edge(obj1, obj2)
+                mrt.add_edge(class_names[obj1], class_names[obj2],
+                             weight=np.round(rel_score[obj1, obj2].item(), decimals=2))
     return mrt
 
 def find_all_paths(mrt, t_node = 0):
@@ -608,3 +653,279 @@ def find_shortest_path(mrt, t_node = 0):
         if len(p) < p_lenth:
             best_path = p
     return best_path
+
+def find_all_leaves(mrt, t_node = 0):
+    """
+    :param mrt: a manipulation relationship tree
+    :param t_node: the index of the target node
+    :return: paths: a list of all possible paths
+    NOTE: this function cannot deal with graph including cycles.
+    """
+    # depth-first search
+    assert t_node in mrt.nodes, "The target node is not found in the given manipulation relationship tree."
+    path = [t_node,]
+
+    for e in mrt.edges:
+        if t_node == e[1]:
+            # find all sub paths from current target node
+            path.append(e[0])
+
+    for leaf in path[1:]:
+        sub_leaves = find_all_leaves(mrt, leaf)
+        exist_leaf_inds = []
+        for leaf in sub_leaves[1:]:
+            if leaf not in path:
+                path.append(leaf)
+            else:
+                exist_leaf_inds.append(path.index(leaf))
+
+        # for existing nodes, we need move them all at the end of the path, maintaining the current order
+        exist_leaves = [path[ind] for ind in np.sort(exist_leaf_inds)]
+
+        for leaf in exist_leaves:
+            path.remove(leaf)
+            path.append(leaf)
+
+    return path
+
+def leaf_and_descendant_stats(rel_prob_mat, sample_num = 1000):
+    # TODO: Numpy may support a faster implementation.
+    def sample_trees(rel_prob, sample_num=1):
+        return torch.multinomial(rel_prob, sample_num, replacement=True)
+
+    cuda_data = False
+    if rel_prob_mat.is_cuda:
+        # this function runs much faster on CPU.
+        cuda_data = True
+        rel_prob_mat = rel_prob_mat.cpu()
+
+    rel_prob_mat = rel_prob_mat.permute((1, 2, 0))
+    mrt_shape = rel_prob_mat.shape[:2]
+    rel_prob = rel_prob_mat.view(-1, 3)
+    rel_valid_ind = rel_prob.sum(-1) > 0
+
+    # sample mrts
+    samples = sample_trees(rel_prob[rel_valid_ind], sample_num) + 1
+    mrts = torch.zeros((sample_num,) + mrt_shape).type_as(samples)
+    mrts = mrts.view(sample_num, -1)
+    mrts[:, rel_valid_ind] = samples.permute((1,0))
+    mrts = mrts.view((sample_num,) + mrt_shape)
+    f_mats = (mrts == 1)
+    c_mats = (mrts == 2)
+    adj_mats = f_mats + c_mats.transpose(1,2)
+
+    def no_cycle(adj_mat):
+        keep_ind = (adj_mat.sum(0) > 0)
+        if keep_ind.sum() == 0:
+            return True
+        elif keep_ind.sum() == adj_mat.shape[0]:
+            return False
+        adj_mat = adj_mat[keep_ind][:, keep_ind]
+        return no_cycle(adj_mat)
+
+    def descendants(adj_mat):
+        def find_children(node, adj_mat):
+            return torch.nonzero(adj_mat[node]).view(-1).tolist()
+
+        def find_descendant(node, adj_mat, visited, desc_mat):
+            if node in visited:
+                return visited, desc_mat
+            else:
+                desc_mat[node][node] = 1
+                for child in find_children(node, adj_mat):
+                    visited, desc_mat = find_descendant(child, adj_mat, visited, desc_mat)
+                    desc_mat[node] = (desc_mat[node] | desc_mat[child])
+                visited.append(node)
+            return visited, desc_mat
+
+        roots = torch.nonzero(adj_mat.sum(0) == 0).view(-1).tolist()
+        visited = []
+        desc_mat = torch.zeros(mrt_shape).type_as(adj_mat).long()
+        for root in roots:
+            visited, desc_list = find_descendant(root, adj_mat, visited, desc_mat)
+        return desc_mat.transpose(0,1)
+
+    leaf_desc_prob = torch.zeros(mrt_shape).type_as(rel_prob_mat)
+    count = 0
+    for adj_mat in adj_mats:
+        if no_cycle(adj_mat):
+            desc_mat = descendants(adj_mat)
+            leaf_desc_mat = desc_mat * (adj_mat.sum(1, keepdim=True) == 0)
+            leaf_desc_prob += leaf_desc_mat
+            count += 1
+    leaf_desc_prob = leaf_desc_prob / count
+
+    leaf_desc_prob_with_v_node = torch.eye(mrt_shape[0] + 1).type_as(rel_prob_mat)
+    leaf_desc_prob_with_v_node[:mrt_shape[0], :mrt_shape[1]] = leaf_desc_prob
+    if cuda_data:
+        leaf_desc_prob_with_v_node = leaf_desc_prob_with_v_node.cuda()
+    return leaf_desc_prob_with_v_node
+
+def leaf_prob(rel_prob_mat):
+    # TODO: this function does not exclude the situations in which the MRT includes cycles.
+    parent_prob_mat = rel_prob_mat[cfg.VMRN.FATHER - 1]
+    child_prob_mat = rel_prob_mat[cfg.VMRN.CHILD - 1]
+    parent_prob_mat += child_prob_mat.transpose(0, 1)
+    return torch.cumprod(1 - parent_prob_mat, dim = -1)[:, -1]
+
+def inner_loop_planning(belief, planning_depth=3):
+    num_obj = belief["ground_prob"].shape[0] - 1 # exclude the virtual node
+    penalty_for_asking = -3
+    # ACTIONS: Do you mean ... ? (num_obj) + Where is the target ? (1) + grasp object (num_obj)
+    def grasp_reward_estimate(belief):
+        # reward of grasping the corresponding object
+        # return is a 1-D tensor including num_obj elements, indicating the reward of grasping the corresponding object.
+        ground_prob = belief["ground_prob"]
+        leaf_desc_tgt_prob = (belief["leaf_desc_prob"] * ground_prob.unsqueeze(0)).sum(-1)
+        leaf_prob = torch.diag(belief["leaf_desc_prob"])
+        not_leaf_prob = 1. - leaf_prob
+        target_prob = ground_prob
+        leaf_tgt_prob = leaf_prob * target_prob
+        leaf_desc_prob = leaf_desc_tgt_prob - leaf_tgt_prob
+        leaf_but_not_desc_tgt_prob = leaf_prob - leaf_desc_tgt_prob
+
+        # grasp and the end
+        r_1 = not_leaf_prob * (-10) + leaf_but_not_desc_tgt_prob * (-10) + leaf_desc_prob * (-10)\
+                  + leaf_tgt_prob * (0)
+        r_1 = r_1[:-1] # exclude the virtual node
+
+        # grasp and not the end
+        r_2 = not_leaf_prob * (-10) + leaf_but_not_desc_tgt_prob * (-5) + leaf_desc_prob * (0)\
+                  + leaf_tgt_prob * (-10)
+        r_2 = r_2[:-1]  # exclude the virtual node
+        return torch.cat([r_1, r_2], dim=0)
+
+    def belief_update(belief):
+        I = torch.eye(belief["ground_prob"].shape[0]).type_as(belief["ground_prob"])
+        updated_beliefs = []
+        # Do you mean ... ?
+        # Answer No
+        beliefs_no = belief["ground_prob"].unsqueeze(0).repeat(num_obj + 1, 1)
+        beliefs_no *= (1. - I)
+        beliefs_no /= torch.clamp(torch.sum(beliefs_no, dim = -1, keepdim=True), min=1e-10)
+        # Answer Yes
+        beliefs_yes = I.clone()
+        for i in range(beliefs_no.shape[0] - 1):
+            updated_beliefs.append([beliefs_no[i], beliefs_yes[i]])
+
+        # Is the target detected? Where is it?
+        updated_beliefs.append([beliefs_no[-1], I[-1],])
+        return updated_beliefs
+
+    def is_onehot(vec, epsilon = 1e-2):
+        return (torch.abs(vec - 1) < epsilon).sum().item() > 0
+
+    def estimate_q_vec(belief, current_d):
+        if current_d == planning_depth - 1:
+            q_vec = grasp_reward_estimate(belief)
+            return q_vec
+        else:
+            # branches of grasping
+            q_vec = grasp_reward_estimate(belief).tolist()
+            ground_prob = belief["ground_prob"]
+            new_beliefs = belief_update(belief)
+            new_belief_dict = copy.deepcopy(belief)
+
+            # Q1
+            for i, new_belief in enumerate(new_beliefs[:-1]):
+                q = 0
+                for j, b in enumerate(new_belief):
+                    new_belief_dict["ground_prob"] = b
+                    # branches of asking questions
+                    if is_onehot(b):
+                        t_q = (penalty_for_asking + estimate_q_vec(new_belief_dict, planning_depth - 1).max())
+                    else:
+                        t_q = (penalty_for_asking + estimate_q_vec(new_belief_dict, current_d + 1).max())
+                    if j == 0:
+                        # Answer is No
+                        q += t_q * (1 - ground_prob[i])
+                    else:
+                        # Answer is Yes
+                        q += t_q * ground_prob[i]
+                q_vec.append(q.item())
+
+            # Q2
+            q = 0
+            new_belief = new_beliefs[-1]
+            for j, b in enumerate(new_belief):
+                new_belief_dict["ground_prob"] = b
+                if j == 0:
+                    # target has been detected
+                    if is_onehot(b):
+                        t_q = (penalty_for_asking + estimate_q_vec(new_belief_dict, planning_depth - 1).max())
+                    else:
+                        t_q = (penalty_for_asking + estimate_q_vec(new_belief_dict, current_d + 1).max())
+                    q += t_q * (1 - ground_prob[-1])
+                else:
+                    new_belief_dict["leaf_desc_prob"][:, -1] = new_belief_dict["leaf_desc_prob"][:, :-1].sum(-1) / num_obj
+                    t_q = (penalty_for_asking + estimate_q_vec(new_belief_dict, planning_depth - 1).max())
+                    q += t_q * ground_prob[-1]
+            q_vec.append(q.item())
+            return torch.Tensor(q_vec).type_as(belief["ground_prob"])
+    q_vec = estimate_q_vec(belief, 0)
+    print("Q Value for Each Action: ")
+    print(q_vec.tolist()[:num_obj])
+    print(q_vec.tolist()[num_obj:2*num_obj])
+    print(q_vec.tolist()[2*num_obj:3*num_obj])
+    print(q_vec.tolist()[3*num_obj])
+    return torch.argmax(q_vec).item()
+
+if __name__ == '__main__':
+
+    # rel_mat = [[0,1,1,3,3],
+    #             [2,0,3,1,3],
+    #             [2,3,0,1,1],
+    #             [3,2,2,0,3],
+    #             [3,3,2,3,0]]
+    # rel_mat = [[0,3,1,1,2],
+    #             [3,0,2,2,3],
+    #             [2,1,0,2,2],
+    #             [2,1,1,0,3],
+    #             [1,3,1,3,0]]
+    # rel_mat = [ [0,3,3,1,2,3,3,2],
+    #             [3,0,2,3,3,1,2,3],
+    #             [3,1,0,1,3,1,2,1],
+    #             [2,3,2,0,3,3,3,2],
+    #             [1,3,3,3,0,1,3,2],
+    #             [3,2,2,3,2,0,3,2],
+    #             [3,1,1,3,3,3,0,3],
+    #             [1,3,2,1,1,1,3,0] ]
+    # rel_mat = torch.Tensor(rel_mat)
+    # mrt = create_mrt(rel_mat)
+    # path = find_all_leaves(mrt, 6)
+
+    prob_rel_mat = [[
+        [0, 0.7, 0.7, 0.2, 0.1],
+        [0, 0., 0.1, 0.7, 0.1],
+        [0, 0., 0., 0.2, 0.9],
+        [0, 0., 0., 0, 0.1],
+        [0, 0, 0, 0, 0, ]
+    ],[
+        [0, 0.3, 0.1, 0.1, 0.1],
+        [0, 0, 0.2, 0.1, 0.1],
+        [0, 0., 0, 0.1, 0.05],
+        [0, 0, 0, 0, 0.1],
+        [0, 0, 0, 0, 0, ]
+    ],[
+        [0, 0., 0.2, 0.7, 0.8],
+        [0, 0, 0.7, 0.2, 0.8],
+        [0, 0., 0, 0.7, 0.05],
+        [0, 0, 0, 0, 0.8],
+        [0, 0, 0, 0, 0, ]
+    ]]
+    prob_rel_mat = np.array(prob_rel_mat)
+    prob_rel_mat = torch.from_numpy(prob_rel_mat)
+    # prob_rel_mat = prob_rel_mat.cuda()
+
+    belief = {}
+
+    t_b = time.time()
+    with torch.no_grad():
+        belief["leaf_desc_prob"] = leaf_and_descendant_stats(prob_rel_mat)
+    belief["ground_prob"] = torch.Tensor([0.543159559554254, 0.0, 0.0, 0.0, 0.0, 0.4568404404457461])
+
+    # belief["leaf_desc_prob"] = belief["leaf_desc_prob"][:5, :5]
+    # belief["ground_prob"] = torch.Tensor([0.11, 0.13, 0.11, 0.1, 0.09])
+    print(inner_loop_planning(belief))
+    print(time.time() - t_b)
+    pass

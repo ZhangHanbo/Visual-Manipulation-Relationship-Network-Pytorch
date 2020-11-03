@@ -248,40 +248,22 @@ class FPN(objectDetector):
 
     def _init_weights(self):
 
-        def normal_init(m, mean, stddev, truncated=False):
-            """
-            weight initalizer: truncated normal and random normal.
-            """
-            # x is a parameter
-            if truncated:
-                m.weight.data.normal_().fmod_(2).mul_(stddev).add_(mean)  # not a perfect approximation
-            else:
-                m.weight.data.normal_(mean, stddev)
-                m.bias.data.zero_()
-
-        normal_init(self.RCNN_rpn.RPN_Conv, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-        normal_init(self.RCNN_rpn.RPN_cls_score, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-        normal_init(self.RCNN_rpn.RPN_bbox_pred, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-        normal_init(self.RCNN_cls_score, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-        normal_init(self.RCNN_bbox_pred, 0, 0.001, cfg.TRAIN.COMMON.TRUNCATED)
+        weights_normal_init(self.RCNN_rpn.RPN_Conv, 0.01,0)
+        weights_normal_init(self.RCNN_rpn.RPN_cls_score, 0.01,0)
+        weights_normal_init(self.RCNN_rpn.RPN_bbox_pred, 0.01,0)
+        weights_normal_init(self.RCNN_cls_score, 0.01,0)
+        weights_normal_init(self.RCNN_bbox_pred, 0.001,0)
 
         # FPN layers init
         for newconv in self.RCNN_newconvs:
-            normal_init(newconv, 0, 0.001, cfg.TRAIN.COMMON.TRUNCATED)
+            weights_normal_init(newconv, 0.001, 0)
         for deconv in self.RCNN_upsampleconvs:
-            normal_init(deconv, 0, 0.001, cfg.TRAIN.COMMON.TRUNCATED)
+            weights_normal_init(deconv, 0.001, 0)
         for mixconv in self.RCNN_mixconvs:
-            normal_init(mixconv, 0, 0.001, cfg.TRAIN.COMMON.TRUNCATED)
+            weights_normal_init(mixconv, 0.001, 0)
 
-        def xavier_init(m):
-
-            def xavier(param):
-                init.xavier_uniform(param)
-
-            if isinstance(m, nn.Conv2d):
-                xavier(m.weight.data)
-                m.bias.data.zero_()
-
+        from functools import partial
+        xavier_init = partial(weights_xavier_init, gain=1., bias=0., distribution='uniform')
         self.RCNN_top.apply(xavier_init)
 
     def create_architecture(self):
