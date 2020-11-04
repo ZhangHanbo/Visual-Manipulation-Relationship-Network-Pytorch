@@ -96,15 +96,18 @@ def set_bn_eval(m):
     if classname.find('BatchNorm') != -1:
         m.eval()
 
-def clip_gradient(model, clip_norm):
-    """Computes a gradient clipping coefficient based on gradient norm."""
+def gradient_norm(model):
     totalnorm = 0
     for p in model.parameters():
         if p.requires_grad and p.grad is not None:
             modulenorm = p.grad.data.norm()
             totalnorm += modulenorm ** 2
     totalnorm = np.sqrt(totalnorm.item())
+    return totalnorm
 
+def clip_gradient(model, clip_norm):
+    """Computes a gradient clipping coefficient based on gradient norm."""
+    totalnorm = gradient_norm(model)
     norm = clip_norm / max(totalnorm, clip_norm)
     for p in model.parameters():
         if p.requires_grad and p.grad is not None:
@@ -388,7 +391,7 @@ def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agno
         if with_cls_score:
             all_box = np.concatenate([all_box, cls], axis = 1)
         else:
-            all_box[:, -1] = cls
+            all_box[:, -1:] = cls
     return all_box
 
 def grasp_inference(cls_prob, box_output, im_info, box_prior = None, topN = False, recover_imscale = True):
