@@ -314,7 +314,7 @@ def box_filter(box, box_scores, thresh, use_nms = True):
         if use_nms:
             cls_dets = torch.cat((cls_boxes, cls_scores.unsqueeze(1)), 1)
             cls_dets = cls_dets[order]
-            keep = nms(cls_dets[:, :4], cls_dets[:, 4], cfg.TEST.COMMON.NMS)
+            keep = nms(cls_dets, cfg.TEST.COMMON.NMS)
             cls_scores = cls_dets[keep.view(-1).long()][:, -1]
             cls_dets = cls_dets[keep.view(-1).long()][:, :-1]
             order = order[keep.view(-1).long()]

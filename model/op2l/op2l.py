@@ -25,8 +25,8 @@ class _OP2L(nn.Module):
         self.OP2L_rois_pairing = _RoisPairExpandingLayer()
         self.OP2L_object_pair = _ObjPairLayer(self._isex)
 
-        self.OP2L_roi_pool = _RoIPooling((cfg.RCNN_COMMON.POOLING_SIZE, cfg.RCNN_COMMON.POOLING_SIZE), 1.0 / 16.0)
-        self.OP2L_roi_align = RoIAlignAvg((cfg.RCNN_COMMON.POOLING_SIZE, cfg.RCNN_COMMON.POOLING_SIZE), 1.0 / 16.0, 0)
+        self.OP2L_roi_pool = _RoIPooling(cfg.RCNN_COMMON.POOLING_SIZE, cfg.RCNN_COMMON.POOLING_SIZE, 1.0 / 16.0)
+        self.OP2L_roi_align = RoIAlignAvg(cfg.RCNN_COMMON.POOLING_SIZE, cfg.RCNN_COMMON.POOLING_SIZE, 1.0 / 16.0)
 
     def forward(self, feats, rois, batch_size, obj_num):
         """
