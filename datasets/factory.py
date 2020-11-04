@@ -13,7 +13,6 @@ from __future__ import print_function
 __sets = {}
 from datasets.pascal_voc import pascal_voc
 from datasets.coco import coco
-from datasets.refcoco import refcoco
 from datasets.imagenet import imagenet
 from datasets.vg import vg
 from datasets.vmrd import vmrd
@@ -45,12 +44,6 @@ for year in ['2015']:
   for split in ['test', 'test-dev']:
     name = 'coco_{}_{}'.format(year, split)
     __sets[name] = (lambda split=split, year=year: coco(split, year))
-
-for split in ['google', 'unc', 'umd']:
-    for version in ['', '+', 'g']:
-        for imageset in ['train', 'val', 'test']:
-            name = 'refcoco{}_{}_{}'.format(version, split, imageset)
-            __sets[name] = (lambda imageset=imageset, split=split, version=version: refcoco(imageset, split, version))
 
 # Set up vg_<split>
 # for version in ['1600-400-20']:

@@ -939,10 +939,3 @@ class fallinonebatchLoader(allInOneMulInSizeRoibatchLoader):
                 RandomCropKeepBoxes(),
                 Expand(mean = self.pixel_means * 255. if cfg.PRETRAIN_TYPE == "pytorch" else self.pixel_means, keep_size=True),
             ])
-
-# TODO: Implement caption generation batch loader.
-class captionRoiBatchLoader(objdetMulInSizeRoibatchLoader):
-    def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True,
-                 cls_list=None, augmentation = False):
-        super(captionRoiBatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes,
-                                             training, cls_list, augmentation)
