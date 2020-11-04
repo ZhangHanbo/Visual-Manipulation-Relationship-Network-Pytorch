@@ -1,6 +1,6 @@
 # Visual Manipulation Relationship Network
 
-#### News! Pytorch 1.0 is supported now. Please see branch pytorch1.0.
+#### News! I have updated this package so that it can support pytorch 1.0 now. See branch pytorch1.0.
 
 ## Introduction
 This package includes our latest proposed robotic grasping algorithms. Main framework is based on code of Faster RCNN (https://github.com/jwyang/faster-rcnn.pytorch).
@@ -21,8 +21,9 @@ performance of our own algorithms. Certainly, all my new works related to roboti
 also be contained in this package.
 
 ## Installation
-1. Follow https://github.com/jwyang/faster-rcnn.pytorch to make sure that Faster-RCNN works fine.
-2. Run codes.
+
+Since we use torchvision.ops instead of all C expansions in pytorch-1.0 version, all codes can run normally without
+any extra building. Follow training example to enjoy it.
 
 ## Training Example
 ```bash
@@ -64,6 +65,14 @@ F-VMRN | VGG-16 | VMRDtrainval | VMRDtest | 95.0 | - | 68.7
 |:---:|:---:|
 | Rel-IA of F-VMRN_VGG16 | Rel-IA of F-VMRN_ResNet101 |
 
+| <img src="results/Faster_RCNN_pascal_voc.png" width = "300" div align=left /> |
+|:---:|
+| mAP of Faster-RCNN on VOC2007|
+
+**Why Faster RCNN is not state-of-the-art:**
+1. We do not apply flipping during training. When using flipping, the mAP will go up to around 73%.
+2. Pytorch Pretrained model causes lower performance. Refer to: https://github.com/jwyang/faster-rcnn.pytorch/issues/60
+
 ## TODO
 
 * [ ] Performance of SSD, S-VMRN, All-In-One
@@ -98,3 +107,4 @@ you should check the configurations so that they are same as the claimed ones (e
 2. There are some grasp and relation label errors in VMRD. However, I find that they do not affect the detection performance much. I will fix this problem as soon as possible.
 3. This package only supports pytorch 0.4.0. When using 0.4.1, there will be segmentation fault (reasons not found).
 4. When training VMRN, the batchsize should be at least 2. Otherwise the network will not reach convergence.
+5. All vggXX_bns cannot work well.

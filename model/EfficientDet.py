@@ -124,19 +124,18 @@ class EfficientDet(objectDetector):
 
             labels = torch.Tensor(cls_prob.shape[:2]).view(-1).zero_().type_as(gt_boxes).long()
             labels[pos_ind.view(-1)] = bbox_targets[:,:,4].view(-1)[pos_ind.view(-1)].long()
-            loss_cls = _focal_loss(cls_prob.view(-1, cls_prob.size(-1)), labels)
-            if loss_cls.item() > 1000:
-                pass
+            loss_cls = _focal_loss(cls_prob.view(-1, cls_prob.size(-1)), labels,
+                                    gamma=cfg.TRAIN.COMMON.FOCAL_LOSS_GAMMA, alpha=cfg.TRAIN.COMMON.FOCAL_LOSS_ALPHA)
             # compute the loss for regression
-            if pos_ind.sum() > 0:
-                bbox_inside_weights = bbox_pred.new(bbox_pred.shape).zero_()
-                bbox_outside_weights = bbox_pred.new(bbox_pred.shape).zero_()
+            # if pos_ind.sum() > 0:
+            bbox_inside_weights = bbox_pred.new(bbox_pred.shape).zero_()
+            bbox_outside_weights = bbox_pred.new(bbox_pred.shape).zero_()
 
-                bbox_inside_weights[pos_ind] = 1.
-                bbox_outside_weights[pos_ind] = 1.
+            bbox_inside_weights[pos_ind] = 1.
+            bbox_outside_weights[pos_ind] = 1.
 
-                loss_bbox = _smooth_l1_loss(bbox_pred[pos_ind], transformed_targets[pos_ind],
-                                            bbox_inside_weights[pos_ind], bbox_outside_weights[pos_ind], 1./3., dim = [1])
+            loss_bbox = _smooth_l1_loss(bbox_pred, transformed_targets,
+                                        bbox_inside_weights, bbox_outside_weights, 1./3., dim = [1])
 
         return bbox_pred, cls_prob, loss_bbox, loss_cls
 

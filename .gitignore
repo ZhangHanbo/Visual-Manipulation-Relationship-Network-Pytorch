@@ -8,3 +8,5 @@ rosapi/*
 demo*
 *.graffle
 .idea/
+
+images/

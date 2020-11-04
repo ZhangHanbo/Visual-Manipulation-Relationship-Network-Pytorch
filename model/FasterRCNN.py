@@ -6,14 +6,9 @@
 # based on code from Jiasen Lu, Jianwei Yang, Ross Girshick
 # --------------------------------------------------------
 
-import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
-import torchvision.models as models
-from torch.autograd import Variable
-import numpy as np
 from utils.config import cfg
 from rpn.rpn import _RPN
 from roi_pooling.modules.roi_pool import _RoIPooling
@@ -21,12 +16,7 @@ from roi_crop.modules.roi_crop import _RoICrop
 from roi_align.modules.roi_align import RoIAlignAvg
 from rpn.proposal_target_layer_cascade import _ProposalTargetLayer
 from Detectors import objectDetector
-import time
-import pdb
-from utils.net_utils import _smooth_l1_loss, _crop_pool_layer, _affine_grid_gen, _affine_theta, weights_normal_init,\
-    set_bn_eval, set_bn_fix
-
-from basenet.resnet import resnet101
+from utils.net_utils import _smooth_l1_loss, weights_normal_init
 
 class fasterRCNN(objectDetector):
     """ faster RCNN """
@@ -133,22 +123,11 @@ class fasterRCNN(objectDetector):
         self._init_weights()
 
     def _init_weights(self):
-        def normal_init(m, mean, stddev, truncated=False):
-            """
-            weight initalizer: truncated normal and random normal.
-            """
-            # x is a parameter
-            if truncated:
-                m.weight.data.normal_().fmod_(2).mul_(stddev).add_(mean)  # not a perfect approximation
-            else:
-                m.weight.data.normal_(mean, stddev)
-                m.bias.data.zero_()
-
-        normal_init(self.RCNN_rpn.RPN_Conv, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-        normal_init(self.RCNN_rpn.RPN_cls_score, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-        normal_init(self.RCNN_rpn.RPN_bbox_pred, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-        normal_init(self.RCNN_cls_score, 0, 0.01, cfg.TRAIN.COMMON.TRUNCATED)
-        normal_init(self.RCNN_bbox_pred, 0, 0.001, cfg.TRAIN.COMMON.TRUNCATED)
+        weights_normal_init(self.RCNN_rpn.RPN_Conv, 0.01, 0.)
+        weights_normal_init(self.RCNN_rpn.RPN_cls_score, 0.01, 0.)
+        weights_normal_init(self.RCNN_rpn.RPN_bbox_pred, 0.01, 0.)
+        weights_normal_init(self.RCNN_cls_score, 0.01, 0.)
+        weights_normal_init(self.RCNN_bbox_pred, 0.001, 0.)
 
     def _init_modules(self):
 

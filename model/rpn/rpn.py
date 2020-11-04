@@ -9,11 +9,6 @@ from .proposal_layer import _ProposalLayer
 from .anchor_target_layer import _AnchorTargetLayer
 from model.utils.net_utils import _smooth_l1_loss
 
-import numpy as np
-import math
-import pdb
-import time
-
 class _RPN(nn.Module):
     """ region proposal network """
     def __init__(self, din, anchor_scales, anchor_ratios, feat_stride, include_rois_score = False):
