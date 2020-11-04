@@ -20,6 +20,7 @@ from .vg_eval import vg_eval
 from model.utils.config import cfg
 import pickle
 import pdb
+import random
 try:
     xrange          # Python 2
 except NameError:
@@ -31,8 +32,9 @@ class vg(imdb):
         imdb.__init__(self, 'vg_' + version + '_' + image_set)
         self._version = version
         self._image_set = image_set
-        self._data_path = os.path.join(cfg.DATA_DIR, 'genome')
-        self._img_path = os.path.join(cfg.DATA_DIR, 'vg')
+        self._data_path = os.path.join(cfg.DATA_DIR, 'VG/VG_OD_Anno')
+        self._img_path = os.path.join(cfg.DATA_DIR, 'VG')
+        self._img_dirs = ["VG_100K", "VG_100K_2"]
         # VG specific config options
         self.config = {'cleanup' : False}
 
@@ -135,13 +137,42 @@ class vg(imdb):
         else:
           return os.path.join(self._data_path, self._image_set+'.txt')
 
+    def _split_dataset(self):
+        img_list = []
+        for img_dir in self._img_dirs:
+            img_dir_path = os.path.join(self._img_path, img_dir)
+            for img_name in os.listdir(img_dir_path):
+                if img_name[-3:] == 'jpg':
+                    img_list.append(os.path.join(img_dir, img_name))
+
+        random.shuffle(img_list)
+        train_size = int(round(0.7 * len(img_list)))
+        val_size = int(round(0.1 * len(img_list)))
+        test_size = len(img_list) - train_size - val_size
+
+        with open(os.path.join(self._data_path, 'train.txt'), "wb") as f:
+            for i in range(train_size):
+                f.write(img_list[i] + " " +
+                    os.path.join("VG_OD_Anno", "xml", img_list[i].split('/')[-1].split('.')[0] + '.xml\n'))
+
+        with open(os.path.join(self._data_path, 'val.txt'), "wb") as f:
+            for i in range(train_size + 1, train_size + val_size):
+                f.write(img_list[i] + " " +
+                    os.path.join("VG_OD_Anno", "xml", img_list[i].split('/')[-1].split('.')[0] + '.xml\n'))
+
+        with open(os.path.join(self._data_path, 'test.txt'), "wb") as f:
+            for i in range(-test_size, 0):
+                f.write(img_list[i] + " " +
+                    os.path.join("VG_OD_Anno", "xml", img_list[i].split('/')[-1].split('.')[0] + '.xml\n'))
+
     def _load_image_set_index(self):
         """
         Load the indexes listed in this dataset's image set file.
         """
         training_split_file = self._image_split_path()
-        assert os.path.exists(training_split_file), \
-                'Path does not exist: {}'.format(training_split_file)
+        if not os.path.exists(training_split_file):
+            self._split_dataset()
+
         with open(training_split_file) as f:
           metadata = f.readlines()
           if self._image_set == "minitrain":
@@ -155,22 +186,24 @@ class vg(imdb):
 
         image_index = []
         id_to_dir = {}
-        for line in metadata:
-          im_file,ann_file = line.split()
-          image_id = int(ann_file.split('/')[-1].split('.')[0])
-          filename = self._annotation_path(image_id)
-          if os.path.exists(filename):
-              # Some images have no bboxes after object filtering, so there
-              # is no xml annotation for these.
-              tree = ET.parse(filename)
-              for obj in tree.findall('object'):
-                  obj_name = obj.find('name').text.lower().strip()
-                  if obj_name in self._class_to_ind:
-                      # We have to actually load and check these to make sure they have
-                      # at least one object actually in vocab
-                      image_index.append(image_id)
-                      id_to_dir[image_id] = im_file.split('/')[0]
-                      break
+        for i, line in enumerate(metadata):
+            im_file,ann_file = line.split()
+            image_id = int(ann_file.split('/')[-1].split('.')[0])
+            if i % 1000 == 0:
+                print("Generating Metadata. Finished: " + str(i) + " Total: " + str(len(metadata)))
+            filename = self._annotation_path(image_id)
+            if os.path.exists(filename):
+                # Some images have no bboxes after object filtering, so there
+                # is no xml annotation for these.
+                tree = ET.parse(filename)
+                for obj in tree.findall('object'):
+                    obj_name = obj.find('name').text.lower().strip()
+                    if obj_name in self._class_to_ind:
+                        # We have to actually load and check these to make sure they have
+                        # at least one object actually in vocab
+                        image_index.append(image_id)
+                        id_to_dir[image_id] = im_file.split('/')[0]
+                        break
         return image_index, id_to_dir
 
     def gt_roidb(self):
@@ -187,8 +220,12 @@ class vg(imdb):
             print('{} gt roidb loaded from {}'.format(self.name, cache_file))
             return roidb
 
-        gt_roidb = [self._load_vg_annotation(index)
-                    for index in self.image_index]
+        gt_roidb = []
+        for i, index in enumerate(self.image_index):
+            gt_roidb.append(self._load_vg_annotation(index))
+            if i % 1000 == 0:
+                print("Generating roidb. Current: " + str(i) + " Total: " + str(len(self.image_index)))
+
         fid = gzip.open(cache_file,'wb')
         pickle.dump(gt_roidb, fid, pickle.HIGHEST_PROTOCOL)
         fid.close()
@@ -316,7 +353,8 @@ class vg(imdb):
         return path
 
     def _write_voc_results_file(self, classes, all_boxes, output_dir):
-        for cls_ind, cls in enumerate(classes):
+        for cls in classes:
+            cls_ind = self._class_to_ind[cls]
             if cls == '__background__':
                 continue
             print('Writing "{}" vg results file'.format(cls))
@@ -334,7 +372,7 @@ class vg(imdb):
                                        dets[k, 2] + 1, dets[k, 3] + 1))
 
 
-    def _do_python_eval(self, output_dir, pickle=True, eval_attributes = False):
+    def _do_python_eval(self, output_dir, save_res=True, eval_attributes = False):
         # We re-use parts of the pascal voc python code for visual genome
         aps = []
         nposs = []
@@ -350,16 +388,16 @@ class vg(imdb):
             classes = self._attributes
         else:
             classes = self._classes
-        for i, cls in enumerate(classes):
+        for cls in classes:
             if cls == '__background__' or cls == '__no_attribute__':
                 continue
             filename = self._get_vg_results_file_template(output_dir).format(cls)
             rec, prec, ap, scores, npos = vg_eval(
-                filename, gt_roidb, self.image_index, i, ovthresh=0.5,
+                filename, gt_roidb, self.image_index, self._class_to_ind[cls], ovthresh=0.5,
                 use_07_metric=use_07_metric, eval_attributes=eval_attributes)
 
             # Determine per class detection thresholds that maximise f score
-            if npos > 1:
+            if npos > 1 and not (isinstance(prec, int) and prec == 0):
                 f = np.nan_to_num((prec*rec)/(prec+rec))
                 thresh += [scores[np.argmax(f)]]
             else:
@@ -367,7 +405,7 @@ class vg(imdb):
             aps += [ap]
             nposs += [float(npos)]
             print('AP for {} = {:.4f} (npos={:,})'.format(cls, ap, npos))
-            if pickle:
+            if save_res:
                 with open(os.path.join(output_dir, cls + '_pr.pkl'), 'wb') as f:
                     pickle.dump({'rec': rec, 'prec': prec, 'ap': ap,
                         'scores': scores, 'npos':npos}, f)

@@ -1,7 +1,6 @@
 # --------------------------------------------------------
-# Fast/er R-CNN
 # Licensed under The MIT License [see LICENSE for details]
-# Written by Ross Girshick and Xinlei Chen
+# Written by Hanbo Zhang
 # --------------------------------------------------------
 from __future__ import absolute_import
 from __future__ import division
@@ -15,67 +14,55 @@ import sys
 import os
 import numpy as np
 import scipy.sparse
-import scipy.io as sio
 import pickle
 import json
-import uuid
-# COCO API
-from pycocotools.coco import COCO
-from pycocotools.cocoeval import COCOeval
-from pycocotools import mask as COCOmask
 
-class coco(imdb):
-  def __init__(self, image_set, year):
-    imdb.__init__(self, 'coco_' + year + '_' + image_set)
-    # COCO specific config options
-    self.config = {'use_salt': True,
-                   'cleanup': True}
-    # name, paths
-    self._year = year
+# COCO API
+from pycocotools.refcoco import REFER
+
+class refcoco(imdb):
+  def __init__(self, image_set, split = 'umd', version = 'g'):
+    """
+    :param image_set: train, val, test
+    :param split: chosen from: {'unc', 'google', 'umd'}
+    :param version: chosen from: {'', '+', 'g'}
+    """
+    imdb.__init__(self, 'refcoco' + version + '_' + split + '_' + image_set)
     self._image_set = image_set
+    self._version = version
+    self._split = split
     self._data_path = osp.join(cfg.DATA_DIR, 'COCO')
     # load COCO API, classes, class <-> id mappings
-    self._COCO = COCO(self._get_ann_file())
-    cats = self._COCO.loadCats(self._COCO.getCatIds())
-    self._classes = list(['__background__'] + [c['name'] for c in cats])
+    self._refCOCO = REFER(self._data_path, dataset='refcoco' + self._version, splitBy=self._split)
+    cats = self._refCOCO.loadCats(self._refCOCO.getCatIds())
+    self._classes = list(['__background__'] + cats)
     self._class_to_ind = dict(list(zip(self.classes, list(range(self.num_classes)))))
-    self._class_to_coco_cat_id = dict(list(zip([c['name'] for c in cats],
-                                               self._COCO.getCatIds())))
+    self._class_to_coco_cat_id = dict(list(zip(cats, self._refCOCO.getCatIds())))
     self._image_index = self._load_image_set_index()
     # Default to roidb handler
     self.set_proposal_method('gt')
-    self.competition_mode(False)
 
-    # Some image sets are "views" (i.e. subsets) into others.
-    # For example, minival2014 is a random 5000 image subset of val2014.
-    # This mapping tells us where the view's images and proposals come from.
-    self._view_map = {
-      'minival2014': 'val2014',  # 5k val2014 subset
-      'valminusminival2014': 'val2014',  # val2014 \setminus minival2014
-      'test-dev2015': 'test2015',
-      'valminuscapval2014': 'val2014',
-      'capval2014': 'val2014',
-      'captest2014': 'val2014',
-    }
-    coco_name = image_set + year  # e.g., "val2014"
-    self._data_name = (self._view_map[coco_name]
-                       if coco_name in self._view_map
-                       else coco_name)
-    # Dataset splits that have ground-truth annotations (test splits
-    # do not have gt annotations)
-    self._gt_splits = ('train', 'val', 'minival')
-
-  def _get_ann_file(self):
-    prefix = 'instances' if self._image_set.find('test') == -1 \
-      else 'image_info'
-    return osp.join(self._data_path, 'annotations',
-                    prefix + '_' + self._image_set + self._year + '.json')
+    # image id to the directory that includes the corresponding image
+    train_img_list = os.listdir(os.path.join(self._data_path, 'train2017'))
+    val_img_list = os.listdir(os.path.join(self._data_path, 'val2017'))
+    self._image_name_to_dir = {}
+    for name in train_img_list:
+        if name[-3:] == 'jpg':
+            self._image_name_to_dir[name] = 'train2017'
+    for name in val_img_list:
+        if name[-3:] == 'jpg':
+            self._image_name_to_dir[name] = 'val2017'
 
   def _load_image_set_index(self):
     """
     Load image ids.
     """
-    image_ids = self._COCO.getImgIds()
+    image_ids = []
+    for ref in self._refCOCO.Refs.values():
+      print(ref['image_id'])
+      if ref['split'] == self._image_set:
+        image_ids.append(ref['image_id'])
+
     return image_ids
 
   def image_path_at(self, i):
@@ -97,7 +84,7 @@ class coco(imdb):
     # Example image path for index=119993:
     #   images/train2014/COCO_train2014_000000119993.jpg
     file_name = (str(index).zfill(12) + '.jpg')
-    image_path = osp.join(self._data_path, self._data_name, file_name)
+    image_path = osp.join(self._data_path, self._image_name_to_dir[file_name], file_name)
     assert osp.exists(image_path), \
       'Path does not exist: {}'.format(image_path)
     return image_path
@@ -114,7 +101,7 @@ class coco(imdb):
       print('{} gt roidb loaded from {}'.format(self.name, cache_file))
       return roidb
 
-    gt_roidb = [self._load_coco_annotation(index)
+    gt_roidb = [self._load_refcoco_annotation(index)
                 for index in self._image_index]
 
     with open(cache_file, 'wb') as fid:
@@ -122,20 +109,27 @@ class coco(imdb):
     print('wrote gt roidb to {}'.format(cache_file))
     return gt_roidb
 
-  def _load_coco_annotation(self, index):
+  def _load_refcoco_annotation(self, index):
     """
     Loads COCO bounding-box instance annotations. Crowd instances are
     handled by marking their overlaps (with all categories) to -1. This
     overlap value means that crowd "instances" are excluded from training.
     """
-    im_ann = self._COCO.loadImgs(index)[0]
+    im_ann = self._refCOCO.loadImgs(index)[0]
     width = im_ann['width']
     height = im_ann['height']
 
-    annIds = self._COCO.getAnnIds(imgIds=index, iscrowd=None)
-    objs = self._COCO.loadAnns(annIds)
+    annIds = self._refCOCO.getAnnIds(image_ids=index)
+    objs = self._refCOCO.loadAnns(annIds)
+    refIds = self._refCOCO.getRefIds(image_ids=index)
+    refs = self._refCOCO.loadRefs(refIds)
+    for ref in refs:
+      assert ref['ann_id'] in annIds
+    refannIds = [ref['ann_id'] for ref in refs]
+
     # Sanitize bboxes -- some are invalid
     valid_objs = []
+    caps = []
     for obj in objs:
       x1 = np.max((0, obj['bbox'][0]))
       y1 = np.max((0, obj['bbox'][1]))
@@ -144,6 +138,15 @@ class coco(imdb):
       if obj['area'] > 0 and x2 >= x1 and y2 >= y1:
         obj['clean_bbox'] = [x1, y1, x2, y2]
         valid_objs.append(obj)
+        # if there is a corresponding caption for obj
+        if obj['id'] in refannIds:
+          ref = self._refCOCO.annToRef[obj['id']]['sentences']
+          randSel = np.random.randint(len(ref))
+          ref = ref[randSel]
+          caps.append(ref['tokens'])
+        # if there is no caption for obj, an empty string is used.
+        else:
+          caps.append([])
     objs = valid_objs
     num_objs = len(objs)
 
@@ -178,14 +181,8 @@ class coco(imdb):
             'gt_classes': gt_classes,
             'gt_overlaps': overlaps,
             'seg_areas': seg_areas,
-            'rotated': 0}
-
-  def _get_box_file(self, index):
-    # first 14 chars / first 22 chars / all chars + .mat
-    # COCO_val2014_0/COCO_val2014_000000447/COCO_val2014_000000447991.mat
-    file_name = ('COCO_' + self._data_name +
-                 '_' + str(index).zfill(12) + '.mat')
-    return osp.join(file_name[:14], file_name[:22], file_name)
+            'rotated': 0,
+            'captions': caps}
 
   def _print_detection_eval_metrics(self, coco_eval):
     IoU_lo_thresh = 0.5
@@ -224,8 +221,8 @@ class coco(imdb):
 
   def _do_detection_eval(self, res_file, output_dir):
     ann_type = 'bbox'
-    coco_dt = self._COCO.loadRes(res_file)
-    coco_eval = COCOeval(self._COCO, coco_dt)
+    coco_dt = self._refCOCO.loadRes(res_file)
+    coco_eval = COCOeval(self._refCOCO, coco_dt)
     coco_eval.params.useSegm = (ann_type == 'segm')
     coco_eval.evaluate()
     coco_eval.accumulate()
@@ -278,22 +275,11 @@ class coco(imdb):
                                      self._image_set +
                                      self._year +
                                      '_results'))
-    if self.config['use_salt']:
-      res_file += '_{}'.format(str(uuid.uuid4()))
+
     res_file += '.json'
     self._write_coco_results_file(all_boxes, res_file)
     # Only do evaluation on non-test sets
     if self._image_set.find('test') == -1:
       map = self._do_detection_eval(res_file, output_dir)
-    # Optionally cleanup results json file
-    if self.config['cleanup']:
-      os.remove(res_file)
-    return map
 
-  def competition_mode(self, on):
-    if on:
-      self.config['use_salt'] = False
-      self.config['cleanup'] = False
-    else:
-      self.config['use_salt'] = True
-      self.config['cleanup'] = True
+    return map

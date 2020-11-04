@@ -23,7 +23,7 @@ from roi_data_layer.roidb import combined_roidb
 from roi_data_layer.roibatchLoader import *
 from model.utils.config import cfg, cfg_from_file, cfg_from_list, get_output_dir, parse_args, read_cfgs
 from model.utils.net_utils import weights_normal_init, save_net, load_net, \
-      adjust_learning_rate, save_checkpoint, clip_gradient
+      adjust_learning_rate, save_checkpoint, clip_gradient, gradient_norm
 from model.utils.data_viewer import dataViewer
 from model.utils.blob import image_unnormalize
 
@@ -557,15 +557,10 @@ def train():
             # backward process
             optimizer.zero_grad()
             loss.backward()
+            g_norm = gradient_norm(Network)
             if args.net == "vgg16":
                  clip_gradient(Network, 10.)
-            totalnorm = 0
-            for p in Network.parameters():
-                if p.requires_grad and p.grad is not None:
-                    modulenorm = p.grad.data.norm()
-                    totalnorm += modulenorm ** 2
-            totalnorm = np.sqrt(totalnorm.item())
-            print(totalnorm)
+            print(g_norm)
             optimizer.step()
 
             # record training information

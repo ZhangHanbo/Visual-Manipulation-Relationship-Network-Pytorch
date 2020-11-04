@@ -23,6 +23,8 @@ import scipy
 import cv2
 import pdb
 import copy
+import json
+import PIL
 
 # TODO: make fast_rcnn irrelevant
 # >>>> obsolete, because it depends on sth outside of this project
@@ -38,21 +40,61 @@ except NameError:
 
 class vmrd(pascal_voc):
     def __init__(self, image_set, version = 'compv1', use07metric = True, devkit_path=None):
-        imdb.__init__(self, 'vmrd_' + version + image_set)
+        imdb.__init__(self, 'vmrd_' + version + "_" + image_set)
         self._image_set = image_set
-        self._version = version
+        if version in {"compv1", "ext"}:
+            self._version = "compv1"
         self._devkit_path = self._get_default_path() if devkit_path is None \
             else devkit_path
         self._data_path = os.path.join(self._devkit_path, 'vmrd' + self._version)
-        self._classes = ('__background__',  # always index 0
+        self._use_coco_vg_aug = (version=="ext")
+        self._classes = ['__background__',  # always index 0
                      'box', 'banana', 'notebook', 'screwdriver', 'toothpaste', 'apple',
                      'stapler', 'mobile phone', 'bottle', 'pen', 'mouse', 'umbrella',
                      'remote controller', 'cans', 'tape', 'knife', 'wrench', 'cup', 'charger',
                      'badminton', 'wallet', 'wrist developer', 'glasses', 'pliers', 'headset',
-                     'toothbrush', 'card', 'paper', 'towel', 'shaver', 'watch')
+                     'toothbrush', 'card', 'paper', 'towel', 'shaver', 'watch']
+
+        # remained classes = 'box', 'banana', 'screwdriver', 'toothpaste', 'apple', 'mobile phone', 'bottle', 'mouse',
+        # 'cans', 'tape', 'knife', 'cup', 'wrist developer', 'glasses', 'pliers',
+        self._vg_vmrd_synset = {u'remotes' : 'remote controller',
+                                u'eyeglass': 'glasses',
+                                u'toilet paper': 'paper',
+                                u'razor': 'shaver'}
         self._class_to_ind = dict(zip(self.classes, xrange(self.num_classes)))
         self._image_ext = '.jpg'
         self._image_index = self._load_image_set_index()
+        self._original_num_img = len(self._image_index)
+        if self._image_set == "trainval":
+            widths, heights = self.widths, self.heights
+            self._image_index = self._image_index * 4
+            self._widths, self._heights = \
+                (widths + heights) * 2, (heights + widths) * 2
+
+            if self._use_coco_vg_aug:
+                print("Preparing extended data...")
+                self._data_path_vg = self._get_default_vg_path()
+                self._data_path_coco = self._get_default_coco_path()
+                with open(os.path.join(self._devkit_path, "objects_coco.json"), "rb") as f:
+                    self._coco_label = json.load(f)
+                with open(os.path.join(self._devkit_path, "objects_vg.json"), "rb") as f:
+                    self._vg_label = json.load(f)
+                self._preprocess_vg_and_coco_labels()
+                self._image_index.extend(["coco_"+str(im["id"]) for im in self._coco_label["images"]])
+                self._image_index.extend(list(set(["vg_"+str(im["image_id"]) for im in self._vg_label])))
+                self._ind_to_dir = self._get_imind_to_dir()
+
+                ext_ws = []
+                ext_hs = []
+                print("Initialize extended image widths and heights...")
+                for i in range(len(self._widths), self.num_images):
+                    im = PIL.Image.open(self.image_path_at(i))
+                    ext_ws.append(im.size[0])
+                    ext_hs.append(im.size[1])
+                self._widths.extend(ext_ws)
+                self._heights.extend(ext_hs)
+                self._index_to_i = dict(zip(self._image_index, list(range(len(self._image_index)))))
+
         self._roidb_handler = self.gt_roidb
 
         # PASCAL specific config options
@@ -64,11 +106,38 @@ class vmrd(pascal_voc):
         assert os.path.exists(self._data_path), \
             'Path does not exist: {}'.format(self._data_path)
 
+    def image_path_from_index(self, index):
+        """
+        Construct an image path from the image's "index" identifier.
+        """
+        if index.startswith("coco"):
+            image_dir = self._ind_to_dir[index]
+            image_id = "_".join(index.split("_")[1:])
+            file_name = str(image_id).zfill(12) + '.jpg'
+            image_path = os.path.join(image_dir, file_name)
+        elif index.startswith("vg"):
+            image_dir = self._ind_to_dir[index]
+            image_id = "_".join(index.split("_")[1:])
+            file_name = str(image_id) + '.jpg'
+            image_path = os.path.join(image_dir, file_name)
+        else:
+            file_name = str(index) + '.jpg'
+            image_path = os.path.join(self._data_path, 'JPEGImages', file_name)
+        assert os.path.exists(image_path), \
+            'Path does not exist: {}'.format(image_path)
+        return image_path
+
     def _get_default_path(self):
         """
         Return the default path where Visual Manipulation Realtionship Dataset is expected to be installed.
         """
         return os.path.join(cfg.DATA_DIR, 'VMRD')
+
+    def _get_default_vg_path(self):
+        return os.path.join(cfg.DATA_DIR, 'VG')
+
+    def _get_default_coco_path(self):
+        return os.path.join(cfg.DATA_DIR, 'COCO')
 
     def _get_voc_results_file_template(self):
         # VMRD/results/vmrdcompv1/Main/test_aeroplane.txt
@@ -78,6 +147,33 @@ class vmrd(pascal_voc):
             os.makedirs(filedir)
         path = os.path.join(filedir, filename)
         return path
+
+    def _get_imind_to_dir(self):
+        ind_to_dir = {}
+
+        coco_train_dir = os.path.join(self._data_path_coco, "train2017")
+        coco_train_list = os.listdir(coco_train_dir)
+        coco_val_dir = os.path.join(self._data_path_coco, "val2017")
+        coco_val_list = os.listdir(coco_val_dir)
+        vg_dir_1 = os.path.join(self._data_path_vg, "VG_100K")
+        vg_1_list = os.listdir(vg_dir_1)
+        vg_dir_2 = os.path.join(self._data_path_vg, "VG_100K_2")
+        vg_2_list = os.listdir(vg_dir_2)
+        for ind in self.image_index:
+            if ind.startswith("coco"):
+                image_id = "_".join(ind.split("_")[1:])
+                file_name = str(image_id).zfill(12) + '.jpg'
+                if file_name in coco_train_list: ind_to_dir[ind] = coco_train_dir
+                elif file_name in coco_val_list: ind_to_dir[ind] = coco_val_dir
+            elif ind.startswith("vg"):
+                image_id = "_".join(ind.split("_")[1:])
+                file_name = str(image_id) + '.jpg'
+                if file_name in vg_1_list: ind_to_dir[ind] = vg_dir_1
+                elif file_name in vg_2_list: ind_to_dir[ind] = vg_dir_2
+            else:
+                ind_to_dir[ind] = os.path.join(self._data_path, "JPEGImages")
+
+        return ind_to_dir
 
     def gt_roidb(self):
         """
@@ -90,20 +186,22 @@ class vmrd(pascal_voc):
             with open(cache_file, 'rb') as fid:
                 roidb = pickle.load(fid)
             print('{} gt roidb loaded from {}'.format(self.name, cache_file))
-
-            if self._image_set == "trainval":
-                widths, heights = self.widths, self.heights
-                self._image_index = self._image_index * 4
-                self._widths, self._heights = \
-                    (widths + heights) * 2, (heights + widths) * 2
-
             return roidb
 
-        gt_roidb = [dict(self._load_vmrd_annotation(index).items() +
-                         self._load_grasp_annotation(index).items())
-                    for index in self.image_index]
-        if self._image_set == "trainval":
+        if self._image_set == "trainval" and self._use_coco_vg_aug:
+            gt_roidb = [self._load_vmrd_annotation(index)
+                        for index in self.image_index[:self._original_num_img]]
             gt_roidb = self._append_rotated_images(gt_roidb)
+            # append coco data
+            gt_roidb.extend([self._load_coco_vg_annotation(index)
+                            for index in self.image_index if index.startswith("coco") or index.startswith("vg")])
+
+        else:
+            gt_roidb = [dict(self._load_vmrd_annotation(index).items() +
+                             self._load_grasp_annotation(index).items())
+                        for index in self.image_index[:self._original_num_img]]
+            if self._image_set == "trainval":
+                gt_roidb = self._append_rotated_images(gt_roidb)
 
         with open(cache_file, 'wb') as fid:
             pickle.dump(gt_roidb, fid, pickle.HIGHEST_PROTOCOL)
@@ -112,9 +210,9 @@ class vmrd(pascal_voc):
         return gt_roidb
 
     def _append_rotated_images(self, gt_roidb):
-        num_images = self.num_images
-        widths = self.widths
-        heights = self.heights
+        num_images = len(gt_roidb)
+        widths = self.widths[:num_images]
+        heights = self.heights[:num_images]
 
         # rotate coordinates of bounding boxes and grasps
         def rotcoords(coords, rot, w, h, isbbox=False):
@@ -149,22 +247,19 @@ class vmrd(pascal_voc):
                 boxes = rotcoords(boxes, r, widths[i], heights[i], True)
                 assert (boxes[:, 2] >= boxes[:, 0]).all()
                 entry['boxes'] = boxes
-                entry['gt_classes'] = gt_roidb[i]['gt_classes']
-                grasps = gt_roidb[i]['grasps'].copy()
-                if grasps.size > 0:
-                    grasps = rotcoords(grasps, r, widths[i], heights[i], False)
-                entry['grasps'] = grasps
-                entry['grasp_inds'] = gt_roidb[i]['grasp_inds']
-                entry['gt_overlaps'] = gt_roidb[i]['gt_overlaps']
+                entry['gt_classes'] = gt_roidb[i]['gt_classes'].copy()
+                if 'grasps' in gt_roidb[i]:
+                    grasps = gt_roidb[i]['grasps'].copy()
+                    if grasps.size > 0:
+                        grasps = rotcoords(grasps, r, widths[i], heights[i], False)
+                    entry['grasps'] = grasps
+                    entry['grasp_inds'] = gt_roidb[i]['grasp_inds'].copy()
+                entry['gt_overlaps'] = gt_roidb[i]['gt_overlaps'].copy()
                 # vmrd data entry
                 entry['node_inds'] = gt_roidb[i]['node_inds'].copy()
                 entry['parent_lists'] = copy.deepcopy(gt_roidb[i]['parent_lists'])
                 entry['child_lists'] = copy.deepcopy(gt_roidb[i]['child_lists'])
                 gt_roidb.append(entry)
-
-        self._image_index = self._image_index * 4
-        self._widths, self._heights = \
-            (self._widths + self._heights) * 2, (self._heights + self._widths) * 2
 
         return gt_roidb
 
@@ -250,8 +345,93 @@ class vmrd(pascal_voc):
                 'child_lists': child_list,
                 'rotated': 0}
 
+    def _preprocess_vg_and_coco_labels(self):
+        self._cocoidToAnn = dict(zip([im["id"] for im in self._coco_label["images"]],
+                                     [[] for _ in self._coco_label["images"]]))
+        for ann in self._coco_label["annotations"]:
+            self._cocoidToAnn[ann["image_id"]].append(ann)
+        vg_inds = list(set([l["image_id"] for l in self._vg_label]))
+        self._vgidToAnn = dict(zip(vg_inds, [[] for _ in vg_inds]))
+        for ann in self._vg_label:
+            self._vgidToAnn[ann["image_id"]] = ann
+
+    def _load_coco_vg_annotation(self, index):
+        """
+            Loads COCO bounding-box instance annotations. Crowd instances are
+            handled by marking their overlaps (with all categories) to -1. This
+            overlap value means that crowd "instances" are excluded from training.
+            """
+        width = self._widths[self._index_to_i[index]]
+        height = self._heights[self._index_to_i[index]]
+
+        index = index.split("_")
+        prefix = index[0]
+        ind = int(index[1])
+
+
+        valid_objs = []
+        if prefix == "coco":
+            objs = self._cocoidToAnn[ind]
+            for obj in objs:
+                x1 = np.max((0, obj['bbox'][0]))
+                y1 = np.max((0, obj['bbox'][1]))
+                x2 = np.min((width - 1, x1 + np.max((0, obj['bbox'][2] - 1))))
+                y2 = np.min((height - 1, y1 + np.max((0, obj['bbox'][3] - 1))))
+                if obj['area'] > 0 and x2 >= x1 and y2 >= y1:
+                    obj['clean_bbox'] = [x1, y1, x2, y2]
+                    valid_objs.append(obj)
+        else:
+            ann = self._vgidToAnn[ind]
+            objs = ann["objects"]
+            for obj in objs:
+                x1 = np.max((0, obj['x']))
+                y1 = np.max((0, obj['y']))
+                x2 = np.min((width - 1, x1 + np.max((0, obj['w'] - 1))))
+                y2 = np.min((height - 1, y1 + np.max((0, obj['h'] - 1))))
+                if x2 >= x1 and y2 >= y1:
+                    obj['clean_bbox'] = [x1, y1, x2, y2]
+                    valid_objs.append(obj)
+
+        objs = valid_objs
+        num_objs = len(objs)
+
+        boxes = np.zeros((num_objs, 4), dtype=np.int32)
+        gt_classes = np.zeros((num_objs), dtype=np.int32)
+        overlaps = np.zeros((num_objs, self.num_classes), dtype=np.float32)
+        seg_areas = np.zeros((num_objs), dtype=np.float32)
+
+        for ix, obj in enumerate(objs):
+            if prefix == "coco":
+                cls = obj['category_id']
+                seg_areas[ix] = obj['area']
+                if obj['iscrowd']:
+                    # Set overlap to -1 for all classes for crowd objects
+                    # so they will be excluded during training
+                    overlaps[ix, :] = -1.0
+                else:
+                    overlaps[ix, cls] = 1.0
+            else:
+                vg_cls = obj["names"][0]
+                cls = self._vg_vmrd_synset[vg_cls] if vg_cls in self._vg_vmrd_synset.keys() else vg_cls
+                cls = self._class_to_ind[cls]
+                seg_areas[ix] = obj['w'] * obj['h']
+                overlaps[ix, cls] = 1.0
+
+            boxes[ix, :] = obj['clean_bbox']
+            gt_classes[ix] = cls
+
+        overlaps = scipy.sparse.csr_matrix(overlaps)
+        return {'width': width,
+                'height': height,
+                'boxes': boxes,
+                'gt_classes': gt_classes,
+                'gt_overlaps': overlaps,
+                'seg_areas': seg_areas,
+                'rotated': 0}
+
     def _write_voc_results_file(self, all_boxes):
-        for cls_ind, cls in enumerate(self.classes):
+        for cls in self.classes:
+            cls_ind = self._class_to_ind[cls]
             if cls == '__background__':
                 continue
             print('Writing {} VMRD results file'.format(cls))
@@ -290,7 +470,7 @@ class vmrd(pascal_voc):
         print('VOC07 metric? ' + ('Yes' if use_07_metric else 'No'))
         if not os.path.isdir(output_dir):
             os.mkdir(output_dir)
-        for i, cls in enumerate(self._classes):
+        for cls in self._classes:
             if cls == '__background__':
                 continue
             filename = self._get_voc_results_file_template().format(cls)
@@ -315,6 +495,7 @@ class vmrd(pascal_voc):
         print('Recompute with `./tools/reval.py --matlab ...` for your paper.')
         print('-- Thanks, The Management')
         print('--------------------------------------------------------------')
+        return np.mean(aps)
 
     def evaluate_relationships(self, all_rel):
         all_tp = 0
@@ -324,10 +505,11 @@ class vmrd(pascal_voc):
         img_ntp = 0
         img_ntp_dif_objnum = {2:0,3:0,4:0,5:0}
         img_num_dif_objnum = {2:0,3:0,4:0,5:0}
+        image_ind_to_roidb_ind = dict(zip(self.image_index, list(range(len(self.image_index)))))
 
         for im_ind, index in enumerate(self.image_index):
             det_result = all_rel[im_ind]
-            anno = self._load_vmrd_annotation(index)
+            anno = self.roidb[image_ind_to_roidb_ind[index]]
             img_num_dif_objnum[anno['boxes'].shape[0]] += 1
 
             ntp, nfp, ngt = self.do_rel_single_image_eval(det_result, anno)
@@ -453,9 +635,9 @@ class vmrd(pascal_voc):
         key_point_MRFPPI = [[] for i in range(keypoints.size)]
 
         for i, MF in enumerate(grasp_MRFPPI):
-            assert MF[1, :][-1] >= 0, "box threshold is too high."
             cur_mean = 0.
 
+            print(MF)
             for p in points:
                 miss_rate_ind = np.cumsum(MF[1, :] < p).max() - 1
                 if miss_rate_ind == -1:
