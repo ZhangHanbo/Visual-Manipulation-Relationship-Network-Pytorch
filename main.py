@@ -18,13 +18,14 @@ import pickle
 
 from torch.utils.data.sampler import Sampler
 import matplotlib
+
 matplotlib.use('Agg')
 
 from roi_data_layer.roidb import combined_roidb
 from roi_data_layer.roibatchLoader import *
 from model.utils.config import cfg, cfg_from_file, cfg_from_list, get_output_dir, parse_args, read_cfgs
 from model.utils.net_utils import weights_normal_init, save_net, load_net, \
-      adjust_learning_rate, save_checkpoint, clip_gradient
+    adjust_learning_rate, save_checkpoint, clip_gradient, gradient_norm
 from model.utils.data_viewer import dataViewer
 from model.utils.blob import image_unnormalize
 
@@ -50,35 +51,38 @@ torch.set_default_tensor_type(torch.FloatTensor)
 LEGAL_FRAMES = {"faster_rcnn", "ssd", "fpn", "faster_rcnn_vmrn", "ssd_vmrn", "all_in_one", "fcgn", "mgn", "vam",
                 "efc_det"}
 
+
 class sampler(Sampler):
     def __init__(self, train_size, batch_size):
         self.num_data = train_size
         self.num_batch = int(train_size / batch_size)
         self.batch_size = batch_size
-        self.range = torch.arange(0,batch_size).view(1, batch_size).long()
+        self.range = torch.arange(0, batch_size).view(1, batch_size).long()
         self.leftover_flag = False
         if train_size % batch_size:
-            self.leftover = torch.arange(self.num_batch*batch_size, train_size).long()
+            self.leftover = torch.arange(self.num_batch * batch_size, train_size).long()
             self.leftover_flag = True
 
     def __iter__(self):
-        rand_num = torch.randperm(self.num_batch).view(-1,1) * self.batch_size
+        rand_num = torch.randperm(self.num_batch).view(-1, 1) * self.batch_size
         self.rand_num = rand_num.expand(self.num_batch, self.batch_size) + self.range
 
         self.rand_num_view = self.rand_num.view(-1)
 
         if self.leftover_flag:
-            self.rand_num_view = torch.cat((self.rand_num_view, self.leftover),0)
+            self.rand_num_view = torch.cat((self.rand_num_view, self.leftover), 0)
 
         return iter(self.rand_num_view)
 
     def __len__(self):
         return self.num_data
 
+
 def makeCudaData(data_list):
     for i, data in enumerate(data_list):
         data_list[i] = data.cuda()
     return data_list
+
 
 def init_network(args, n_cls):
     """
@@ -90,31 +94,31 @@ def init_network(args, n_cls):
     if args.frame == 'faster_rcnn':
         conv_num = str(int(np.log2(cfg.RCNN_COMMON.FEAT_STRIDE[0])))
         Network = fasterRCNN(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
-                             feat_list=('conv' + conv_num,), pretrained = True)
+                             feat_list=('conv' + conv_num,), pretrained=True)
     elif args.frame == 'faster_rcnn_vmrn':
         conv_num = str(int(np.log2(cfg.RCNN_COMMON.FEAT_STRIDE[0])))
         Network = fasterRCNN_VMRN(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
-                             feat_list=('conv' + conv_num,), pretrained=True)
+                                  feat_list=('conv' + conv_num,), pretrained=True)
     elif args.frame == 'fpn':
         Network = FPN(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
-                             feat_list=('conv2', 'conv3', 'conv4', 'conv5'), pretrained=True)
+                      feat_list=('conv2', 'conv3', 'conv4', 'conv5'), pretrained=True)
     elif args.frame == 'fcgn':
         conv_num = str(int(np.log2(cfg.FCGN.FEAT_STRIDE[0])))
         Network = FCGN(feat_name=args.net, feat_list=('conv' + conv_num,), pretrained=True)
     elif args.frame == 'mgn':
         conv_num = str(int(np.log2(cfg.RCNN_COMMON.FEAT_STRIDE[0])))
         Network = MGN(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
-                                  feat_list=('conv' + conv_num,), pretrained=True)
+                      feat_list=('conv' + conv_num,), pretrained=True)
     elif args.frame == 'all_in_one':
         conv_num = str(int(np.log2(cfg.RCNN_COMMON.FEAT_STRIDE[0])))
         Network = All_in_One(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
-                      feat_list=('conv' + conv_num,), pretrained=True)
+                             feat_list=('conv' + conv_num,), pretrained=True)
     elif args.frame == 'ssd':
         Network = SSD(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
                       feat_list=('conv3', 'conv4'), pretrained=True)
     elif args.frame == 'ssd_vmrn':
         Network = SSD_VMRN(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
-                      feat_list=('conv3', 'conv4'), pretrained=True)
+                           feat_list=('conv3', 'conv4'), pretrained=True)
 
     elif args.frame == 'efc_det':
         Network = EfficientDet(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
@@ -149,7 +153,7 @@ def init_network(args, n_cls):
         output_dir = args.save_dir + "/" + args.dataset + "/" + args.net
         load_name = os.path.join(output_dir,
                                  args.frame + '_{}_{}_{}.pth'.format(args.checksession, args.checkepoch,
-                                                                        args.checkpoint))
+                                                                     args.checkpoint))
         print("loading checkpoint %s" % (load_name))
         checkpoint = torch.load(load_name)
         args.session = checkpoint['session']
@@ -173,7 +177,7 @@ def init_network(args, n_cls):
         if value.requires_grad:
             if 'bias' in key:
                 params += [{'params': [value], 'lr': lr * (cfg.TRAIN.COMMON.DOUBLE_BIAS + 1),
-                          'weight_decay': cfg.TRAIN.COMMON.BIAS_DECAY and cfg.TRAIN.COMMON.WEIGHT_DECAY or 0}]
+                            'weight_decay': cfg.TRAIN.COMMON.BIAS_DECAY and cfg.TRAIN.COMMON.WEIGHT_DECAY or 0}]
             else:
                 params += [{'params': [value], 'lr': lr, 'weight_decay': cfg.TRAIN.COMMON.WEIGHT_DECAY}]
 
@@ -187,7 +191,8 @@ def init_network(args, n_cls):
 
     return Network, optimizer
 
-def detection_filter(all_boxes, all_grasp = None, max_per_image = 100):
+
+def detection_filter(all_boxes, all_grasp=None, max_per_image=100):
     # Limit to max_per_image detections *over all classes*
     image_scores = np.hstack([all_boxes[j][:, -1]
                               for j in xrange(1, len(all_boxes))])
@@ -203,16 +208,17 @@ def detection_filter(all_boxes, all_grasp = None, max_per_image = 100):
     else:
         return all_boxes
 
-def vis_gt(data_list, visualizer, frame, train_mode = False):
+
+def vis_gt(data_list, visualizer, frame, train_mode=False):
     im_vis = image_unnormalize(data_list[0].permute(1, 2, 0).cpu().numpy())
     # whether to visualize training data
     if not train_mode:
         im_vis = cv2.resize(im_vis, None, None, fx=1. / data_list[1][3].item(), fy=1. / data_list[1][2].item(),
-                        interpolation=cv2.INTER_LINEAR)
+                            interpolation=cv2.INTER_LINEAR)
     if frame in {"fpn", "faster_rcnn", "ssd"}:
         im_vis = visualizer.draw_objdet(im_vis, data_list[2].cpu().numpy())
     elif frame in {"ssd_vmrn", "vam", "faster_rcnn_vmrn"}:
-        im_vis = visualizer.draw_objdet(im_vis, data_list[2].cpu().numpy(), o_inds = np.arange(data_list[3].item()))
+        im_vis = visualizer.draw_objdet(im_vis, data_list[2].cpu().numpy(), o_inds=np.arange(data_list[3].item()))
         im_vis = visualizer.draw_mrt(im_vis, data_list[4].cpu().numpy(), rel_score=data_list[5])
     elif frame in {"fcgn"}:
         im_vis = visualizer.draw_graspdet(im_vis, data_list[2].cpu().numpy())
@@ -228,6 +234,7 @@ def vis_gt(data_list, visualizer, frame, train_mode = False):
         raise RuntimeError
     return im_vis
 
+
 def evalute_model(Network, namedb, args):
     max_per_image = 100
 
@@ -235,25 +242,25 @@ def evalute_model(Network, namedb, args):
     imdb, roidb, ratio_list, ratio_index, cls_list = combined_roidb(namedb, False)
     if args.frame in {"fpn", "faster_rcnn", "efc_det"}:
         dataset = fasterrcnnbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           len(cls_list), training=False, cls_list=cls_list, augmentation=False)
+                                        len(cls_list), training=False, cls_list=cls_list, augmentation=False)
     elif args.frame in {"ssd"}:
         dataset = ssdbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           len(cls_list), training=False, cls_list=cls_list, augmentation=False)
+                                 len(cls_list), training=False, cls_list=cls_list, augmentation=False)
     elif args.frame in {"ssd_vmrn", "vam"}:
         dataset = svmrnbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           len(cls_list), training=False, cls_list=cls_list, augmentation=False)
+                                   len(cls_list), training=False, cls_list=cls_list, augmentation=False)
     elif args.frame in {"faster_rcnn_vmrn"}:
         dataset = fvmrnbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           len(cls_list), training=False, cls_list=cls_list, augmentation=False)
+                                   len(cls_list), training=False, cls_list=cls_list, augmentation=False)
     elif args.frame in {"fcgn"}:
         dataset = fcgnbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           len(cls_list), training=False, cls_list=cls_list, augmentation=False)
+                                  len(cls_list), training=False, cls_list=cls_list, augmentation=False)
     elif args.frame in {"all_in_one"}:
         dataset = fallinonebatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           len(cls_list), training=False, cls_list=cls_list, augmentation=False)
+                                       len(cls_list), training=False, cls_list=cls_list, augmentation=False)
     elif args.frame in {"mgn"}:
         dataset = roignbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           len(cls_list), training=False, cls_list=cls_list, augmentation=False)
+                                   len(cls_list), training=False, cls_list=cls_list, augmentation=False)
     else:
         raise RuntimeError
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False, num_workers=0, pin_memory=True)
@@ -281,7 +288,7 @@ def evalute_model(Network, namedb, args):
                  for _ in xrange(len(cls_list))]
 
     Network.eval()
-    empty_array= np.transpose(np.array([[], [], [], [], []]), (1, 0))
+    empty_array = np.transpose(np.array([[], [], [], [], []]), (1, 0))
 
     for i in range(num_images):
 
@@ -292,29 +299,31 @@ def evalute_model(Network, namedb, args):
         det_tic = time.time()
         # forward process
         if args.frame == 'faster_rcnn' or args.frame == 'fpn':
-            rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_box, net_loss_cls, net_loss_bbox, rois_label = Network(data_batch)
+            rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_box, net_loss_cls, net_loss_bbox, rois_label = Network(
+                data_batch)
             boxes = rois[:, :, 1:5]
         elif args.frame in {'ssd', 'efc_det'}:
             bbox_pred, cls_prob, net_loss_bbox, net_loss_cls = Network(data_batch)
             boxes = Network.priors.type_as(bbox_pred).unsqueeze(0)
         elif args.frame == 'faster_rcnn_vmrn':
             rois, cls_prob, bbox_pred, rel_result, rpn_loss_cls, rpn_loss_box, \
-                RCNN_loss_cls, RCNN_loss_bbox, RCNN_rel_loss_cls, reg_loss, rois_label = Network(data_batch)
+            RCNN_loss_cls, RCNN_loss_bbox, RCNN_rel_loss_cls, reg_loss, rois_label = Network(data_batch)
             boxes = rois[:, :, 1:5]
             all_rel.append(rel_result)
         elif args.frame == 'ssd_vmrn' or args.frame == 'vam':
-            bbox_pred, cls_prob, rel_result, loss_bbox, loss_cls, rel_loss_cls ,reg_loss= Network(data_batch)
+            bbox_pred, cls_prob, rel_result, loss_bbox, loss_cls, rel_loss_cls, reg_loss = Network(data_batch)
             boxes = Network.priors.type_as(bbox_pred)
             all_rel.append(rel_result)
         elif args.frame == 'fcgn':
             bbox_pred, cls_prob, loss_bbox, loss_cls, rois_label, boxes = Network(data_batch)
         elif args.frame == 'mgn':
             rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_box, loss_cls, loss_bbox, rois_label, grasp_loc, grasp_prob, \
-                grasp_bbox_loss, grasp_cls_loss, grasp_conf_label, grasp_all_anchors = Network(data_batch)
+            grasp_bbox_loss, grasp_cls_loss, grasp_conf_label, grasp_all_anchors = Network(data_batch)
             boxes = rois[:, :, 1:5]
         elif args.frame == 'all_in_one':
             rois, cls_prob, bbox_pred, rel_result, rpn_loss_cls, rpn_loss_box, loss_cls, loss_bbox, rel_loss_cls, reg_loss, rois_label, \
-            grasp_loc, grasp_prob, grasp_bbox_loss, grasp_cls_loss, grasp_conf_label, grasp_all_anchors = Network(data_batch)
+            grasp_loc, grasp_prob, grasp_bbox_loss, grasp_cls_loss, grasp_conf_label, grasp_all_anchors = Network(
+                data_batch)
             boxes = rois[:, :, 1:5]
             all_rel.append(rel_result)
 
@@ -326,19 +335,19 @@ def evalute_model(Network, namedb, args):
         if args.frame in {'ssd', 'fpn', 'faster_rcnn', 'faster_rcnn_vmrn', 'ssd_vmrn', 'vam', 'efc_det'}:
             # detected_box is a list of boxes. len(list) = num_classes
             det_box = objdet_inference(cls_prob[0].data, bbox_pred[0].data, data_batch[1][0].data,
-                        box_prior=boxes[0].data, class_agnostic=args.class_agnostic, for_vis=False)
+                                       box_prior=boxes[0].data, class_agnostic=args.class_agnostic, for_vis=False)
             if args.vis:
                 if args.frame not in {'faster_rcnn_vmrn', 'ssd_vmrn', 'vam'}:
                     # for object detection algorithms
                     vis_boxes = objdet_inference(cls_prob[0].data, bbox_pred[0].data, data_batch[1][0].data,
-                                     box_prior=boxes[0].data, class_agnostic=args.class_agnostic,
-                                     for_vis=True)
+                                                 box_prior=boxes[0].data, class_agnostic=args.class_agnostic,
+                                                 for_vis=True)
                     data_list = [data_batch[0][0], data_batch[1][0], torch.Tensor(vis_boxes)]
                 else:
                     # for visual manipulation relationship detection algorithms
                     det_res = all_rel[-1]
                     if det_res[0].shape[0] > 0:
-                        vis_boxes = torch.cat([det_res[0], det_res[1].unsqueeze(1)], dim = 1)
+                        vis_boxes = torch.cat([det_res[0], det_res[1].unsqueeze(1)], dim=1)
                     else:
                         vis_boxes = torch.Tensor([])
                     rel_mat, rel_score = rel_prob_to_mat(det_res[2], vis_boxes.size(0))
@@ -351,16 +360,18 @@ def evalute_model(Network, namedb, args):
 
         elif args.frame in {'mgn'}:
             det_box, det_grasps = objgrasp_inference(cls_prob[0].data,
-                        bbox_pred[0].data if bbox_pred is not None else bbox_pred,
-                        grasp_prob.data, grasp_loc.data, data_batch[1][0].data, boxes[0].data,
-                        class_agnostic=args.class_agnostic,
-                        g_box_prior=grasp_all_anchors.data, for_vis=False, topN_g = 1)
+                                                     bbox_pred[0].data if bbox_pred is not None else bbox_pred,
+                                                     grasp_prob.data, grasp_loc.data, data_batch[1][0].data,
+                                                     boxes[0].data,
+                                                     class_agnostic=args.class_agnostic,
+                                                     g_box_prior=grasp_all_anchors.data, for_vis=False, topN_g=1)
             if args.vis:
                 vis_boxes, vis_grasps = objgrasp_inference(cls_prob[0].data,
-                             bbox_pred[0].data if bbox_pred is not None else bbox_pred,
-                             grasp_prob.data, grasp_loc.data, data_batch[1][0].data, boxes[0].data,
-                             class_agnostic=args.class_agnostic,
-                             g_box_prior=grasp_all_anchors.data, for_vis=True, topN_g=3)
+                                                           bbox_pred[0].data if bbox_pred is not None else bbox_pred,
+                                                           grasp_prob.data, grasp_loc.data, data_batch[1][0].data,
+                                                           boxes[0].data,
+                                                           class_agnostic=args.class_agnostic,
+                                                           g_box_prior=grasp_all_anchors.data, for_vis=True, topN_g=3)
                 if vis_boxes.shape[0] > 0:
                     g_inds = torch.Tensor(np.arange(vis_boxes.shape[0])).unsqueeze(1).repeat(1, vis_grasps.shape[1])
                 else:
@@ -387,10 +398,11 @@ def evalute_model(Network, namedb, args):
                 # for visual manipulation relationship detection algorithms
                 det_res = all_rel[-1]
                 vis_boxes, vis_grasps = objgrasp_inference(cls_prob[0].data,
-                             bbox_pred[0].data if bbox_pred is not None else bbox_pred,
-                             grasp_prob.data, grasp_loc.data, data_batch[1][0].data, boxes[0].data,
-                             class_agnostic=args.class_agnostic,
-                             g_box_prior=grasp_all_anchors.data, for_vis=True, topN_g=3)
+                                                           bbox_pred[0].data if bbox_pred is not None else bbox_pred,
+                                                           grasp_prob.data, grasp_loc.data, data_batch[1][0].data,
+                                                           boxes[0].data,
+                                                           class_agnostic=args.class_agnostic,
+                                                           g_box_prior=grasp_all_anchors.data, for_vis=True, topN_g=3)
                 if vis_boxes.shape[0] > 0:
                     g_inds = torch.Tensor(np.arange(vis_boxes.shape[0])).unsqueeze(1).repeat(1, vis_grasps.shape[1])
                 else:
@@ -406,7 +418,8 @@ def evalute_model(Network, namedb, args):
                 all_boxes[j][i] = det_box[j]
                 all_grasp[j][i] = det_grasps[j]
         elif args.frame in {'fcgn'}:
-            det_grasps = grasp_inference(cls_prob[0].data, bbox_pred[0].data, data_batch[1][0].data, box_prior = boxes[0].data, topN = 1)
+            det_grasps = grasp_inference(cls_prob[0].data, bbox_pred[0].data, data_batch[1][0].data,
+                                         box_prior=boxes[0].data, topN=1)
             all_grasp[1][i] = det_grasps
             if args.vis:
                 data_list = [data_batch[0][0], data_batch[1][0], torch.Tensor(det_grasps)]
@@ -424,7 +437,7 @@ def evalute_model(Network, namedb, args):
         nms_time = misc_toc - misc_tic
 
         sys.stdout.write('im_detect: {:d}/{:d} {:.3f}s {:.3f}s   \r' \
-                     .format(i + 1, num_images, detect_time, nms_time))
+                         .format(i + 1, num_images, detect_time, nms_time))
         sys.stdout.flush()
 
     print('Evaluating detections')
@@ -447,7 +460,7 @@ def evalute_model(Network, namedb, args):
             print('Evaluating grasp detection results')
             oag = False if Network.use_objdet_branch else True
             grasp_MRFPPI, mean_MRFPPI, key_point_MRFPPI, mAPgrasp = \
-                        imdb.evaluate_multigrasp_detections(all_boxes, all_grasp, object_class_agnostic = oag)
+                imdb.evaluate_multigrasp_detections(all_boxes, all_grasp, object_class_agnostic=oag)
             print('Mean Log-Average Miss Rate: %.4f' % np.mean(np.array(mean_MRFPPI)))
             result["mAP_grasp"] = mAPgrasp
             if args.frame == 'mgn':
@@ -471,6 +484,7 @@ def evalute_model(Network, namedb, args):
     end = time.time()
     print("test time: %0.4fs" % (end - start))
     return result
+
 
 def train():
     # check cuda devices
@@ -498,29 +512,36 @@ def train():
     iters_per_epoch = int(train_size / args.batch_size)
     if args.frame in {"fpn", "faster_rcnn", "efc_det"}:
         dataset = fasterrcnnbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           len(cls_list), training=True, cls_list=cls_list, augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
+                                        len(cls_list), training=True, cls_list=cls_list,
+                                        augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
     elif args.frame in {"ssd"}:
         dataset = ssdbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           len(cls_list), training=True, cls_list=cls_list, augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
+                                 len(cls_list), training=True, cls_list=cls_list,
+                                 augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
     elif args.frame in {"ssd_vmrn", "vam"}:
         dataset = svmrnbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           len(cls_list), training=True, cls_list=cls_list, augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
+                                   len(cls_list), training=True, cls_list=cls_list,
+                                   augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
     elif args.frame in {"faster_rcnn_vmrn"}:
         dataset = fvmrnbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           len(cls_list), training=True, cls_list=cls_list, augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
+                                   len(cls_list), training=True, cls_list=cls_list,
+                                   augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
     elif args.frame in {"fcgn"}:
         dataset = fcgnbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           len(cls_list), training=True, cls_list=cls_list, augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
+                                  len(cls_list), training=True, cls_list=cls_list,
+                                  augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
     elif args.frame in {"all_in_one"}:
         dataset = fallinonebatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           len(cls_list), training=True, cls_list=cls_list, augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
+                                       len(cls_list), training=True, cls_list=cls_list,
+                                       augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
     elif args.frame in {"mgn"}:
         dataset = roignbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
-                           len(cls_list), training=True, cls_list=cls_list, augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
+                                   len(cls_list), training=True, cls_list=cls_list,
+                                   augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
     else:
         raise RuntimeError
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size,
-                            sampler=sampler_batch, num_workers=args.num_workers)
+                                             sampler=sampler_batch, num_workers=args.num_workers)
 
     args.iter_per_epoch = int(len(roidb) / args.batch_size)
 
@@ -543,17 +564,17 @@ def train():
 
     # init variables
     current_result, best_result, loss_temp, loss_rpn_cls, loss_rpn_box, loss_rcnn_cls, loss_rcnn_box, loss_rel_pred, \
-        loss_grasp_box, loss_grasp_cls, fg_cnt, bg_cnt, fg_grasp_cnt, bg_grasp_cnt = 0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    loss_grasp_box, loss_grasp_cls, fg_cnt, bg_cnt, fg_grasp_cnt, bg_grasp_cnt = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     save_flag, rois, rpn_loss_cls, rpn_loss_box, rel_loss_cls, cls_prob, bbox_pred, rel_cls_prob, loss_bbox, loss_cls, \
-        rois_label, grasp_cls_loss, grasp_bbox_loss, grasp_conf_label = \
-            False, None,None,None,None,None,None,None,None,None,None,None,None,None
+    rois_label, grasp_cls_loss, grasp_bbox_loss, grasp_conf_label = \
+        False, None, None, None, None, None, None, None, None, None, None, None, None, None
 
     # initialize step counter
     if args.resume:
         step = args.checkpoint
     else:
         step = 0
-        
+
     for epoch in range(args.checkepoch, args.max_epochs + 1):
         # setting to train mode
         Network.train()
@@ -562,7 +583,7 @@ def train():
         start = time.time()
 
         data_iter = iter(dataloader)
-        while(True):
+        while (True):
 
             if step >= iters_per_epoch:
                 break
@@ -588,14 +609,14 @@ def train():
             # forward process
             if args.frame == 'faster_rcnn_vmrn':
                 rois, cls_prob, bbox_pred, rel_cls_prob, rpn_loss_cls, rpn_loss_box, loss_cls, \
-                            loss_bbox, rel_loss_cls, reg_loss, rois_label = Network(data_batch)
+                loss_bbox, rel_loss_cls, reg_loss, rois_label = Network(data_batch)
                 loss = (rpn_loss_cls + rpn_loss_box + loss_cls + loss_bbox + reg_loss + rel_loss_cls).mean()
             elif args.frame == 'faster_rcnn' or args.frame == 'fpn':
                 rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_box, loss_cls, loss_bbox, \
-                            rois_label = Network(data_batch)
+                rois_label = Network(data_batch)
                 loss = (rpn_loss_cls + rpn_loss_box + loss_cls + loss_bbox).mean()
             elif args.frame == 'fcgn':
-                bbox_pred, cls_prob, loss_bbox, loss_cls, rois_label,rois = Network(data_batch)
+                bbox_pred, cls_prob, loss_bbox, loss_cls, rois_label, rois = Network(data_batch)
                 loss = (loss_bbox + loss_cls).mean()
             elif args.frame == 'mgn':
                 rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_box, loss_cls, loss_bbox, rois_label, grasp_loc, \
@@ -604,9 +625,10 @@ def train():
                        cfg.MGN.OBJECT_GRASP_BALANCE * (grasp_bbox_loss.mean() + grasp_cls_loss.mean())
             elif args.frame == 'all_in_one':
                 rois, cls_prob, bbox_pred, rel_cls_prob, rpn_loss_cls, rpn_loss_box, loss_cls, loss_bbox, rel_loss_cls, reg_loss, rois_label, \
-                grasp_loc, grasp_prob, grasp_bbox_loss,grasp_cls_loss, grasp_conf_label, grasp_all_anchors = Network(data_batch)
+                grasp_loc, grasp_prob, grasp_bbox_loss, grasp_cls_loss, grasp_conf_label, grasp_all_anchors = Network(
+                    data_batch)
                 loss = (rpn_loss_box + rpn_loss_cls + loss_cls + loss_bbox + rel_loss_cls + reg_loss \
-                       + cfg.MGN.OBJECT_GRASP_BALANCE * grasp_bbox_loss + grasp_cls_loss).mean()
+                        + cfg.MGN.OBJECT_GRASP_BALANCE * grasp_bbox_loss + grasp_cls_loss).mean()
 
             elif args.frame in {'ssd', 'efc_det'}:
                 bbox_pred, cls_prob, loss_bbox, loss_cls = Network(data_batch)
@@ -618,8 +640,10 @@ def train():
 
             # backward process
             loss.backward()
+            g_norm = gradient_norm(Network)
             if args.net == "vgg16":
                 clip_gradient(Network, 10.)
+            print("Gradient norm:{:.3f}".format(g_norm))
             optimizer.step()
             step += 1
 
@@ -733,7 +757,8 @@ def train():
             # adjust learning rate
             if args.lr_decay_step == 0:
                 # clr = lr / (1 + decay * n) -> lr_n / lr_n+1 = (1 + decay * (n+1)) / (1 + decay * n)
-                decay = (1 + args.lr_decay_gamma * Network.iter_counter) / (1 + args.lr_decay_gamma * (Network.iter_counter + 1))
+                decay = (1 + args.lr_decay_gamma * Network.iter_counter) / (
+                            1 + args.lr_decay_gamma * (Network.iter_counter + 1))
                 adjust_learning_rate(optimizer, decay)
             elif Network.iter_counter % (args.lr_decay_step) == 0:
                 adjust_learning_rate(optimizer, args.lr_decay_gamma)
@@ -771,10 +796,10 @@ def train():
 
         end_epoch_time = time.time()
         print("Epoch finished. Time costing: ", end_epoch_time - start_epoch_time, "s")
-        step = 0 # reset step counter
+        step = 0  # reset step counter
+
 
 def test():
-
     # check cuda devices
     if not torch.cuda.is_available():
         assert RuntimeError("Training can only be done by GPU. Please use --cuda to enable training.")
@@ -786,13 +811,14 @@ def test():
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    _, _, _, _, cls_list = combined_roidb(args.imdbval_name, training = False)
+    _, _, _, _, cls_list = combined_roidb(args.imdbval_name, training=False)
 
     args.iter_per_epoch = None
     # init network
     Network, optimizer = init_network(args, len(cls_list))
     Network.eval()
     evalute_model(Network, args.imdbval_name, args)
+
 
 # def test_testcode():
 #     with open('det_res.pkl', 'rb') as f:

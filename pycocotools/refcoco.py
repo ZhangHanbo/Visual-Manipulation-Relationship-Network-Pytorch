@@ -29,7 +29,6 @@ import json
 import cPickle as pickle
 import time
 import itertools
-import skimage.io as io
 import matplotlib.pyplot as plt
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Polygon, Rectangle
