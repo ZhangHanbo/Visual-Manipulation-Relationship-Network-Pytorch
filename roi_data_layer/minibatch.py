@@ -16,6 +16,7 @@ from model.utils.config import cfg
 from model.utils.blob import prep_im_for_blob, im_list_to_blob
 import pdb
 import cv2
+import warnings
 
 def get_minibatch_objdet(roidb):
     box_dim = roidb['boxes'].shape[1]
@@ -99,12 +100,27 @@ def _get_image_blob(roidb):
     im = cv2.imread(roidb['image'])
     im = np.rot90(im, roidb['rotated'])
 
+    def check_and_modify_image(im, roidb):
+        # For some images, the size of PIL.Image.open does not match that of cv2.imread.
+        # For now, this is just an expedient but not the perfect solution.
+        w_r = roidb["width"]
+        h_r = roidb["height"]
+        if w_r == im.shape[0] and h_r == im.shape[1] and w_r != h_r:
+            warnings.warn("The size of PIL.Image.open does not match that of cv2.imread. "
+                          "Rotating the image by 90 degrees clockwise. Image: " + roidb["image"])
+            im = np.rot90(im, 3)
+        assert w_r == im.shape[1] and h_r == im.shape[0]
+        return im
+
+    im = check_and_modify_image(im, roidb)
+
     if len(im.shape) == 2:
         im = im[:,:,np.newaxis]
         im = np.concatenate((im,im,im), axis=2)
 
     # BGR to RGB
-    im = im[:, :, ::-1]
+    if cfg.PRETRAIN_TYPE == "pytorch":
+        im = im[:, :, ::-1]
 
     im = im.astype(np.float32, copy=False)
     return im

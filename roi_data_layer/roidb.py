@@ -7,8 +7,10 @@ import datasets
 import numpy as np
 from model.utils.config import cfg
 from datasets.factory import get_imdb
-import PIL
+from datasets.joint_od import joint_od
+from model.utils.config import dataset_name_to_cfg
 import pdb
+import pickle
 
 def prepare_roidb(imdb):
   """Enrich the imdb's roidb by adding some derived quantities that
@@ -17,9 +19,8 @@ def prepare_roidb(imdb):
   each ground-truth box. The class with maximum overlap is also
   recorded.
   """
-
   roidb = imdb.roidb
-  if not (imdb.name.startswith('coco')):
+  if not (imdb.name.startswith('coco') or isinstance(imdb, joint_od)):
     widths = imdb.widths
     heights = imdb.heights
 
@@ -37,9 +38,16 @@ def prepare_roidb(imdb):
 
     roidb[i]['img_id'] = imdb.image_id_at(i)
     roidb[i]['image'] = imdb.image_path_at(i)
-    if not (imdb.name.startswith('coco')):
+    if not (imdb.name.startswith('coco') or isinstance(imdb, joint_od)):
       roidb[i]['width'] = widths[i]
       roidb[i]['height'] = heights[i]
+
+    # TODO: There may be replicated img_id for different images. Deal with them!
+    if roidb[i]['img_id'].startswith("coco"):
+      roidb[i]['img_id'] = roidb[i]['img_id'].split("_")[1]
+    elif roidb[i]['img_id'].startswith("vg"):
+      roidb[i]['img_id'] = roidb[i]['img_id'].split("_")[1]
+
     # need gt_overlaps as a dense array for argmax
     if 'gt_overlaps' in roidb[i]:
       gt_overlaps = roidb[i]['gt_overlaps'].toarray()
@@ -112,35 +120,56 @@ def combined_roidb(imdb_names, training=True):
   def get_training_roidb(imdb):
     """Returns a roidb (Region of Interest database) for use in training."""
     print('Preparing training data...')
-
     prepare_roidb(imdb)
     #ratio_index = rank_roidb_ratio(imdb)
     print('done')
-
     return imdb.roidb
-  
-  def get_roidb(imdb_name):
-    imdb = get_imdb(imdb_name)
-    print('Loaded dataset `{:s}` for training'.format(imdb.name))
-    imdb.set_proposal_method(cfg.TRAIN.COMMON.PROPOSAL_METHOD)
-    print('Set proposal method: {:s}'.format(cfg.TRAIN.COMMON.PROPOSAL_METHOD))
-    roidb = get_training_roidb(imdb)
-    return roidb
 
-  roidbs = [get_roidb(s) for s in imdb_names.split('+')]
-  roidb = roidbs[0]
+  # generate original roidb
+  imdb_list = imdb_names.split('+')
+  imdb_list.sort()
 
-  if len(roidbs) > 1:
-    for r in roidbs[1:]:
-      roidb.extend(r)
-    tmp = get_imdb(imdb_names.split('+')[1])
-    imdb = datasets.imdb.imdb(imdb_names, tmp.classes)
+  print('Set proposal method: {:s}'.format(cfg.TRAIN.COMMON.PROPOSAL_METHOD))
+  imdbs = [get_imdb(s) for s in imdb_list]
+  imdb_dict = dict(zip(imdb_list, imdbs))
+
+  # modify roidbs to the combined versions
+  if len(imdbs) > 1:
+    imdb = joint_od(imdbs)
   else:
-    imdb = get_imdb(imdb_names)
+    imdb = imdbs[0]
+  cls_list_to_build_net = imdb.classes
+  roidb = get_training_roidb(imdb)
+
+  if cfg.RCNN_COMMON.OUT_LAYER != '':
+    assert len(imdbs) == 1, "Now the specified OUT_LAYER only support for non-combined dataset."
+    dataset_cfg = dataset_name_to_cfg(cfg.RCNN_COMMON.OUT_LAYER)
+    if training:
+      out_layer_cfg = dataset_cfg['train']
+    else:
+      out_layer_cfg = dataset_cfg['val']
+    if imdb_names != out_layer_cfg:
+      assert len(out_layer_cfg.split('+')) > 1, "When the categories in testing set is a subset of those of" \
+        " the training, you also need to use '+' to concatenate them (e.g. coco+pascal_voc)"
+      temp_imdb_list = out_layer_cfg.split('+')
+      temp_imdb_list.sort()
+      temp_imdbs = []
+      # to make sure that the test dataset can be modified to match the one used in training
+      # WE ASSUME that the memory of the test dataset can be shared.
+      for s in temp_imdb_list:
+        if s in imdb_dict:
+          temp_imdbs.append(imdb_dict[s])
+        else:
+          temp_imdbs.append(get_imdb(s))
+
+      temp_imdb = joint_od(temp_imdbs)
+      for db in imdbs:
+        db._update_roidb()
+      cls_list_to_build_net = temp_imdb.classes
 
   if training:
     roidb = filter_roidb(roidb)
 
   ratio_list, ratio_index = rank_roidb_ratio(roidb)
 
-  return imdb, roidb, ratio_list, ratio_index
+  return imdb, roidb, ratio_list, ratio_index, cls_list_to_build_net
