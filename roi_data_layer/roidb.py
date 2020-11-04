@@ -25,7 +25,7 @@ def prepare_roidb(imdb):
     heights = imdb.heights
 
   #xmax,ymax,xmin,ymin = (0,0,300,300)
-
+         
   for i in range(len(imdb.image_index)):
     #if (np.max(roidb[i]['boxes'][:,::2]) > xmax):
      # xmax = np.max(roidb[i]['boxes'][:,::2])
@@ -68,8 +68,8 @@ def prepare_roidb(imdb):
 def rank_roidb_ratio(roidb):
     # rank roidb based on the ratio between width and height.
     ratio_large = 2 # largest ratio to preserve.
-    ratio_small = 0.5 # smallest ratio to preserve.
-
+    ratio_small = 0.5 # smallest ratio to preserve.    
+    
     ratio_list = []
     for i in range(len(roidb)):
       width = roidb[i]['width']
@@ -81,7 +81,7 @@ def rank_roidb_ratio(roidb):
         ratio = ratio_large
       elif ratio < ratio_small:
         roidb[i]['need_crop'] = 1
-        ratio = ratio_small
+        ratio = ratio_small        
       else:
         roidb[i]['need_crop'] = 0
 
