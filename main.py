@@ -643,7 +643,7 @@ def train():
             g_norm = gradient_norm(Network)
             if args.net == "vgg16":
                 clip_gradient(Network, 10.)
-            print("Gradient norm:{:.3f}".format(g_norm))
+            # print("Gradient norm:{:.3f}".format(g_norm))
             optimizer.step()
             step += 1
 

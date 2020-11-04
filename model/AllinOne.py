@@ -58,6 +58,7 @@ class All_in_One(MGN, VMRN):
             rois_label, rois_target, rois_inside_ws, rois_outside_ws = None, None, None, None
             od_rois = rois.data
         pooled_feat = self._roi_pooling(base_feat, rois)
+        # print(pooled_feat.mean().item(), pooled_feat.max().item(), pooled_feat.min().item(), pooled_feat.std().item())
 
         ### OBJECT DETECTION
         cls_score, cls_prob, bbox_pred = self._get_obj_det_result(pooled_feat)

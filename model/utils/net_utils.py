@@ -391,7 +391,7 @@ def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agno
         if with_cls_score:
             all_box = np.concatenate([all_box, cls], axis = 1)
         else:
-            all_box[:, -1] = cls
+            all_box[:, -1:] = cls
     return all_box
 
 def grasp_inference(cls_prob, box_output, im_info, box_prior = None, topN = False, recover_imscale = True):
