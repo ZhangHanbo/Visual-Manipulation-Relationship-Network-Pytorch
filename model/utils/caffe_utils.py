@@ -129,13 +129,67 @@ def _get_blobs(im, rois):
     blobs['rois'] = _get_rois_blob(rois, im_scale_factors)
     return blobs, im_scale_factors
 
-def rcnn_conv_feat_ext(net, im, n_conv = 4):
-    pass
+def rcnn_im_detect(net, im):
+    """Detect object classes in an image given object proposals.
+    Arguments:
+        net (caffe.Net): Fast R-CNN network to use
+        im (ndarray): color image to test (in BGR order)
+        boxes (ndarray): R x 4 array of object proposals or None (for RPN)
+    Returns:
+        scores (ndarray): R x K array of object class scores (K includes
+            background as object category 0)
+        boxes (ndarray): R x (4*K) array of predicted bounding boxes
+        attr_scores (ndarray): R x M array of attribute class scores
+    """
+    blobs, im_scales = _get_blobs(im, None)
 
-def rcnn_box_feat_ext(net, im, boxes):
-    pass
+    im_blob = blobs['data']
+    blobs['im_info'] = np.array(
+        [[im_blob.shape[2], im_blob.shape[3], im_scales[0]]],
+        dtype=np.float32)
 
-def rcnn_im_detect(net, im, boxes, feat_list = ()):
+    # reshape network inputs
+    net.blobs['data'].reshape(*(blobs['data'].shape))
+    if 'im_info' in net.blobs:
+        net.blobs['im_info'].reshape(*(blobs['im_info'].shape))
+
+    # do forward
+    forward_kwargs = {'data': blobs['data'].astype(np.float32, copy=False)}
+    if 'im_info' in net.blobs:
+        forward_kwargs['im_info'] = blobs['im_info'].astype(np.float32, copy=False)
+    blobs_out = net.forward(**forward_kwargs)
+
+    if cfg.TEST.HAS_RPN:
+        assert len(im_scales) == 1, "Only single-image batch implemented"
+        rois = net.blobs['rois'].data.copy()
+        # unscale back to raw image space
+        boxes = rois[:, 1:5] / im_scales[0]
+
+    # use softmax estimated probabilities
+    scores = blobs_out['cls_prob']
+
+    if cfg.TEST.BBOX_REG:
+        # Apply bounding-box regression deltas
+        box_deltas = blobs_out['bbox_pred']
+        pred_boxes = bbox_transform_inv(boxes, box_deltas)
+        pred_boxes = clip_boxes(pred_boxes, im.shape)
+    else:
+        # Simply repeat the boxes, once for each class
+        pred_boxes = np.tile(boxes, (1, scores.shape[1]))
+
+    if 'attr_prob' in net.blobs:
+        attr_scores = blobs_out['attr_prob']
+    else:
+        attr_scores = None
+
+    if 'rel_prob' in net.blobs:
+        rel_scores = blobs_out['rel_prob']
+    else:
+        rel_scores = None
+
+    return scores, pred_boxes, attr_scores, rel_scores
+
+def rcnn_im_detect_with_gtbox(net, im, boxes, feat_list = ()):
     """Detect object classes in an image given object proposals.
 
     Arguments:
@@ -226,7 +280,7 @@ def rcnn_im_detect(net, im, boxes, feat_list = ()):
 
 if __name__ == '__main__':
     model_path = "/data0/svc4/code/Visual-Manipulation-Relationship-Network-Pytorch/data/pretrained_model/resnet101_faster_rcnn_final.caffemodel"
-    prototxt_path = "/data0/svc4/code/Visual-Manipulation-Relationship-Network-Pytorch/data/pretrained_model/test_gt.prototxt"
+    prototxt_path = "/data0/svc4/code/Visual-Manipulation-Relationship-Network-Pytorch/data/pretrained_model/test.prototxt"
 
     print("Loading Caffe Model: " + model_path)
     im = 128 * np.ones((300, 500, 3), dtype=np.uint8)
@@ -234,5 +288,6 @@ if __name__ == '__main__':
     boxes = np.random.rand(10, 4)
     boxes[:, 2:] += boxes[:, :2]
     boxes *= 150
-    _, _, _, _, feats = rcnn_im_detect(net, im, boxes, feat_list=("conv4", "conv5", "logit"))
+    _, _, _, _, feats = rcnn_im_detect(net, im)
+    # _, _, _, _, feats = rcnn_im_detect_with_gtbox(net, im, boxes, feat_list=("conv4", "conv5", "logit"))
     pass

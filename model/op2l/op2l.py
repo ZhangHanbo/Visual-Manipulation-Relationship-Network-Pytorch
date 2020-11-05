@@ -10,7 +10,7 @@ from __future__ import absolute_import
 import torch.nn as nn
 from model.utils.config import cfg
 
-from model.roi_layers import ROIAlign, ROIPool
+from model.roi_layers import RoIAlignAvg, ROIPool
 
 from model.op2l.rois_pair_expanding_layer import _RoisPairExpandingLayer
 from model.op2l.object_pairing_layer import _ObjPairLayer
@@ -24,7 +24,7 @@ class _OP2L(nn.Module):
         self.OP2L_object_pair = _ObjPairLayer(self._isex)
 
         self.OP2L_roi_pool = ROIPool((cfg.RCNN_COMMON.POOLING_SIZE, cfg.RCNN_COMMON.POOLING_SIZE), 1.0 / 16.0)
-        self.OP2L_roi_align = ROIAlign((cfg.RCNN_COMMON.POOLING_SIZE, cfg.RCNN_COMMON.POOLING_SIZE), 1.0 / 16.0, 0)
+        self.OP2L_roi_align = RoIAlignAvg((cfg.RCNN_COMMON.POOLING_SIZE, cfg.RCNN_COMMON.POOLING_SIZE), 1.0 / 16.0, 0)
 
     def forward(self, feats, rois, batch_size, obj_num):
         """

@@ -11,7 +11,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from utils.config import cfg
 from rpn.rpn import _RPN
-from model.roi_layers import ROIAlign, ROIPool
+from model.roi_layers import RoIAlignAvg, RoIAlignMax, ROIPool
 from rpn.proposal_target_layer_cascade import _ProposalTargetLayer
 from Detectors import objectDetector
 from utils.net_utils import _smooth_l1_loss, weights_normal_init
@@ -39,7 +39,7 @@ class fasterRCNN(objectDetector):
 
         self.RCNN_proposal_target = _ProposalTargetLayer(self.n_classes)
         self.RCNN_roi_pool = ROIPool((cfg.RCNN_COMMON.POOLING_SIZE, cfg.RCNN_COMMON.POOLING_SIZE), 1.0 / 16.0)
-        self.RCNN_roi_align = ROIAlign((cfg.RCNN_COMMON.POOLING_SIZE, cfg.RCNN_COMMON.POOLING_SIZE), 1.0 / 16.0, 0)
+        self.RCNN_roi_align = RoIAlignAvg((cfg.RCNN_COMMON.POOLING_SIZE, cfg.RCNN_COMMON.POOLING_SIZE), 1.0 / 16.0, 0)
 
         self.grid_size = cfg.RCNN_COMMON.POOLING_SIZE * 2 if cfg.RCNN_COMMON.CROP_RESIZE_WITH_MAX_POOL else cfg.RCNN_COMMON.POOLING_SIZE
 

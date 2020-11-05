@@ -13,7 +13,7 @@ from torch.autograd import Variable
 import numpy as np
 from utils.config import cfg
 from rpn.rpn import _RPN
-from model.roi_layers import ROIAlign, ROIPool
+from model.roi_layers import RoIAlignAvg, ROIPool
 from rpn.proposal_target_layer_cascade import _ProposalTargetLayer
 from Detectors import objectDetector
 
@@ -51,7 +51,7 @@ class FPN(objectDetector):
         self.RCNN_roi_pools = nn.ModuleList()
         for i in range(len(cfg.RCNN_COMMON.FEAT_STRIDE)):
             self.RCNN_roi_aligns.append(
-                ROIAlign((cfg.RCNN_COMMON.POOLING_SIZE, cfg.RCNN_COMMON.POOLING_SIZE),
+                RoIAlignAvg((cfg.RCNN_COMMON.POOLING_SIZE, cfg.RCNN_COMMON.POOLING_SIZE),
                             1.0 / float(cfg.RCNN_COMMON.FEAT_STRIDE[i]), 0)
             )
 

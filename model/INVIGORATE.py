@@ -3,6 +3,7 @@
 # Copyright: Hanbo Zhang
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Hanbo Zhang
+# Modified from: https://github.com/facebookresearch/vilbert-multi-task
 # --------------------------------------------------------
 
 
@@ -14,11 +15,9 @@ from utils.config import cfg
 from model.fcgn.bbox_transform_grasp import points2labels
 
 from model.rpn.bbox_transform import bbox_overlaps, bbox_overlaps_batch
+from AllinOne import All_in_One
 
-from MGN import MGN
-from Detectors import VMRN
-
-class All_in_One(MGN, VMRN):
+class INVIGORATE(All_in_One):
     """ faster RCNN """
     def __init__(self, classes, class_agnostic, feat_name, feat_list=('conv4',), pretrained = True):
         super(All_in_One, self).__init__(classes, class_agnostic, feat_name, feat_list, pretrained)
