@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from utils.config import cfg
-from utils.caffe_utils import load_caffemodel
+from utils.butd_utils import load_caffemodel
 
 from FasterRCNN import fasterRCNN
 from utils.net_utils import set_bn_eval, set_bn_fix
