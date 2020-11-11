@@ -81,9 +81,11 @@ class All_in_One(MGN, VMRN):
         # generate object RoIs.
         obj_rois, obj_num = torch.Tensor([]).type_as(gt_boxes), torch.Tensor([]).type_as(num_boxes)
         # online data
-        if self.iter_counter > cfg.TRAIN.VMRN.ONLINEDATA_BEGIN_ITER:
-            if not self.training or (cfg.TRAIN.VMRN.TRAINING_DATA == 'all' or 'online'):
-                obj_rois, obj_num = self._object_detection(od_rois, od_cls_prob, od_bbox_pred, self.batch_size, im_info.data)
+        if not self.training or (self.iter_counter > cfg.TRAIN.VMRN.ONLINEDATA_BEGIN_ITER
+                                 and (cfg.TRAIN.VMRN.TRAINING_DATA == 'all' or 'online')):
+            obj_rois, obj_num = self._object_detection(
+                od_rois, od_cls_prob, od_bbox_pred, self.batch_size, im_info.data)
+
         # offline data
         if self.training and (cfg.TRAIN.VMRN.TRAINING_DATA == 'all' or 'offline'):
             for i in range(self.batch_size):

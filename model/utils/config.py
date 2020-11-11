@@ -178,7 +178,7 @@ __C.TEST.COMMON.NMS = 0.3
 # See report for details
 __C.TEST.COMMON.MODE = 'nms'
 # Object detection final threshold
-__C.TEST.COMMON.OBJ_DET_THRESHOLD = 0.5
+__C.TEST.COMMON.OBJ_DET_THRESHOLD = 0.3
 # Test using these proposals
 __C.TEST.COMMON.PROPOSAL_METHOD = 'gt'
 # Test using bounding-box regressors
