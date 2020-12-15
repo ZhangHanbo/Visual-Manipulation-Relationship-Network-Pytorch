@@ -9,7 +9,6 @@ demo*
 *.graffle
 
 model/header/*
-model/EfficientDet.py
 model/featnet/
 
 .idea/

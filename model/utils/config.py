@@ -304,7 +304,7 @@ __C.VMRN.CHILD = 2
 __C.VMRN.NOREL = 3
 # use shared weights in relationship network
 __C.VMRN.SHARE_WEIGHTS = False
-__C.VMRN.RELATION_CLASSIFIER = "UVTransE"
+__C.VMRN.RELATION_CLASSIFIER = "vmrn"
 __C.VMRN.UVTRANSE_REGULARIZATION = 1.0
 __C.VMRN.USE_CRF = False
 __C.VMRN.SCORE_POSTPROC=False

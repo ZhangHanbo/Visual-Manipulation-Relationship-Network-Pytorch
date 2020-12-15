@@ -91,6 +91,11 @@ def set_bn_fix(m):
     if classname.find('BatchNorm') != -1:
         for p in m.parameters(): p.requires_grad=False
 
+def set_bn_trainable(m):
+    classname = m.__class__.__name__
+    if classname.find('BatchNorm') != -1:
+        for p in m.parameters(): p.requires_grad=True
+
 def set_bn_eval(m):
     classname = m.__class__.__name__
     if classname.find('BatchNorm') != -1:
@@ -691,7 +696,7 @@ def find_all_leaves(mrt, t_node = 0):
 
     return path
 
-def leaf_and_descendant_stats(rel_prob_mat, sample_num = 1000):
+def leaf_and_desc_estimate(rel_prob_mat, sample_num = 1000, with_virtual_node=False, removed=None):
     # TODO: Numpy may support a faster implementation.
     def sample_trees(rel_prob, sample_num=1):
         return torch.multinomial(rel_prob, sample_num, replacement=True)
@@ -701,6 +706,36 @@ def leaf_and_descendant_stats(rel_prob_mat, sample_num = 1000):
         # this function runs much faster on CPU.
         cuda_data = True
         rel_prob_mat = rel_prob_mat.cpu()
+
+    # add virtual node, with uniform relation priors
+    num_obj = rel_prob_mat.shape[-1]
+    if with_virtual_node:
+        if removed is None:
+            removed = []
+        removed = torch.tensor(removed).long()
+        v_row = torch.zeros((3, 1, num_obj + 1)).type_as(rel_prob_mat)
+        v_column = torch.zeros((3, num_obj, 1)).type_as(rel_prob_mat)
+        # no other objects can be the parent node of the virtual node,
+        # i.e., we assume that the virtual node must be a root node
+        # 1) if the virtual node is the target, its parents can be ignored
+        # 2) if the virtual node is not the target, such a setting will
+        # not affect the relationships among other nodes
+        v_column[0] = 0
+        v_column[1] = 1./3.
+        v_column[2] = 2./3.
+        v_column[1, removed] = 0.
+        v_column[2, removed] = 1.
+        rel_prob_mat = torch.cat(
+            [torch.cat([rel_prob_mat, v_column], dim=2),
+             v_row], dim=1)
+    else:
+        # initialize the virtual node to have no relationship with other objects
+        v_row = torch.zeros((3, 1, num_obj + 1)).type_as(rel_prob_mat)
+        v_column = torch.zeros((3, num_obj, 1)).type_as(rel_prob_mat)
+        v_column[2, :, 0] = 1
+        rel_prob_mat = torch.cat(
+            [torch.cat([rel_prob_mat, v_column], dim=2),
+             v_row], dim=1)
 
     rel_prob_mat = rel_prob_mat.permute((1, 2, 0))
     mrt_shape = rel_prob_mat.shape[:2]
@@ -713,9 +748,12 @@ def leaf_and_descendant_stats(rel_prob_mat, sample_num = 1000):
     mrts = mrts.view(sample_num, -1)
     mrts[:, rel_valid_ind] = samples.permute((1,0))
     mrts = mrts.view((sample_num,) + mrt_shape)
-    f_mats = (mrts == 1)
+    p_mats = (mrts == 1)
     c_mats = (mrts == 2)
-    adj_mats = f_mats + c_mats.transpose(1,2)
+    adj_mats = p_mats + c_mats.transpose(1,2)
+    
+    def v_node_is_leaf(adj_mat):
+        return adj_mat[-1].sum() == 0
 
     def no_cycle(adj_mat):
         keep_ind = (adj_mat.sum(0) > 0)
@@ -749,22 +787,43 @@ def leaf_and_descendant_stats(rel_prob_mat, sample_num = 1000):
         return desc_mat.transpose(0,1)
 
     leaf_desc_prob = torch.zeros(mrt_shape).type_as(rel_prob_mat)
+    desc_prob = torch.zeros(mrt_shape).type_as(rel_prob_mat)
+    desc_num = torch.zeros(mrt_shape[0]).type_as(rel_prob_mat)
+    ance_num = torch.zeros(mrt_shape[0]).type_as(rel_prob_mat)
+
+    if with_virtual_node:
+        v_desc_num_after_q2 = torch.zeros(mrt_shape[0]).type_as(rel_prob_mat)
+
     count = 0
     for adj_mat in adj_mats:
-        if no_cycle(adj_mat):
+        if removed is None and with_virtual_node and v_node_is_leaf(adj_mat):
+            continue
+        if not no_cycle(adj_mat):
+            continue
+        else:
             desc_mat = descendants(adj_mat)
+            desc_num += desc_mat.sum(0)
+            ance_num += desc_mat.sum(1) - 1  # ancestors don't include the object itself
             leaf_desc_mat = desc_mat * (adj_mat.sum(1, keepdim=True) == 0)
+            desc_prob += desc_mat
             leaf_desc_prob += leaf_desc_mat
             count += 1
-    leaf_desc_prob = leaf_desc_prob / count
 
-    leaf_desc_prob_with_v_node = torch.eye(mrt_shape[0] + 1).type_as(rel_prob_mat)
-    leaf_desc_prob_with_v_node[:mrt_shape[0], :mrt_shape[1]] = leaf_desc_prob
+    desc_num /= count
+    ance_num /= count
+    leaf_desc_prob /= count
+    desc_prob /= count
+    leaf_prob = leaf_desc_prob.diag()
     if cuda_data:
-        leaf_desc_prob_with_v_node = leaf_desc_prob_with_v_node.cuda()
-    return leaf_desc_prob_with_v_node
+        leaf_desc_prob = leaf_desc_prob.cuda()
+        leaf_prob = leaf_prob.cuda()
+        desc_prob = desc_prob.cuda()
+        ance_num = ance_num.cuda()
+        desc_num = desc_num.cuda()
 
-def leaf_prob(rel_prob_mat):
+    return leaf_desc_prob, desc_prob, leaf_prob, desc_num, ance_num
+
+def leaf_prob_comp(rel_prob_mat):
     # TODO: this function does not exclude the situations in which the MRT includes cycles.
     parent_prob_mat = rel_prob_mat[cfg.VMRN.FATHER - 1]
     child_prob_mat = rel_prob_mat[cfg.VMRN.CHILD - 1]
@@ -865,12 +924,154 @@ def inner_loop_planning(belief, planning_depth=3):
                     q += t_q * ground_prob[-1]
             q_vec.append(q.item())
             return torch.Tensor(q_vec).type_as(belief["ground_prob"])
+
+    with torch.no_grad():
+        belief["leaf_desc_prob"], belief["desc_prob"], belief["leaf_prob"], belief["desc_num"], belief["ance_num"] = \
+            leaf_and_desc_estimate(prob_rel_mat, sample_num=1000, with_virtual_node=True)
+
     q_vec = estimate_q_vec(belief, 0)
     print("Q Value for Each Action: ")
     print(q_vec.tolist()[:num_obj])
     print(q_vec.tolist()[num_obj:2*num_obj])
     print(q_vec.tolist()[2*num_obj:3*num_obj])
     print(q_vec.tolist()[3*num_obj])
+    return torch.argmax(q_vec).item()
+
+
+def planning_with_macro(belief, planning_depth=3):
+    """
+    :param belief: including "leaf_desc_prob", "desc_num", and "ground_prob"
+    :param planning_depth:
+    :return:
+    """
+    num_obj = belief["ground_prob"].shape[0] - 1  # exclude the virtual node
+
+    # ALL ACTIONS INCLUDE:
+    # Do you mean ... ? (num_obj) + Where is the target ? (1) + grasping macro (1)
+    penalty_for_asking = -2
+    penalty_for_fail = -10
+
+    def gen_grasp_macro(belief):
+
+        grasp_macros = {i: None for i in range(num_obj)}
+        belief_infos = belief["infos"]
+
+        cache_leaf_desc_prob = {}
+        cache_leaf_prob = {}
+        for i in range(num_obj + 1):
+            grasp_macro = {"seq": [], "leaf_prob": []}
+            grasp_macro["seq"].append(torch.argmax(belief_infos["leaf_desc_prob"][:, i]).item())
+            grasp_macro["leaf_prob"].append(belief_infos["leaf_prob"][grasp_macro["seq"][0]].item())
+
+            rel_mat = belief["relation_prob"].clone()
+            while (grasp_macro["seq"][-1] != i):
+                removed = torch.tensor(grasp_macro["seq"]).type_as(rel_mat).long()
+                indice = ''.join([str(o) for o in np.sort(grasp_macro["seq"]).tolist()])
+                if indice in cache_leaf_desc_prob:
+                    leaf_desc_prob = cache_leaf_desc_prob[indice]
+                    leaf_prob = cache_leaf_prob[indice]
+                else:
+                    rel_mat[0:2, removed, :] = 0.
+                    rel_mat[0:2, :, removed] = 0.
+                    rel_mat[2, removed, :] = 1.
+                    rel_mat[2, :, removed] = 1.
+                    triu_mask = torch.triu(torch.ones(rel_mat[0].shape), diagonal=1)
+                    triu_mask = triu_mask.unsqueeze(0).repeat(3, 1, 1)
+                    rel_mat *= triu_mask
+
+                    leaf_desc_prob, _, leaf_prob, _, _ = \
+                        leaf_and_desc_estimate(rel_mat, removed=grasp_macro["seq"], with_virtual_node=True)
+
+                    cache_leaf_desc_prob[indice] = leaf_desc_prob
+                    cache_leaf_prob[indice] = leaf_prob
+
+                grasp_macro["seq"].append(torch.argmax(leaf_desc_prob[:, i]).item())
+                grasp_macro["leaf_prob"].append(leaf_prob[grasp_macro["seq"][-1]].item())
+
+            grasp_macro["seq"] = torch.tensor(grasp_macro["seq"]).type_as(rel_mat).long()
+            grasp_macro["leaf_prob"] = torch.tensor(grasp_macro["leaf_prob"]).type_as(rel_mat)
+            grasp_macros[i] = grasp_macro
+
+        return grasp_macros
+
+    def grasp_reward_estimate(belief):
+        # reward of grasping macro, equal to: desc_num * reward_of_each_grasp_step
+        # POLICY: treat the object with the highest conf score as the target
+        ground_prob = belief["ground_prob"]
+        target = torch.argmax(ground_prob).item()
+        grasp_macros = belief["grasp_macros"][target]
+        leaf_prob = grasp_macros["leaf_prob"]
+
+        # p_remove_target = ground_prob[grasp_macros["seq"][:-1]]
+        # if p_remove_target.numel() > 0:
+        #     p_remove_target = torch.sum(p_remove_target).item()
+        # else:
+        #     p_remove_target = 0.
+        p_not_remove_non_leaf = torch.cumprod(leaf_prob, dim=0)[-1].item()
+        p_fail = 1. - ground_prob[target].item() * p_not_remove_non_leaf
+
+        return penalty_for_fail * p_fail
+
+    def belief_update(belief):
+        I = torch.eye(belief["ground_prob"].shape[0]).type_as(belief["ground_prob"])
+        updated_beliefs = []
+        # Do you mean ... ?
+        # Answer No
+        beliefs_no = belief["ground_prob"].unsqueeze(0).repeat(num_obj + 1, 1)
+        beliefs_no *= (1. - I)
+        beliefs_no /= torch.clamp(torch.sum(beliefs_no, dim=-1, keepdim=True), min=1e-10)
+        # Answer Yes
+        beliefs_yes = I.clone()
+        for i in range(beliefs_no.shape[0] - 1):
+            updated_beliefs.append([beliefs_no[i], beliefs_yes[i]])
+
+        return updated_beliefs
+
+    def is_onehot(vec, epsilon=1e-2):
+        return (torch.abs(vec - 1) < epsilon).sum().item() > 0
+
+    def estimate_q_vec(belief, current_d):
+        if current_d == planning_depth - 1:
+            return torch.tensor([grasp_reward_estimate(belief)])
+        else:
+            # branches of grasping
+            q_vec = [grasp_reward_estimate(belief)]
+            ground_prob = belief["ground_prob"]
+            new_beliefs = belief_update(belief)
+            new_belief_dict = copy.deepcopy(belief)
+
+            # q-value for asking Q1
+            for i, new_belief in enumerate(new_beliefs):
+                q = 0
+                for j, b in enumerate(new_belief):
+                    new_belief_dict["ground_prob"] = b
+                    # branches of asking questions
+                    if is_onehot(b):
+                        t_q = (penalty_for_asking + estimate_q_vec(new_belief_dict, planning_depth - 1).max())
+                    else:
+                        t_q = (penalty_for_asking + estimate_q_vec(new_belief_dict, current_d + 1).max())
+                    if j == 0:
+                        # Answer is No
+                        q += t_q * (1 - ground_prob[i])
+                    else:
+                        # Answer is Yes
+                        q += t_q * ground_prob[i]
+                q_vec.append(q.item())
+
+            return torch.Tensor(q_vec).type_as(belief["ground_prob"])
+
+    infos = {}
+    with torch.no_grad():
+        infos["leaf_desc_prob"], infos["desc_prob"], infos["leaf_prob"], infos["desc_num"], infos["ance_num"] = \
+            leaf_and_desc_estimate(belief["relation_prob"], sample_num=1000, with_virtual_node=True)
+    belief["infos"] = infos
+    belief["grasp_macros"] = gen_grasp_macro(belief)
+
+    q_vec = estimate_q_vec(belief, 0)
+    print("Q Value for Each Action: ")
+    print("Grasping:{:.3f}".format(q_vec.tolist()[0]))
+    print("Asking Q1:{:s}".format(q_vec.tolist()[1:num_obj + 1]))
+    # print("Asking Q2:{:.3f}".format(q_vec.tolist()[num_obj+1]))
     return torch.argmax(q_vec).item()
 
 if __name__ == '__main__':
@@ -898,20 +1099,20 @@ if __name__ == '__main__':
     # path = find_all_leaves(mrt, 6)
 
     prob_rel_mat = [[
-        [0, 0.7, 0.7, 0.2, 0.1],
+        [0, 0.9, 0.8, 0.2, 0.1],
         [0, 0., 0.1, 0.7, 0.1],
         [0, 0., 0., 0.2, 0.9],
         [0, 0., 0., 0, 0.1],
         [0, 0, 0, 0, 0, ]
     ],[
-        [0, 0.3, 0.1, 0.1, 0.1],
-        [0, 0, 0.2, 0.1, 0.1],
+        [0, 0.1, 0.1, 0.1, 0.1],
+        [0, 0, 0.1, 0.1, 0.1],
         [0, 0., 0, 0.1, 0.05],
         [0, 0, 0, 0, 0.1],
         [0, 0, 0, 0, 0, ]
     ],[
-        [0, 0., 0.2, 0.7, 0.8],
-        [0, 0, 0.7, 0.2, 0.8],
+        [0, 0., 0.1, 0.7, 0.8],
+        [0, 0, 0.8, 0.2, 0.8],
         [0, 0., 0, 0.7, 0.05],
         [0, 0, 0, 0, 0.8],
         [0, 0, 0, 0, 0, ]
@@ -920,15 +1121,11 @@ if __name__ == '__main__':
     prob_rel_mat = torch.from_numpy(prob_rel_mat)
     # prob_rel_mat = prob_rel_mat.cuda()
 
-    belief = {}
-
     t_b = time.time()
-    with torch.no_grad():
-        belief["leaf_desc_prob"] = leaf_and_descendant_stats(prob_rel_mat)
-    belief["ground_prob"] = torch.Tensor([0.543159559554254, 0.0, 0.0, 0.0, 0.0, 0.4568404404457461])
 
-    # belief["leaf_desc_prob"] = belief["leaf_desc_prob"][:5, :5]
-    # belief["ground_prob"] = torch.Tensor([0.11, 0.13, 0.11, 0.1, 0.09])
-    print(inner_loop_planning(belief))
-    print(time.time() - t_b)
-    pass
+    belief = {}
+    belief["relation_prob"] = prob_rel_mat
+    belief["ground_prob"] = torch.Tensor([0.0, 0.0, 0.0, 0.25, 0.75, 0.0])
+
+    planning_with_macro(belief)
+    print("cost: {:.2f}s".format(time.time() - t_b))

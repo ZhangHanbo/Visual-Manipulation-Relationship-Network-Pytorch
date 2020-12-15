@@ -1,5 +1,5 @@
 EXP_DIR: res101
-SCALES: [800,]
+SCALES: [600,]
 PRETRAIN_TYPE: "caffe"
 TRAIN:
   COMMON:
@@ -63,7 +63,7 @@ MGN:
   #############
   OBJECT_GRASP_BALANCE: 1.0
   FIX_OBJDET: False
-  OBJ_MODEL_PATH: output/vmrdext/res101/faster_rcnn_1_14_9920.pth
+  OBJ_MODEL_PATH: ""
 VMRN:
   SHARE_WEIGHTS: False
   USE_CRF : False

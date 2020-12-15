@@ -3,7 +3,7 @@ from torch import nn
 import torch.nn.functional as F
 import numpy as np
 from utils.config import cfg
-from utils.net_utils import set_bn_fix, set_bn_eval
+from utils.net_utils import set_bn_fix, set_bn_eval, set_bn_trainable
 
 import abc
 
@@ -382,10 +382,15 @@ class VMRN(nn.Module):
         # VMRN layers
         if cfg.VMRN.SHARE_WEIGHTS:
             self.VMRN_rel_top = self.FeatExt.layer4
+            self.VMRN_rel_top.apply(set_bn_trainable)
         else:
             self.VMRN_rel_top_o1 = copy.deepcopy(self.FeatExt.layer4)
             self.VMRN_rel_top_o2 = copy.deepcopy(self.FeatExt.layer4)
             self.VMRN_rel_top_union = copy.deepcopy(self.FeatExt.layer4)
+            self.VMRN_rel_top_o1.apply(set_bn_trainable)
+            self.VMRN_rel_top_o2.apply(set_bn_trainable)
+            self.VMRN_rel_top_union.apply(set_bn_trainable)
+
 
         num_rel = 3 if not self.using_crf else 5
         if cfg.VMRN.RELATION_CLASSIFIER == "UVTransE":
@@ -435,3 +440,5 @@ class VMRN(nn.Module):
                 self.VMRN_rel_top_o1.apply(set_bn_eval)
                 self.VMRN_rel_top_o2.apply(set_bn_eval)
                 self.VMRN_rel_top_union.apply(set_bn_eval)
+            else:
+                self.VMRN_rel_top.apply(set_bn_eval)

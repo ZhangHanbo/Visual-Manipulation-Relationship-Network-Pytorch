@@ -37,7 +37,6 @@ from model.FCGN import FCGN
 from model.SSD_VMRN import SSD_VMRN
 from model.MGN import MGN
 from model.AllinOne import All_in_One
-from model.EfficientDet import EfficientDet
 import model.VAM as VAM
 
 from model.utils.net_utils import objdet_inference, grasp_inference, objgrasp_inference, rel_prob_to_mat
@@ -120,9 +119,6 @@ def init_network(args, n_cls):
         Network = SSD_VMRN(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
                            feat_list=('conv3', 'conv4'), pretrained=True)
 
-    elif args.frame == 'efc_det':
-        Network = EfficientDet(n_cls, class_agnostic=args.class_agnostic, feat_name=args.net,
-                               feat_list=('conv3', 'conv4', 'conv5', 'conv6', 'conv7'), pretrained=True)
     elif args.frame == 'vam':
         if args.net == 'vgg16':
             Network = VAM.vgg16(n_cls, pretrained=True)
