@@ -15,6 +15,7 @@ __C = edict()
 # Consumers can get config by:
 #   from fast_rcnn_config import cfg
 cfg = __C
+print(id(cfg))
 
 #
 # Training options
@@ -445,7 +446,7 @@ def parse_args():
   parser = argparse.ArgumentParser(description='Train a Fast R-CNN network')
   parser.add_argument('--dataset', dest='dataset',
                       help='training dataset',
-                      default='pascal_voc', type=str)
+                      default='vmrdext', type=str)
   parser.add_argument('--frame', dest='frame',
                     help='faster_rcnn, fpn, ssd, faster_rcnn_vmrn, ssd_vmrn, fcgn, mgn, allinone',
                     default='faster_rcnn', type=str)

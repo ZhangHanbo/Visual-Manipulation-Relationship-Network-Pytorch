@@ -15,6 +15,7 @@ from model.roi_layers import ROIAlign, ROIPool
 from rpn.proposal_target_layer_cascade import _ProposalTargetLayer
 from Detectors import objectDetector
 from utils.net_utils import _smooth_l1_loss, weights_normal_init
+import pdb
 
 class fasterRCNN(objectDetector):
     """ faster RCNN """
@@ -167,6 +168,13 @@ class fasterRCNN(objectDetector):
                 self._get_header_train_data(rois, gt_boxes, num_boxes)
         else:
             rois_label, rois_target, rois_inside_ws, rois_outside_ws = None, None, None, None
+
+        if not self.training and not torch.all(gt_boxes == 1):
+            # using the predefined rois
+            assert batch_size==1
+            gt_boxes = torch.cat([torch.zeros(1, gt_boxes.shape[1], 1).type_as(gt_boxes), gt_boxes[:, :, :4]], dim=2)
+            print("using predefined rois instead of the detected rois: {}".format(gt_boxes))
+            rois = gt_boxes.type_as(rois)
 
         pooled_feat = self._roi_pooling(base_feat, rois)
         cls_score, cls_prob, bbox_pred = self._get_obj_det_result(pooled_feat)

@@ -11,6 +11,7 @@ from model.fcgn.bbox_transform_grasp import labels2points, grasp_decode
 from model.roi_layers import nms
 import time
 import copy
+import pdb
 
 import networkx as nx
 
@@ -328,7 +329,7 @@ def box_filter(box, box_scores, thresh, use_nms = True):
     return cls_dets, cls_scores, (inds.cpu().numpy())[order]
 
 def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agnostic = True,
-                     for_vis = False, recover_imscale = True, with_cls_score = False):
+                     for_vis = False, recover_imscale = True, with_cls_score = False, refine_box=True):
     """
     :param cls_prob: predicted class info
     :param box_output: predicted bounding boxes (for anchor-based detection, it indicates deltas of boxes).
@@ -341,6 +342,7 @@ def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agno
     :param with_cls_score: if for_vis and with_cls_score are both true, the class confidence score will be attached.
     :return: a list of bounding boxes, one class corresponding to one element. If for_vis, they will be concatenated.
     """
+
     assert box_output.dim() == 2, "Multi-instance batch inference has not been implemented."
     n_classes = cls_prob.shape[1]
 
@@ -349,6 +351,7 @@ def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agno
     else:
         thresh = 0.01
 
+    print("object detection threshold: {:.2f}".format(thresh))
     scores = cls_prob
 
     # TODO: Inference for anchor free algorithms has not been implemented.
@@ -361,7 +364,11 @@ def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agno
     else:
         raise RuntimeError("BBOX_NORMALIZE_TARGETS_PRECOMPUTED is forced to be True in our version.")
 
-    pred_boxes = bbox_transform_inv(box_prior, box_output, 1)
+    if refine_box:
+        pred_boxes = bbox_transform_inv(box_prior, box_output, 1)
+    else:
+        pred_boxes = box_prior
+        class_agnostic = True
     pred_boxes = clip_boxes(pred_boxes, im_info, 1)
 
     scores = scores.squeeze()
@@ -387,15 +394,13 @@ def objdet_inference(cls_prob, box_output, im_info, box_prior = None, class_agno
     if for_vis:
         cls = np.concatenate(cls, axis=0)
         all_box = np.concatenate(all_box[1:], axis=0)
+        all_scores = np.concatenate(all_scores, axis=0)
         if with_cls_score:
-            # print(cls.shape)
-            all_scores = np.concatenate(all_scores, axis = 0)
-            # print(all_scores.shape)
-            # print(all_box)
             all_box = np.concatenate([all_box, cls], axis = 1)
-            # print(all_box.shape)
         else:
-            all_box[:, -1] = cls
+            all_box[:, -1] = cls.reshape(-1)
+    print("detected bounding box: {}".format(all_box))
+    print("scores: {}".format(all_scores.max(axis=1)))
     return all_box, all_scores
 
 def grasp_inference(cls_prob, box_output, im_info, box_prior = None, topN = False, recover_imscale = True):
@@ -778,7 +783,7 @@ def leaf_prob(rel_prob_mat):
 def inner_loop_planning(belief, planning_depth=3):
     num_obj = belief["ground_prob"].shape[0] - 1 # exclude the virtual node
     penalty_for_asking = -3
-    # ACTIONS: Do you mean ... ? (num_obj) + Where is the target ? (1) + grasp object (num_obj)
+    # ACTIONS: Do you mean ... ? (num_obj) + Where is the target ? (1) + grasp objects (num_obj)
     def grasp_reward_estimate(belief):
         # reward of grasping the corresponding object
         # return is a 1-D tensor including num_obj elements, indicating the reward of grasping the corresponding object.

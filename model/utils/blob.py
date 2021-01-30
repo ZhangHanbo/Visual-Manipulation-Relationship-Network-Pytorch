@@ -115,8 +115,8 @@ def image_unnormalize(im, mean=None, std=None):
         im *= 255.
     return im.astype(np.float32)
 
-def prepare_data_batch_from_cvimage(cv_img, is_cuda = True, frame = "faster_rcnn_vmrn"):
-    def prepare_data_for_faster_rcnn_vmrn(cv_img, is_cuda = True):
+def prepare_data_batch_from_cvimage(cv_img, rois=None, is_cuda = True, frame = "faster_rcnn_vmrn"):
+    def prepare_data_for_faster_rcnn_vmrn(cv_img, rois = None, is_cuda = True):
         # BGR to RGB
         if cfg.PRETRAIN_TYPE == "pytorch":
             cv_img = cv_img[:, :, ::-1]
@@ -129,7 +129,13 @@ def prepare_data_batch_from_cvimage(cv_img, is_cuda = True, frame = "faster_rcnn
 
         data = torch.from_numpy(image.copy()).permute(2, 0, 1).contiguous()
         im_info = torch.from_numpy(im_info)
-        gt_boxes = torch.FloatTensor([1, 1, 1, 1, 1])
+        if rois is None:
+            gt_boxes = torch.FloatTensor([1, 1, 1, 1, 1])
+        else:
+            gt_boxes = torch.as_tensor(rois)
+            # re-scale the rois
+            gt_boxes[:, :4][:, 0::2] *= im_scale['x']
+            gt_boxes[:, :4][:, 1::2] *= im_scale['y']
         num_boxes = torch.FloatTensor([0])
         rel_mat = torch.FloatTensor([0])
 
@@ -144,7 +150,7 @@ def prepare_data_batch_from_cvimage(cv_img, is_cuda = True, frame = "faster_rcnn
                 data_batch[i] = d.unsqueeze(0)
         return data_batch
 
-    def prepare_data_for_all_in_one(cv_img, is_cuda = True):
+    def prepare_data_for_all_in_one(cv_img, rois = None, is_cuda = True):
         # BGR to RGB
         if cfg.PRETRAIN_TYPE == "pytorch":
             cv_img = cv_img[:, :, ::-1]
@@ -157,7 +163,13 @@ def prepare_data_batch_from_cvimage(cv_img, is_cuda = True, frame = "faster_rcnn
 
         data = torch.from_numpy(image.copy()).permute(2, 0, 1).contiguous()
         im_info = torch.from_numpy(im_info)
-        gt_boxes = torch.FloatTensor([1, 1, 1, 1, 1])
+        if rois is None:
+            gt_boxes = torch.FloatTensor([1, 1, 1, 1, 1])
+        else:
+            gt_boxes = torch.as_tensor(rois)
+            # re-scale the rois
+            gt_boxes[:, :4][:, 0::2] *= im_scale['x']
+            gt_boxes[:, :4][:, 1::2] *= im_scale['y']
         gt_grasps = torch.FloatTensor([1, 1, 1, 1, 1, 1, 1, 1])
         gt_grasp_inds = torch.LongTensor([0])
         num_boxes = torch.FloatTensor([0])
@@ -176,9 +188,9 @@ def prepare_data_batch_from_cvimage(cv_img, is_cuda = True, frame = "faster_rcnn
         return data_batch
 
     if frame in {"faster_rcnn_vmrn"}:
-        data_batch = prepare_data_for_faster_rcnn_vmrn(cv_img, is_cuda)
+        data_batch = prepare_data_for_faster_rcnn_vmrn(cv_img, rois, is_cuda)
     elif frame in {"all_in_one"}:
-        data_batch = prepare_data_for_all_in_one(cv_img, is_cuda)
+        data_batch = prepare_data_for_all_in_one(cv_img, rois, is_cuda)
     else:
         raise NotImplementedError("Data preprocessing has not been implemented for current framework.")
 
