@@ -18,10 +18,78 @@ class fasterRCNN_VMRN(fasterRCNN, VMRN):
     def __init__(self, classes, class_agnostic, feat_name, feat_list=('conv4',), pretrained=True):
         super(fasterRCNN_VMRN, self).__init__(classes, class_agnostic, feat_name, feat_list, pretrained)
         self._fix_fasterRCNN = cfg.TRAIN.VMRN.FIX_OBJDET
-        if self._fix_fasterRCNN:
-            self._fixed_keys = []
+        self._fixed_keys = []
 
     def forward(self, data_batch):
+        if cfg.TRAIN.COMMON.USE_ODLOSS:
+            return self.forward_with_od(data_batch)
+        else:
+            return self.forward_without_od(data_batch)
+
+    def forward_without_od(self, data_batch):
+        im_data = data_batch[0]
+        im_info = data_batch[1]
+        gt_boxes = data_batch[2]
+        num_boxes = data_batch[3]
+        rel_mat = data_batch[4]
+
+        # object detection
+        if self.training:
+            self.iter_counter += 1
+        self.batch_size = im_data.size(0)
+
+        # feed image data to base model to obtain base feature map
+        base_feat = self.FeatExt(im_data)
+
+        # object detection loss
+        rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox = 0, 0, 0, 0
+
+        ### VISUAL MANIPULATION RELATIONSHIP DETECTION
+        # generate object RoIs.
+        obj_rois, obj_num = torch.Tensor([]).type_as(gt_boxes), torch.Tensor([]).type_as(num_boxes)
+        # offline data
+        for i in range(self.batch_size):
+            img_ind = (i * torch.ones(num_boxes[i].item(), 1)).type_as(gt_boxes)
+            obj_rois = torch.cat([obj_rois, torch.cat([img_ind, (gt_boxes[i][:num_boxes[i]])], 1)])
+        obj_num = torch.cat([obj_num, num_boxes])
+
+        obj_labels = obj_rois[:, 5]
+        obj_rois = obj_rois[:, :5]
+
+        VMRN_rel_loss_cls, rel_reg_loss = 0, 0
+        if (obj_num > 1).sum().item() > 0:
+            rel_cls_score, rel_cls_prob, rel_reg_loss = self._get_rel_det_result(base_feat, obj_rois, obj_num, im_info)
+            if self.training:
+                obj_pair_rel_label = self._generate_rel_labels(obj_rois, gt_boxes, obj_num, rel_mat,
+                                                               rel_cls_prob.size(0))
+                VMRN_rel_loss_cls = self._rel_det_loss_comp(obj_pair_rel_label.type_as(gt_boxes).long(), rel_cls_score)
+            else:
+                rel_cls_prob = self._rel_cls_prob_post_process(rel_cls_prob)
+        else:
+            rel_cls_prob = torch.Tensor([]).type_as(gt_boxes)
+
+        rel_result = None
+        if not self.training:
+            pred_boxes = obj_rois[:, 1:5].view(-1, 4)
+            pred_boxes[:, 0::2] /= im_info[0][3].item()
+            pred_boxes[:, 1::2] /= im_info[0][2].item()
+            rel_result = (pred_boxes.data, obj_labels.data, rel_cls_prob.data)
+
+        img_ind = torch.cat([(i * torch.ones(1, gt_boxes.shape[1], 1)).type_as(gt_boxes)
+                             for i in range(self.batch_size)], dim=0)
+        rois = torch.cat([img_ind, gt_boxes[:, :, :4]], dim=-1)
+        cls_prob, bbox_pred, rois_label = None, None, None
+        if not self.training:
+            cls_prob = torch.zeros((1, num_boxes[0].item(), self.n_classes)).type_as(gt_boxes)
+            for i in range(num_boxes[0].item()):
+                cls_prob[0, i, gt_boxes[0, i, -1].long().item()] = 1
+            bbox_pred = torch.zeros((1, num_boxes[0].item(), 4 if self.class_agnostic
+                                                                else 4 * self.n_classes)).type_as(gt_boxes)
+
+        return rois, cls_prob, bbox_pred, rel_result, rpn_loss_cls, rpn_loss_bbox, \
+            RCNN_loss_cls, RCNN_loss_bbox, VMRN_rel_loss_cls, rel_reg_loss, rois_label
+
+    def forward_with_od(self, data_batch):
         im_data = data_batch[0]
         im_info = data_batch[1]
         gt_boxes = data_batch[2]
@@ -83,11 +151,11 @@ class fasterRCNN_VMRN(fasterRCNN, VMRN):
             obj_labels = obj_rois[:, 5]
             obj_rois = obj_rois[:, :5]
 
-        VMRN_rel_loss_cls, reg_loss= 0, 0
+        VMRN_rel_loss_cls, rel_reg_loss= 0, 0
         if (obj_num > 1).sum().item() > 0:
             if cfg.TRAIN.VMRN.ONE_DATA_PER_IMG:
                 obj_rois, obj_num = self._select_pairs(obj_rois, obj_num)
-            rel_cls_score, rel_cls_prob, reg_loss = self._get_rel_det_result(base_feat, obj_rois, obj_num, im_info)
+            rel_cls_score, rel_cls_prob, rel_reg_loss = self._get_rel_det_result(base_feat, obj_rois, obj_num, im_info)
             if self.training:
                 obj_pair_rel_label = self._generate_rel_labels(obj_rois, gt_boxes, obj_num, rel_mat, rel_cls_prob.size(0))
                 VMRN_rel_loss_cls = self._rel_det_loss_comp(obj_pair_rel_label.type_as(gt_boxes).long(), rel_cls_score)
@@ -107,10 +175,10 @@ class fasterRCNN_VMRN(fasterRCNN, VMRN):
                 rel_result = (obj_rois.data, obj_labels.data, rel_cls_prob.data)
 
         return rois, cls_prob, bbox_pred, rel_result, rpn_loss_cls, rpn_loss_bbox, \
-               RCNN_loss_cls, RCNN_loss_bbox, VMRN_rel_loss_cls, reg_loss, rois_label
+               RCNN_loss_cls, RCNN_loss_bbox, VMRN_rel_loss_cls, rel_reg_loss, rois_label
 
     def create_architecture(self, object_detector_path=''):
-        assert cfg.TRAIN.VMRN.RELCLS_GRAD or cfg.VMRN.SHARE_WEIGHTS, \
+        assert cfg.TRAIN.VMRN.USE_REL_CLS_GRADIENTS or cfg.VMRN.SHARE_WEIGHTS, \
             "No gradients are applied to relationship convolutional layers."
         self._init_modules()
         self._init_weights()
@@ -141,7 +209,6 @@ class fasterRCNN_VMRN(fasterRCNN, VMRN):
         for name, module in self.named_children():
             if name in self._fixed_keys:
                 for p in module.parameters(): p.requires_grad = False
-                module.apply(set_bn_fix)
 
     def train(self, mode=True):
         VMRN.train(self, mode)

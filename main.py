@@ -47,8 +47,7 @@ import warnings
 torch.set_default_tensor_type(torch.FloatTensor)
 
 # implemented-algorithm list
-LEGAL_FRAMES = {"faster_rcnn", "ssd", "fpn", "faster_rcnn_vmrn", "ssd_vmrn", "all_in_one", "fcgn", "mgn", "vam",
-                "efc_det"}
+LEGAL_FRAMES = {"faster_rcnn", "ssd", "fpn", "faster_rcnn_vmrn", "ssd_vmrn", "all_in_one", "fcgn", "mgn", "vam"}
 
 
 class sampler(Sampler):
@@ -236,7 +235,7 @@ def evalute_model(Network, namedb, args):
 
     # load test dataset
     imdb, roidb, ratio_list, ratio_index, cls_list = combined_roidb(namedb, False)
-    if args.frame in {"fpn", "faster_rcnn", "efc_det"}:
+    if args.frame in {"fpn", "faster_rcnn"}:
         dataset = fasterrcnnbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
                                         len(cls_list), training=False, cls_list=cls_list, augmentation=False)
     elif args.frame in {"ssd"}:
@@ -298,7 +297,7 @@ def evalute_model(Network, namedb, args):
             rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_box, net_loss_cls, net_loss_bbox, rois_label = Network(
                 data_batch)
             boxes = rois[:, :, 1:5]
-        elif args.frame in {'ssd', 'efc_det'}:
+        elif args.frame in {'ssd'}:
             bbox_pred, cls_prob, net_loss_bbox, net_loss_cls = Network(data_batch)
             boxes = Network.priors.type_as(bbox_pred).unsqueeze(0)
         elif args.frame == 'faster_rcnn_vmrn':
@@ -328,7 +327,7 @@ def evalute_model(Network, namedb, args):
         misc_tic = time.time()
 
         # collect results
-        if args.frame in {'ssd', 'fpn', 'faster_rcnn', 'faster_rcnn_vmrn', 'ssd_vmrn', 'vam', 'efc_det'}:
+        if args.frame in {'ssd', 'fpn', 'faster_rcnn', 'faster_rcnn_vmrn', 'ssd_vmrn', 'vam'}:
             # detected_box is a list of boxes. len(list) = num_classes
             det_box = objdet_inference(cls_prob[0].data, bbox_pred[0].data, data_batch[1][0].data,
                                        box_prior=boxes[0].data, class_agnostic=args.class_agnostic, for_vis=False)
@@ -445,7 +444,7 @@ def evalute_model(Network, namedb, args):
         with open("det_res.pkl", "wb") as f:
             pickle.dump(all_boxes, f)
         result["mAP"] = imdb.evaluate_detections(all_boxes, output_dir)
-        if args.frame in {'ssd', 'faster_rcnn', 'fpn', 'efc_det'}:
+        if args.frame in {'ssd', 'faster_rcnn', 'fpn'}:
             result["Main_Metric"] = result["mAP"]
 
     if args.frame in {'mgn', "all_in_one"}:
@@ -506,7 +505,7 @@ def train():
     print('{:d} roidb entries'.format(len(roidb)))
     sampler_batch = sampler(train_size, args.batch_size)
     iters_per_epoch = int(train_size / args.batch_size)
-    if args.frame in {"fpn", "faster_rcnn", "efc_det"}:
+    if args.frame in {"fpn", "faster_rcnn"}:
         dataset = fasterrcnnbatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
                                         len(cls_list), training=True, cls_list=cls_list,
                                         augmentation=cfg.TRAIN.COMMON.AUGMENTATION)
@@ -626,7 +625,7 @@ def train():
                 loss = (rpn_loss_box + rpn_loss_cls + loss_cls + loss_bbox + rel_loss_cls + reg_loss \
                         + cfg.MGN.OBJECT_GRASP_BALANCE * grasp_bbox_loss + grasp_cls_loss).mean()
 
-            elif args.frame in {'ssd', 'efc_det'}:
+            elif args.frame in {'ssd'}:
                 bbox_pred, cls_prob, loss_bbox, loss_cls = Network(data_batch)
                 loss = loss_bbox.mean() + loss_cls.mean()
             elif args.frame == 'ssd_vmrn' or args.frame == 'vam':
@@ -639,7 +638,7 @@ def train():
             g_norm = gradient_norm(Network)
             if args.net == "vgg16":
                 clip_gradient(Network, 10.)
-            print("Gradient norm:{:.3f}".format(g_norm))
+            # print("Gradient norm:{:.3f}".format(g_norm))
             optimizer.step()
             step += 1
 

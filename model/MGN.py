@@ -277,7 +277,6 @@ class MGN(fasterRCNN, FCGN):
         for name, module in self.named_children():
             if name in self._fixed_keys:
                 for p in module.parameters(): p.requires_grad = False
-                module.apply(set_bn_fix)
 
     def _init_modules_resnet(self):
         fasterRCNN._init_modules_resnet(self)

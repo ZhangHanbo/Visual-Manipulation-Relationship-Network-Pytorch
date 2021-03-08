@@ -3,13 +3,12 @@ from torch import nn
 import torch.nn.functional as F
 import numpy as np
 from utils.config import cfg
-from utils.net_utils import set_bn_fix, set_bn_eval, set_bn_trainable
+from utils.net_utils import set_bn_fix, set_bn_eval, set_bn_unfix, set_bn_train
 
 import abc
 
 from basenet.resnet import resnet_initializer
 from basenet.vgg import vgg_initializer
-from basenet.efficientnet import EfficientNet
 from model.op2l.op2l import _OP2L
 from model.rpn.bbox_transform import bbox_overlaps
 from utils.net_utils import objdet_inference, weights_normal_init
@@ -33,13 +32,6 @@ class detector(nn.Module):
             return resnet_initializer(self.feat_name, self.feat_list, self.pretrained)
         elif 'vgg' in self.feat_name:
             return vgg_initializer(self.feat_name, self.feat_list, self.pretrained)
-        elif 'efcnet' in self.feat_name:
-            if self.pretrained:
-                return EfficientNet.from_pretrained(self.feat_name.replace("efcnet", "efficientnet-"),
-                                                    feat_list = self.feat_list)
-            else:
-                return EfficientNet.from_name(self.feat_name.replace("efcnet", "efficientnet-"),
-                                              override_params={'feat_list': self.feat_list})
 
 class graspDetector(detector):
     __metaclass__ = abc.ABCMeta
@@ -218,8 +210,11 @@ class VMRN(nn.Module):
 
         for i in range(batch_size):
             obj_boxes = torch.Tensor(objdet_inference(cls_prob[i], bbox_pred[i], im_info[i], rois[i][:, 1:5],
-                                                      class_agnostic = self.class_agnostic,
-                                                      for_vis = True, recover_imscale=False)).type_as(det_results)
+                                                      class_agnostic = self.class_agnostic, for_vis = True,
+                                                      recover_imscale=False, with_cls_score=True)).type_as(det_results)
+            # obj_boxes = obj_boxes[torch.argsort(obj_boxes[:, 4], descending=True)]
+            # obj_boxes = obj_boxes[:6] # maximum box number : 6
+            obj_boxes = torch.cat([obj_boxes[:, :4], obj_boxes[:, -1:]], dim=1)
             obj_num.append(obj_boxes.size(0))
             if obj_num[-1] > 0 :
                 # add image index
@@ -381,24 +376,27 @@ class VMRN(nn.Module):
     def _init_modules_resnet(self):
         # VMRN layers
         if cfg.VMRN.SHARE_WEIGHTS:
-            self.VMRN_rel_top = self.FeatExt.layer4
-            self.VMRN_rel_top.apply(set_bn_trainable)
+            self.VMRN_rel_top = copy.deepcopy(self.FeatExt.layer4)
+            self.VMRN_rel_top.apply(set_bn_unfix)
+            self.VMRN_rel_top.apply(set_bn_train)
         else:
             self.VMRN_rel_top_o1 = copy.deepcopy(self.FeatExt.layer4)
             self.VMRN_rel_top_o2 = copy.deepcopy(self.FeatExt.layer4)
             self.VMRN_rel_top_union = copy.deepcopy(self.FeatExt.layer4)
-            self.VMRN_rel_top_o1.apply(set_bn_trainable)
-            self.VMRN_rel_top_o2.apply(set_bn_trainable)
-            self.VMRN_rel_top_union.apply(set_bn_trainable)
-
+            self.VMRN_rel_top_o1.apply(set_bn_unfix)
+            self.VMRN_rel_top_o1.apply(set_bn_train)
+            self.VMRN_rel_top_o2.apply(set_bn_unfix)
+            self.VMRN_rel_top_o2.apply(set_bn_train)
+            self.VMRN_rel_top_union.apply(set_bn_unfix)
+            self.VMRN_rel_top_union.apply(set_bn_train)
 
         num_rel = 3 if not self.using_crf else 5
         if cfg.VMRN.RELATION_CLASSIFIER == "UVTransE":
             self.VMRN_rel_cls_score = uvtranse_classifier(2048, num_rel=num_rel,
-                                                          grad_backprop=cfg.TRAIN.VMRN.RELCLS_GRAD)
+                                                          grad_backprop=cfg.TRAIN.VMRN.USE_REL_CLS_GRADIENTS)
         else:
             self.VMRN_rel_cls_score = vmrn_rel_classifier(2048, num_rel=num_rel,
-                                                          grad_backprop=cfg.TRAIN.VMRN.RELCLS_GRAD)
+                                                          grad_backprop=cfg.TRAIN.VMRN.USE_REL_CLS_GRADIENTS)
 
     def _init_modules_vgg(self):
         def rel_pipe():
@@ -425,20 +423,10 @@ class VMRN(nn.Module):
         num_rel = 3 if not self.using_crf else 5
         if cfg.VMRN.RELATION_CLASSIFIER == "UVTransE":
             self.VMRN_rel_cls_score = uvtranse_classifier(objfeat_dim, num_rel=num_rel,
-                                                          grad_backprop=cfg.TRAIN.VMRN.RELCLS_GRAD)
+                                                          grad_backprop=cfg.TRAIN.VMRN.USE_REL_CLS_GRADIENTS)
         else:
             self.VMRN_rel_cls_score = vmrn_rel_classifier(objfeat_dim, num_rel=num_rel,
-                                                          grad_backprop=cfg.TRAIN.VMRN.RELCLS_GRAD)
+                                                          grad_backprop=cfg.TRAIN.VMRN.USE_REL_CLS_GRADIENTS)
 
     def _init_weights(self):
         self.VMRN_rel_cls_score.apply(weights_normal_init)
-
-    def train(self, mode=True):
-        nn.Module.train(self, mode)
-        if mode:
-            if not cfg.VMRN.SHARE_WEIGHTS:
-                self.VMRN_rel_top_o1.apply(set_bn_eval)
-                self.VMRN_rel_top_o2.apply(set_bn_eval)
-                self.VMRN_rel_top_union.apply(set_bn_eval)
-            else:
-                self.VMRN_rel_top.apply(set_bn_eval)

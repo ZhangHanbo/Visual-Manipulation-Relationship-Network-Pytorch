@@ -143,10 +143,10 @@ __C.TRAIN.FCGN.JACCARD_THRESH = 0.5
 __C.TRAIN.VMRN.ONLINEDATA_BEGIN_ITER = 10000
 __C.TRAIN.VMRN.TOP_N_ROIS_FOR_OBJ_DET = 300
 __C.TRAIN.VMRN.TRAINING_DATA = 'all'
-__C.TRAIN.VMRN.USE_REL_GRADIENTS = True
+__C.TRAIN.VMRN.USE_REL_GRADIENTS = True # the gradient from vmrn
 # (o1,r,o2) and (o2,r',o1)
 __C.TRAIN.VMRN.ISEX = True
-__C.TRAIN.VMRN.RELCLS_GRAD = True
+__C.TRAIN.VMRN.USE_REL_CLS_GRADIENTS = True # the gradient from vmrn classifier
 
 # If true, during training, in each batch and each image, only one relation datum is selected to compute gradient.
 __C.TRAIN.VMRN.ONE_DATA_PER_IMG = False
@@ -293,7 +293,7 @@ __C.RCNN_COMMON.CROP_RESIZE_WITH_MAX_POOL = True
 # datasets (e.g. coco+pascal_voc) but test the model using a single dataset (e.g. pascal_voc), you need to specify
 # this parameter to the combined one (e.g. coco+pascal_voc) so that the output layer matches the one you used in
 # training.
-__C.RCNN_COMMON.OUT_LAYER = ''
+# __C.RCNN_COMMON.OUT_LAYER = ''
 
 __C.VMRN = edict()
 __C.VMRN.OP2L_POOLING_MODE = 'pool'
@@ -552,6 +552,18 @@ def dataset_name_to_cfg(name):
     elif name == 'vmrdcompv1':
         data_config['train'] = "vmrd_compv1_trainval"
         data_config['val'] = "vmrd_compv1_test"
+        data_config['cfgs'] = ['MAX_NUM_GT_BOXES', '20']
+    elif name == 'regrad_super_mini':
+        data_config['train'] = "regrad_super_mini_train"
+        data_config['val'] = "regrad_super_mini_unseenval"
+        data_config['cfgs'] = ['MAX_NUM_GT_BOXES', '20']
+    elif name == 'regrad_mini':
+        data_config['train'] = "regrad_mini_train"
+        data_config['val'] = "regrad_super_mini_unseenval"
+        data_config['cfgs'] = ['MAX_NUM_GT_BOXES', '20']
+    elif name == 'regrad':
+        data_config['train'] = "regrad_v1_train"
+        data_config['val'] = "regrad_v1_unseenval"
         data_config['cfgs'] = ['MAX_NUM_GT_BOXES', '20']
     elif name == 'vmrdext':
         data_config['train'] = "vmrd_ext_trainval"

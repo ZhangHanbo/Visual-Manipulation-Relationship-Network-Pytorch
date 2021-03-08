@@ -20,6 +20,7 @@ from datasets.vmrd import vmrd
 from datasets.bdds import bdds
 from datasets.cornell import cornell
 from datasets.jacquard import jacquard
+from datasets.regrad import regrad
 
 import numpy as np
 
@@ -73,6 +74,11 @@ for version in ['v1', 'compv1', 'ext']:
     for split in ['trainval', 'test']:
         name = 'vmrd_{}_{}'.format(version,split)
         __sets[name] = (lambda split=split, version=version: vmrd(split, version))
+
+for version in ['super_mini', 'mini', 'v1']:
+    for split in ['train', 'seenval', 'seentest', 'unseenval', 'unseentest']:
+        name = 'regrad_{}_{}'.format(version, split)
+        __sets[name] = (lambda split=split, version=version: regrad(split, version))
 
 for split in ['trainval', 'test']:
     name = 'bdds_{}'.format(split)

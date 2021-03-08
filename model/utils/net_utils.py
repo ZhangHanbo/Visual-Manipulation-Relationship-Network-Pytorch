@@ -91,7 +91,7 @@ def set_bn_fix(m):
     if classname.find('BatchNorm') != -1:
         for p in m.parameters(): p.requires_grad=False
 
-def set_bn_trainable(m):
+def set_bn_unfix(m):
     classname = m.__class__.__name__
     if classname.find('BatchNorm') != -1:
         for p in m.parameters(): p.requires_grad=True
@@ -100,6 +100,11 @@ def set_bn_eval(m):
     classname = m.__class__.__name__
     if classname.find('BatchNorm') != -1:
         m.eval()
+
+def set_bn_train(m):
+    classname = m.__class__.__name__
+    if classname.find('BatchNorm') != -1:
+        m.train()
 
 def gradient_norm(model):
     totalnorm = 0

@@ -269,7 +269,7 @@ class All_in_One(MGN, VMRN):
                grasp_loc, grasp_prob, grasp_bbox_loss, grasp_cls_loss, grasp_conf_label, grasp_all_anchors
 
     def create_architecture(self, object_detector_path=''):
-        assert cfg.TRAIN.VMRN.RELCLS_GRAD or cfg.VMRN.SHARE_WEIGHTS, \
+        assert cfg.TRAIN.VMRN.USE_REL_CLS_GRADIENTS or cfg.VMRN.SHARE_WEIGHTS, \
             "No gradients are applied to relationship convolutional layers."
         self._init_modules()
         self._init_weights()

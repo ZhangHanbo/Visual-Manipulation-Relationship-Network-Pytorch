@@ -124,7 +124,7 @@ class SSD_VMRN(SSD, VMRN):
         return loc, conf, rel_result, SSD_loss_bbox, SSD_loss_cls, VMRN_rel_loss_cls, reg_loss
 
     def _init_modules(self):
-        assert cfg.TRAIN.VMRN.RELCLS_GRAD, "No gradients are applied to relationship convolutional layers."
+        assert cfg.TRAIN.VMRN.USE_REL_CLS_GRADIENTS, "No gradients are applied to relationship convolutional layers."
         SSD._init_modules(self)
         VMRN._init_modules(self)
 

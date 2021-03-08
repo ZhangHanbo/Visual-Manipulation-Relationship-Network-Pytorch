@@ -140,6 +140,7 @@ class ResNet(featExtractor):
 
         if pretrained_model_path is not None:
             print("loading pretrained model: " + pretrained_model_path)
+
             state_dict = torch.load(pretrained_model_path)
             # self.load_state_dict({k:v for k,v in state_dict.items() if k in self.state_dict()})
             self.load_state_dict(state_dict)
