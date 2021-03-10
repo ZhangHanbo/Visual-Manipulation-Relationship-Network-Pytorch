@@ -565,12 +565,13 @@ def rel_prob_to_mat(rel_cls_prob, num_obj):
     The input is Tensors and the output is np.array.
     """
 
+    rel_cls_prob_cpu = rel_cls_prob.cpu()
     if num_obj == 0:
         return np.array([], dtype=np.int32), np.array([], dtype=np.float32)
     elif num_obj == 1:
         return np.array([0], dtype=np.int32), np.array([0], dtype=np.float32)
 
-    rel_score, rel = torch.max(rel_cls_prob, dim = 1)
+    rel_score, rel = torch.max(rel_cls_prob_cpu, dim = 1)
     rel += 1 # to make the label match the macro, i.e., cfg.VMRN.CHILD, cfg.VMRN.FATHER, cfg.VMRN.NO_REL
     rel[rel >=3] = 3
 
@@ -580,7 +581,7 @@ def rel_prob_to_mat(rel_cls_prob, num_obj):
     for o1 in range(num_obj):
         for o2 in range(o1 + 1, num_obj):
             rel_mat[o1, o2] = rel[counter]
-            rel_score_mat[:, o1, o2] = rel_cls_prob[counter]
+            rel_score_mat[:, o1, o2] = rel_cls_prob_cpu[counter]
             counter += 1
     for o1 in range(num_obj):
         for o2 in range(o1):
@@ -628,13 +629,15 @@ def create_mrt(rel_mat, class_names=None, rel_score=None):
         for obj2 in xrange(obj1):
             if rel_mat[obj1, obj2].item() == cfg.VMRN.FATHER:
                 # OBJ1 is the father of OBJ2
+                weight = rel_score[..., obj1, obj2].max()
                 mrt.add_edge(class_names[obj2], class_names[obj1],
-                             weight=np.round(rel_score[obj1, obj2].item(), decimals=2))
+                             weight=np.round(weight.item(), decimals=2))
 
             if rel_mat[obj1, obj2].item() == cfg.VMRN.CHILD:
                 # OBJ1 is the father of OBJ2
+                weight = rel_score[..., obj1, obj2].max()
                 mrt.add_edge(class_names[obj1], class_names[obj2],
-                             weight=np.round(rel_score[obj1, obj2].item(), decimals=2))
+                             weight=np.round(weight.item(), decimals=2))
     return mrt
 
 def find_all_paths(mrt, t_node = 0):

@@ -378,17 +378,13 @@ class VMRN(nn.Module):
         if cfg.VMRN.SHARE_WEIGHTS:
             self.VMRN_rel_top = copy.deepcopy(self.FeatExt.layer4)
             self.VMRN_rel_top.apply(set_bn_unfix)
-            self.VMRN_rel_top.apply(set_bn_train)
         else:
             self.VMRN_rel_top_o1 = copy.deepcopy(self.FeatExt.layer4)
             self.VMRN_rel_top_o2 = copy.deepcopy(self.FeatExt.layer4)
             self.VMRN_rel_top_union = copy.deepcopy(self.FeatExt.layer4)
             self.VMRN_rel_top_o1.apply(set_bn_unfix)
-            self.VMRN_rel_top_o1.apply(set_bn_train)
             self.VMRN_rel_top_o2.apply(set_bn_unfix)
-            self.VMRN_rel_top_o2.apply(set_bn_train)
             self.VMRN_rel_top_union.apply(set_bn_unfix)
-            self.VMRN_rel_top_union.apply(set_bn_train)
 
         num_rel = 3 if not self.using_crf else 5
         if cfg.VMRN.RELATION_CLASSIFIER == "UVTransE":
@@ -430,3 +426,13 @@ class VMRN(nn.Module):
 
     def _init_weights(self):
         self.VMRN_rel_cls_score.apply(weights_normal_init)
+
+    def train(self, mode=True):
+        nn.Module.train(self, mode)
+        if mode and self.feat_name[:3] == 'res':
+            if cfg.VMRN.SHARE_WEIGHTS:
+                self.VMRN_rel_top.apply(set_bn_eval)
+            else:
+                self.VMRN_rel_top_o1.apply(set_bn_eval)
+                self.VMRN_rel_top_o2.apply(set_bn_eval)
+                self.VMRN_rel_top_union.apply(set_bn_eval)

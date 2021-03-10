@@ -230,7 +230,7 @@ def vis_gt(data_list, visualizer, frame, train_mode=False):
     return im_vis
 
 
-def evalute_model(Network, namedb, args):
+def evaluate_model(Network, namedb, args):
     max_per_image = 100
 
     # load test dataset
@@ -765,7 +765,7 @@ def train():
                 if cfg.TRAIN.COMMON.SNAPSHOT_AFTER_TEST:
                     Network.eval()
                     with torch.no_grad():
-                        current_result = evalute_model(Network, args.imdbval_name, args)
+                        current_result = evaluate_model(Network, args.imdbval_name, args)
                     torch.cuda.empty_cache()
                     if args.use_tfboard:
                         for key in current_result.keys():
@@ -812,7 +812,7 @@ def test():
     # init network
     Network, optimizer = init_network(args, len(cls_list))
     Network.eval()
-    evalute_model(Network, args.imdbval_name, args)
+    evaluate_model(Network, args.imdbval_name, args)
 
 
 # def test_testcode():

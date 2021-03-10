@@ -136,9 +136,9 @@ class fasterRCNN_VMRN(fasterRCNN, VMRN):
         # generate object RoIs.
         obj_rois, obj_num = torch.Tensor([]).type_as(rois), torch.Tensor([]).type_as(num_boxes)
         # online data
-        if self.iter_counter > cfg.TRAIN.VMRN.ONLINEDATA_BEGIN_ITER:
-            if not self.training or (cfg.TRAIN.VMRN.TRAINING_DATA in {'all', 'online'}):
-                obj_rois, obj_num = self._object_detection(od_rois, od_cls_prob, od_bbox_pred, self.batch_size, im_info.data)
+        if not self.training or (cfg.TRAIN.VMRN.TRAINING_DATA in {'all', 'online'}
+                                 and self.iter_counter > cfg.TRAIN.VMRN.ONLINEDATA_BEGIN_ITER):
+            obj_rois, obj_num = self._object_detection(od_rois, od_cls_prob, od_bbox_pred, self.batch_size, im_info.data)
         # offline data
         if self.training and (cfg.TRAIN.VMRN.TRAINING_DATA in {'all', 'offline'}):
             for i in range(self.batch_size):

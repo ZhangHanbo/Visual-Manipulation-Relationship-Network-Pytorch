@@ -894,12 +894,18 @@ class fvmrnbatchLoader(vmrdetMulInSizeRoibatchLoader):
         if not self.augmentation and self.training:
             warnings.warn("You are going to train F-VMRN without any augmentation.")
         else:
+            self.augImageOnly = ComposeImageOnly([
+                ConvertToFloats(),
+                PhotometricDistort(),
+            ])
             self.augObjdet = Compose([
                 RandomMirror(),
                 # TODO: allow to damage bounding boxes while prevent deleting them when doing random crop
+                # RandomCropKeepBoxes(keep_shape=True),
                 RandomCropKeepBoxes(),
-                Expand(mean = self.pixel_means * 255. if cfg.PRETRAIN_TYPE == "pytorch" else self.pixel_means, keep_size=True),
+                Expand(mean=self.pixel_means * 255. if cfg.PRETRAIN_TYPE == "pytorch" else self.pixel_means, keep_size=True),
             ])
+
 
 class roignbatchLoader(roigdetMulInSizeRoibatchLoader):
     def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True,
@@ -939,10 +945,3 @@ class fallinonebatchLoader(allInOneMulInSizeRoibatchLoader):
                 RandomCropKeepBoxes(),
                 Expand(mean = self.pixel_means * 255. if cfg.PRETRAIN_TYPE == "pytorch" else self.pixel_means, keep_size=True),
             ])
-
-# TODO: Implement caption generation batch loader.
-class captionRoiBatchLoader(objdetMulInSizeRoibatchLoader):
-    def __init__(self, roidb, ratio_list, ratio_index, batch_size, num_classes, training=True,
-                 cls_list=None, augmentation = False):
-        super(captionRoiBatchLoader, self).__init__(roidb, ratio_list, ratio_index, batch_size, num_classes,
-                                             training, cls_list, augmentation)
