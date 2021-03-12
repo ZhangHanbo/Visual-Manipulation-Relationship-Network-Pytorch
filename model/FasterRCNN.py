@@ -23,7 +23,7 @@ class fasterRCNN(objectDetector):
         super(fasterRCNN, self).__init__(classes, class_agnostic, feat_name, feat_list, pretrained)
         ##### Important to set model to eval mode before evaluation ####
         self.FeatExt.eval()
-        rand_img = torch.Tensor(1, 3, 224, 224)
+        rand_img = torch.zeros(size=(1, 3, 224, 224))
         rand_feat = self.FeatExt(rand_img)
         self.FeatExt.train()
         self.dout_base_model = rand_feat.size(1)

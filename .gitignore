@@ -9,4 +9,5 @@ demo*
 *.graffle
 .idea/
 
+*.so
 images/

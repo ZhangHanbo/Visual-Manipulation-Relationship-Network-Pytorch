@@ -32,7 +32,7 @@ class _ObjPairLayer(nn.Module):
         :return: obj_pair_feats: dim: BS*N(N-1) x 3 x C x W x H
         """
 
-        _paired_feats = Variable(torch.Tensor([]).type_as(roi_pooled_feats))
+        _paired_feats = torch.tensor([]).type_as(roi_pooled_feats)
         for imgnum in range(obj_num.size(0)):
             if obj_num[imgnum] <= 1:
                 continue
@@ -47,7 +47,7 @@ class _ObjPairLayer(nn.Module):
     def _single_image_pair(self, feats, objnum):
         obj_feats = feats[:objnum]
         union_feats = feats[objnum:]
-        pair_feats = Variable(torch.Tensor([]).type_as(feats))
+        pair_feats = torch.tensor([]).type_as(feats)
 
         cur_union = 0
         for o1 in range(objnum):

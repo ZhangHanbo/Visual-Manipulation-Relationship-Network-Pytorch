@@ -73,14 +73,11 @@ class MGN(fasterRCNN, FCGN):
         grasp_loc_label, grasp_conf_label, grasp_iw, grasp_ow = self.FCGN_proposal_target(grasp_conf,
                                                         grasp_gt, grasp_anchors, xthresh=fsx / 2, ythresh=fsy / 2)
 
-        grasp_keep = Variable(grasp_conf_label.view(-1).ne(-1).nonzero().view(-1))
+        grasp_keep = grasp_conf_label.view(-1).ne(-1).nonzero().view(-1)
         grasp_conf = torch.index_select(grasp_conf.view(-1, 2), 0, grasp_keep.data)
         grasp_conf_label = torch.index_select(grasp_conf_label.view(-1), 0, grasp_keep.data)
         grasp_cls_loss = F.cross_entropy(grasp_conf, grasp_conf_label)
 
-        grasp_iw = Variable(grasp_iw)
-        grasp_ow = Variable(grasp_ow)
-        grasp_loc_label = Variable(grasp_loc_label)
         grasp_bbox_loss = _smooth_l1_loss(grasp_loc, grasp_loc_label, grasp_iw, grasp_ow, dim=[2, 1])
         return grasp_bbox_loss , grasp_cls_loss, grasp_conf_label
 
@@ -123,7 +120,7 @@ class MGN(fasterRCNN, FCGN):
         pooled_feat = self._roi_pooling(base_feat, rois)
 
         cls_prob, bbox_pred, RCNN_loss_bbox, RCNN_loss_cls = \
-            None, None, torch.Tensor([0]).type_as(rois), torch.Tensor([0]).type_as(rois)
+            None, None, torch.tensor([0]).type_as(rois), torch.tensor([0]).type_as(rois)
         if self.use_objdet_branch:
             # object detection branch
             cls_score, cls_prob, bbox_pred = self._get_obj_det_result(pooled_feat)
@@ -153,12 +150,12 @@ class MGN(fasterRCNN, FCGN):
                 grasp_gt_xywhc = grasp_gt_xywhc[grasp_rois_mask]
             else:
                 # when there are no one positive rois, return dummy results
-                grasp_loc = torch.Tensor([]).type_as(gt_grasps)
-                grasp_prob = torch.Tensor([]).type_as(gt_grasps)
-                grasp_bbox_loss = torch.Tensor([0]).type_as(gt_grasps)
-                grasp_cls_loss = torch.Tensor([0]).type_as(gt_grasps)
-                grasp_conf_label = torch.Tensor([-1]).type_as(rois_label)
-                grasp_all_anchors = torch.Tensor([]).type_as(gt_grasps)
+                grasp_loc = torch.tensor([]).type_as(gt_grasps)
+                grasp_prob = torch.tensor([]).type_as(gt_grasps)
+                grasp_bbox_loss = torch.tensor([0]).type_as(gt_grasps)
+                grasp_cls_loss = torch.tensor([0]).type_as(gt_grasps)
+                grasp_conf_label = torch.tensor([-1]).type_as(rois_label)
+                grasp_all_anchors = torch.tensor([]).type_as(gt_grasps)
                 return rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox, rois_label,\
                    grasp_loc, grasp_prob, grasp_bbox_loss , grasp_cls_loss, grasp_conf_label, grasp_all_anchors
         else:
@@ -244,7 +241,7 @@ class MGN(fasterRCNN, FCGN):
             anchors = torch.zeros(anchor_size.size()[:-1] + (5,)).type_as(shifts)
             anchors[:, :, :, :, 2:4] = anchor_size
             # 1 x A x 5
-            angle = torch.Tensor(cfg.FCGN.ANCHOR_ANGLES).contiguous().view(1, 1, -1).permute(0, 2, 1).type_as(shifts)
+            angle = torch.tensor(cfg.FCGN.ANCHOR_ANGLES).contiguous().view(1, 1, -1).permute(0, 2, 1).type_as(shifts)
             anchor_angle = torch.zeros(1, angle.size(1), 5).type_as(shifts)
             anchor_angle[:, :, 4:5] = angle
             # bs*N x 1 x 1 x 5 + 1 x A x 5 -> bs*N x 1 x A x 5

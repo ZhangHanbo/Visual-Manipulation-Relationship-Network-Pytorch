@@ -131,7 +131,7 @@ class uvtranse_classifier(rel_classifier):
         im_info = locs["im_info"]
         batch_size = im_info.shape[0]
 
-        loc_feats = torch.Tensor(pair_num ,14)
+        loc_feats = torch.zeros(size=(pair_num ,14)).float()
         pair_counter = 0
         for im_ind in range(obj_num.size(0)):
             if obj_num[im_ind] <= 1:
@@ -160,7 +160,7 @@ class uvtranse_classifier(rel_classifier):
         return loc_feats
 
     def _encode_loc_feat(self, loc_feats):
-        encoded = torch.Tensor(loc_feats.shape[0] ,19)
+        encoded = torch.zeros(size=(loc_feats.shape[0] ,19)).float()
         im_info = loc_feats[:, -2:]
 
         w_i, h_i = im_info[:, 1], im_info[:, 0]
@@ -205,23 +205,23 @@ class VMRN(nn.Module):
         self.iter_counter = 0
 
     def _object_detection(self, rois, cls_prob, bbox_pred, batch_size, im_info):
-        det_results = torch.Tensor([]).type_as(rois[0])
+        det_results = torch.tensor([]).type_as(rois[0])
         obj_num = []
 
         for i in range(batch_size):
-            obj_boxes = torch.Tensor(objdet_inference(cls_prob[i], bbox_pred[i], im_info[i], rois[i][:, 1:5],
+            obj_boxes = torch.tensor(objdet_inference(cls_prob[i], bbox_pred[i], im_info[i], rois[i][:, 1:5],
                                                       class_agnostic = self.class_agnostic, for_vis = True,
                                                       recover_imscale=False, with_cls_score=True)).type_as(det_results)
             # obj_boxes = obj_boxes[torch.argsort(obj_boxes[:, 4], descending=True)]
             # obj_boxes = obj_boxes[:6] # maximum box number : 6
-            obj_boxes = torch.cat([obj_boxes[:, :4], obj_boxes[:, -1:]], dim=1)
             obj_num.append(obj_boxes.size(0))
-            if obj_num[-1] > 0 :
+            if obj_num[-1] > 0:
+                obj_boxes = torch.cat([obj_boxes[:, :4], obj_boxes[:, -1:]], dim=1)
                 # add image index
                 img_ind = i * torch.ones(obj_boxes.size(0), 1).type_as(det_results)
                 det_results = torch.cat([det_results, torch.cat([img_ind, obj_boxes], 1)], 0)
 
-        return det_results, torch.Tensor(obj_num).type_as(det_results).long()
+        return det_results, torch.tensor(obj_num).type_as(det_results).long()
 
     def _get_rel_det_result(self, base_feat, obj_rois, obj_num, im_info):
         # filter out the detection of only one object instance
@@ -250,7 +250,7 @@ class VMRN(nn.Module):
     def _generate_rel_labels(self, obj_rois, gt_boxes, obj_num, rel_mat, rel_batch_size):
         if self.using_crf:
             rel_mat = RelaTransform(rel_mat)
-        obj_pair_rel_label = torch.Tensor(rel_batch_size).type_as(gt_boxes).zero_().long()
+        obj_pair_rel_label = torch.zeros(rel_batch_size).type_as(gt_boxes).long()
         # generate online data labels
         cur_pair = 0
         for i in range(obj_num.size(0)):

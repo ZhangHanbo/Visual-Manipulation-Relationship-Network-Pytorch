@@ -23,7 +23,7 @@ class _RoisPairExpandingLayer(nn.Module):
         :param obj_num: a Tensor that indicates object numbers in each image
         :return:
         """
-        self._rois = torch.Tensor([]).type_as(rois).float()
+        self._rois = torch.tensor([]).type_as(rois).float()
         for imgnum in range(obj_num.size(0)):
             begin_idx = obj_num[:imgnum].sum().item()
             if obj_num[imgnum] == 1:

@@ -58,7 +58,6 @@ class All_in_One(MGN, VMRN):
             rois_label, rois_target, rois_inside_ws, rois_outside_ws = None, None, None, None
             od_rois = rois.data
         pooled_feat = self._roi_pooling(base_feat, rois)
-        # print(pooled_feat.mean().item(), pooled_feat.max().item(), pooled_feat.min().item(), pooled_feat.std().item())
 
         ### OBJECT DETECTION
         cls_score, cls_prob, bbox_pred = self._get_obj_det_result(pooled_feat)
@@ -79,13 +78,11 @@ class All_in_One(MGN, VMRN):
 
         ### VISUAL MANIPULATION RELATIONSHIP DETECTION
         # generate object RoIs.
-        obj_rois, obj_num = torch.Tensor([]).type_as(gt_boxes), torch.Tensor([]).type_as(num_boxes)
+        obj_rois, obj_num = torch.tensor([]).type_as(gt_boxes), torch.tensor([]).type_as(num_boxes)
         # online data
-        if not self.training or (self.iter_counter > cfg.TRAIN.VMRN.ONLINEDATA_BEGIN_ITER
-                                 and (cfg.TRAIN.VMRN.TRAINING_DATA == 'all' or 'online')):
-            obj_rois, obj_num = self._object_detection(
-                od_rois, od_cls_prob, od_bbox_pred, self.batch_size, im_info.data)
-
+        if self.iter_counter > cfg.TRAIN.VMRN.ONLINEDATA_BEGIN_ITER:
+            if not self.training or (cfg.TRAIN.VMRN.TRAINING_DATA == 'all' or 'online'):
+                obj_rois, obj_num = self._object_detection(od_rois, od_cls_prob, od_bbox_pred, self.batch_size, im_info.data)
         # offline data
         if self.training and (cfg.TRAIN.VMRN.TRAINING_DATA == 'all' or 'offline'):
             for i in range(self.batch_size):
@@ -93,7 +90,7 @@ class All_in_One(MGN, VMRN):
                 obj_rois = torch.cat([obj_rois, torch.cat([img_ind, (gt_boxes[i][:num_boxes[i]])],1)])
             obj_num = torch.cat([obj_num, num_boxes])
 
-        obj_labels = torch.Tensor([]).type_as(gt_boxes).long()
+        obj_labels = torch.tensor([]).type_as(gt_boxes).long()
         if obj_rois.size(0) > 0:
             obj_labels = obj_rois[:, 5]
             obj_rois = obj_rois[:, :5]
@@ -107,7 +104,7 @@ class All_in_One(MGN, VMRN):
             else:
                 rel_cls_prob = self._rel_cls_prob_post_process(rel_cls_prob)
         else:
-            rel_cls_prob = torch.Tensor([]).type_as(gt_boxes)
+            rel_cls_prob = torch.tensor([]).type_as(gt_boxes)
 
         rel_result = None
         if not self.training:
@@ -136,12 +133,12 @@ class All_in_One(MGN, VMRN):
                 grasp_gt_xywhc = grasp_gt_xywhc[grasp_rois_mask]
             else:
                 # when there are no one positive rois, return dummy results
-                grasp_loc = torch.Tensor([]).type_as(gt_grasps)
-                grasp_prob = torch.Tensor([]).type_as(gt_grasps)
-                grasp_bbox_loss = torch.Tensor([0]).type_as(gt_grasps)
-                grasp_cls_loss = torch.Tensor([0]).type_as(gt_grasps)
-                grasp_conf_label = torch.Tensor([-1]).type_as(rois_label)
-                grasp_all_anchors = torch.Tensor([]).type_as(gt_grasps)
+                grasp_loc = torch.tensor([]).type_as(gt_grasps)
+                grasp_prob = torch.tensor([]).type_as(gt_grasps)
+                grasp_bbox_loss = torch.tensor([0]).type_as(gt_grasps)
+                grasp_cls_loss = torch.tensor([0]).type_as(gt_grasps)
+                grasp_conf_label = torch.tensor([-1]).type_as(rois_label)
+                grasp_all_anchors = torch.tensor([]).type_as(gt_grasps)
                 return rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox, rois_label,\
                    grasp_loc, grasp_prob, grasp_bbox_loss , grasp_cls_loss, grasp_conf_label, grasp_all_anchors
         else:
@@ -193,7 +190,7 @@ class All_in_One(MGN, VMRN):
 
         ### VISUAL MANIPULATION RELATIONSHIP DETECTION
         # generate object RoIs.
-        obj_rois, obj_num = torch.Tensor([]).type_as(gt_boxes), torch.Tensor([]).type_as(num_boxes)
+        obj_rois, obj_num = torch.tensor([]).type_as(gt_boxes), torch.tensor([]).type_as(num_boxes)
         # offline data
         for i in range(self.batch_size):
             img_ind = (i * torch.ones(num_boxes[i].item(), 1)).type_as(gt_boxes)
@@ -213,7 +210,7 @@ class All_in_One(MGN, VMRN):
             else:
                 rel_cls_prob = self._rel_cls_prob_post_process(rel_cls_prob)
         else:
-            rel_cls_prob = torch.Tensor([]).type_as(gt_boxes)
+            rel_cls_prob = torch.tensor([]).type_as(gt_boxes)
 
         rel_result = None
         if not self.training:

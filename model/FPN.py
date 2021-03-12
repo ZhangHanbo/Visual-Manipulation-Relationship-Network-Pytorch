@@ -30,7 +30,7 @@ class FPN(objectDetector):
         super(FPN, self).__init__(classes, class_agnostic, feat_name, feat_list, pretrained)
         ##### Important to set model to eval mode before evaluation ####
         self.FeatExt.eval()
-        rand_img = torch.Tensor(1, 3, 224, 224)
+        rand_img = torch.zeros(size=(1, 3, 224, 224))
         rand_feat = self.FeatExt(rand_img)
         self.FeatExt.train()
         self.n_channels = [f.size(1) for f in rand_feat]
@@ -123,8 +123,6 @@ class FPN(objectDetector):
             rpn_loss_cls = [0]
             rpn_loss_bbox = [0]
 
-        for i in range(len(rois)):
-            rois[i] = Variable(rois[i])
         # do roi pooling based on predicted rois
         pooled_feat = []
         if cfg.RCNN_COMMON.POOLING_MODE == 'align':
@@ -221,11 +219,11 @@ class FPN(objectDetector):
             rois_outside_ws_new = []
             for i in range(self._num_pyramid_layers):
                 inds = (k == i)
-                rois_new.append(Variable(rois[inds]))
-                rois_label_new.append(Variable(rois_label[inds].view(-1).long()))
-                rois_target_new.append(Variable(rois_target[inds].view(-1, rois_target.size(2))))
-                rois_inside_ws_new.append(Variable(rois_inside_ws[inds].view(-1,rois_inside_ws.size(2))))
-                rois_outside_ws_new.append(Variable(rois_outside_ws[inds].view(-1,rois_outside_ws.size(2))))
+                rois_new.append(rois[inds])
+                rois_label_new.append(rois_label[inds].view(-1).long())
+                rois_target_new.append(rois_target[inds].view(-1, rois_target.size(2)))
+                rois_inside_ws_new.append(rois_inside_ws[inds].view(-1,rois_inside_ws.size(2)))
+                rois_outside_ws_new.append(rois_outside_ws[inds].view(-1,rois_outside_ws.size(2)))
 
             roi_data_new = (rois_new, rois_label_new, rois_target_new, rois_inside_ws_new, rois_outside_ws_new)
             return roi_data_new
@@ -241,7 +239,7 @@ class FPN(objectDetector):
             rois_new = []
             for i in range(self._num_pyramid_layers):
                 inds = (k == i)
-                rois_new.append(Variable(rois[inds, :]))
+                rois_new.append(rois[inds, :])
 
             roi_data_new = rois_new
             return roi_data_new

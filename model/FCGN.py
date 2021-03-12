@@ -31,7 +31,7 @@ class FCGN(graspDetector):
         super(FCGN, self).__init__(feat_name, feat_list, pretrained)
         ##### Important to set model to eval mode before evaluation ####
         self.FeatExt.eval()
-        rand_img = torch.Tensor(1, 3, 224, 224)
+        rand_img = torch.zeros(size=(1, 3, 224, 224))
         rand_feat = self.FeatExt(rand_img)
         self.FeatExt.train()
         self.dout_base_model = rand_feat.size(1)
@@ -98,14 +98,11 @@ class FCGN(graspDetector):
             gt_xywhc = points2labels(gt_boxes)
             loc_label, conf_label, iw, ow = self.FCGN_proposal_target(conf, gt_xywhc, all_anchors)
 
-            keep = Variable(conf_label.view(-1).ne(-1).nonzero().view(-1))
+            keep = conf_label.view(-1).ne(-1).nonzero().view(-1)
             conf = torch.index_select(conf.view(-1, 2), 0, keep.data)
             conf_label = torch.index_select(conf_label.view(-1), 0, keep.data)
             cls_loss = F.cross_entropy(conf, conf_label)
 
-            iw = Variable(iw)
-            ow = Variable(ow)
-            loc_label = Variable(loc_label)
             bbox_loss = _smooth_l1_loss(loc, loc_label, iw, ow, dim = [2,1])
 
         return loc, prob, bbox_loss , cls_loss, conf_label, all_anchors

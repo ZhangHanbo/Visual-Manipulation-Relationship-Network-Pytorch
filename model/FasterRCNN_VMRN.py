@@ -46,7 +46,7 @@ class fasterRCNN_VMRN(fasterRCNN, VMRN):
 
         ### VISUAL MANIPULATION RELATIONSHIP DETECTION
         # generate object RoIs.
-        obj_rois, obj_num = torch.Tensor([]).type_as(gt_boxes), torch.Tensor([]).type_as(num_boxes)
+        obj_rois, obj_num = torch.tensor([]).type_as(gt_boxes), torch.tensor([]).type_as(num_boxes)
         # offline data
         for i in range(self.batch_size):
             img_ind = (i * torch.ones(num_boxes[i].item(), 1)).type_as(gt_boxes)
@@ -66,7 +66,7 @@ class fasterRCNN_VMRN(fasterRCNN, VMRN):
             else:
                 rel_cls_prob = self._rel_cls_prob_post_process(rel_cls_prob)
         else:
-            rel_cls_prob = torch.Tensor([]).type_as(gt_boxes)
+            rel_cls_prob = torch.tensor([]).type_as(gt_boxes)
 
         rel_result = None
         if not self.training:
@@ -134,7 +134,7 @@ class fasterRCNN_VMRN(fasterRCNN, VMRN):
             od_bbox_pred = bbox_pred.data
 
         # generate object RoIs.
-        obj_rois, obj_num = torch.Tensor([]).type_as(rois), torch.Tensor([]).type_as(num_boxes)
+        obj_rois, obj_num = torch.tensor([]).type_as(rois), torch.tensor([]).type_as(num_boxes)
         # online data
         if not self.training or (cfg.TRAIN.VMRN.TRAINING_DATA in {'all', 'online'}
                                  and self.iter_counter > cfg.TRAIN.VMRN.ONLINEDATA_BEGIN_ITER):
@@ -146,7 +146,7 @@ class fasterRCNN_VMRN(fasterRCNN, VMRN):
                 obj_rois = torch.cat([obj_rois, torch.cat([img_ind, (gt_boxes[i][:num_boxes[i]])],1)])
             obj_num = torch.cat([obj_num, num_boxes])
 
-        obj_labels = torch.Tensor([]).type_as(gt_boxes).long()
+        obj_labels = torch.tensor([]).type_as(gt_boxes).long()
         if obj_rois.size(0) > 0:
             obj_labels = obj_rois[:, 5]
             obj_rois = obj_rois[:, :5]
@@ -162,7 +162,7 @@ class fasterRCNN_VMRN(fasterRCNN, VMRN):
             else:
                 rel_cls_prob = self._rel_cls_prob_post_process(rel_cls_prob)
         else:
-            rel_cls_prob = torch.Tensor([]).type_as(cls_prob)
+            rel_cls_prob = torch.tensor([]).type_as(cls_prob)
 
         rel_result = None
         if not self.training:

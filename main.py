@@ -758,8 +758,9 @@ def train():
             elif Network.iter_counter % (args.lr_decay_step) == 0:
                 adjust_learning_rate(optimizer, args.lr_decay_gamma)
 
-            # test and save
-            if (Network.iter_counter - 1) % cfg.TRAIN.COMMON.SNAPSHOT_ITERS == 0:
+            # test and save, minus 1 here could ensure the network will be evaluated at the beginning of the training
+            # if (Network.iter_counter - 1) % cfg.TRAIN.COMMON.SNAPSHOT_ITERS == 0:
+            if Network.iter_counter % cfg.TRAIN.COMMON.SNAPSHOT_ITERS == 0:
                 # test network and record results
 
                 if cfg.TRAIN.COMMON.SNAPSHOT_AFTER_TEST:
