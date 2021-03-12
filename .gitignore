@@ -7,8 +7,6 @@
 rosapi/*
 demo*
 *.graffle
-
-model/header/*
-model/featnet/
-
 .idea/
+
+images/

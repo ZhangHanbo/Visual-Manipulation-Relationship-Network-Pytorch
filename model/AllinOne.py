@@ -58,6 +58,7 @@ class All_in_One(MGN, VMRN):
             rois_label, rois_target, rois_inside_ws, rois_outside_ws = None, None, None, None
             od_rois = rois.data
         pooled_feat = self._roi_pooling(base_feat, rois)
+        # print(pooled_feat.mean().item(), pooled_feat.max().item(), pooled_feat.min().item(), pooled_feat.std().item())
 
         ### OBJECT DETECTION
         cls_score, cls_prob, bbox_pred = self._get_obj_det_result(pooled_feat)
@@ -80,9 +81,11 @@ class All_in_One(MGN, VMRN):
         # generate object RoIs.
         obj_rois, obj_num = torch.Tensor([]).type_as(gt_boxes), torch.Tensor([]).type_as(num_boxes)
         # online data
-        if self.iter_counter > cfg.TRAIN.VMRN.ONLINEDATA_BEGIN_ITER:
-            if not self.training or (cfg.TRAIN.VMRN.TRAINING_DATA == 'all' or 'online'):
-                obj_rois, obj_num = self._object_detection(od_rois, od_cls_prob, od_bbox_pred, self.batch_size, im_info.data)
+        if not self.training or (self.iter_counter > cfg.TRAIN.VMRN.ONLINEDATA_BEGIN_ITER
+                                 and (cfg.TRAIN.VMRN.TRAINING_DATA == 'all' or 'online')):
+            obj_rois, obj_num = self._object_detection(
+                od_rois, od_cls_prob, od_bbox_pred, self.batch_size, im_info.data)
+
         # offline data
         if self.training and (cfg.TRAIN.VMRN.TRAINING_DATA == 'all' or 'offline'):
             for i in range(self.batch_size):
