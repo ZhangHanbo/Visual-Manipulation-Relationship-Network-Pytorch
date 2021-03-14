@@ -779,6 +779,7 @@ def train():
                     save_flag = True
 
                 if save_flag:
+                    Network.cpu()
                     save_name = os.path.join(output_dir, args.frame + '_{}_{}_{}.pth'.format(args.session, epoch, step))
                     save_checkpoint({
                         'session': args.session,
@@ -789,6 +790,7 @@ def train():
                     }, save_name)
                     print('save model: {}'.format(save_name))
                     save_flag = False
+                    Network.cuda()
 
         end_epoch_time = time.time()
         print("Epoch finished. Time costing: ", end_epoch_time - start_epoch_time, "s")

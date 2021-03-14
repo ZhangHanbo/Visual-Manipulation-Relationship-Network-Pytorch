@@ -11,3 +11,7 @@ demo*
 
 *.so
 images/
+
+ali_exam.py
+
+backup.py

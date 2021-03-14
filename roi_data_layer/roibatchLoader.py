@@ -894,16 +894,16 @@ class fvmrnbatchLoader(vmrdetMulInSizeRoibatchLoader):
         if not self.augmentation and self.training:
             warnings.warn("You are going to train F-VMRN without any augmentation.")
         else:
-            self.augImageOnly = ComposeImageOnly([
-                ConvertToFloats(),
-                PhotometricDistort(),
-            ])
+            # self.augImageOnly = ComposeImageOnly([
+            #     ConvertToFloats(),
+            #     PhotometricDistort(),
+            # ])
             self.augObjdet = Compose([
                 RandomMirror(),
                 # TODO: allow to damage bounding boxes while prevent deleting them when doing random crop
                 # RandomCropKeepBoxes(keep_shape=True),
-                RandomCropKeepBoxes(),
-                Expand(mean=self.pixel_means * 255. if cfg.PRETRAIN_TYPE == "pytorch" else self.pixel_means, keep_size=True),
+                # RandomCropKeepBoxes(),
+                # Expand(mean=self.pixel_means * 255. if cfg.PRETRAIN_TYPE == "pytorch" else self.pixel_means, keep_size=True),
             ])
 
 
