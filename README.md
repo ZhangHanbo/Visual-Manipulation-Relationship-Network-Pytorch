@@ -6,6 +6,12 @@
 #### 2. For ROI-GD: the performance is much better.
 #### I am trying to fix the bugs here. Before further updates, please use the pytorch0.4.0_oldversion branch to reproduce the performance in the paper.
 
+#### IMPORTANT: Please be informed that the performance of the pytorch1.0 version is not the ones in the paper. That is:
+for VMRN: the performance is lower due to some unknown reasons.
+
+for ROI-GD: the performance is much better.
+#### I am trying to fix the bugs here. Before further updates, please use the pytorch0.4.0_oldversion branch to reproduce the performance in the paper.
+
 ## Introduction
 This package includes our latest proposed robotic grasping algorithms. Main framework is based on code of Faster RCNN (https://github.com/jwyang/faster-rcnn.pytorch).
 
