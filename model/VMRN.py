@@ -251,10 +251,11 @@ class _fasterRCNN_VMRN(nn.Module):
 
         obj_rois = Variable(obj_rois)
 
+        print(obj_num)
         if (obj_num > 1).sum().item() > 0:
             # filter out the detection of only one object instance
             obj_pair_feat = self.VMRN_rel_op2l(base_feat, obj_rois, self.batch_size, obj_num)
-            obj_pair_feat = obj_pair_feat.detach()
+            # obj_pair_feat = obj_pair_feat.detach()
             obj_pair_feat = self._rel_head_to_tail(obj_pair_feat)
             rel_cls_score = self.VMRN_rel_cls_score(obj_pair_feat)
 

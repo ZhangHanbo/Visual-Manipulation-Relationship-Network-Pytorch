@@ -221,7 +221,6 @@ class _All_in_One(nn.Module):
         # object detection
         if self.training:
             self._train_iter_conter += 1
-
         self.batch_size = im_data.size(0)
 
         gt_boxes = gt['boxes']
@@ -261,6 +260,7 @@ class _All_in_One(nn.Module):
         rois = Variable(rois)
 
         pooled_feat = self._roi_pooing(base_feat, rois)
+        print(pooled_feat.mean().item(), pooled_feat.max().item(), pooled_feat.min().item(), pooled_feat.std().item())
 
         if self.training:
             pooled_feat_shape = pooled_feat.size()

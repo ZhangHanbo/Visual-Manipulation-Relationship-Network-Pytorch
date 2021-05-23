@@ -209,6 +209,7 @@ class ConvertColor(object):
             image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         elif self.current == 'HSV' and self.transform == 'BGR':
             image = cv2.cvtColor(image, cv2.COLOR_HSV2BGR)
+
         else:
             raise NotImplementedError
         return image, boxes, labels, grasps, boxes_keep, grasps_keep

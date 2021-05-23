@@ -28,7 +28,7 @@ from roi_data_layer.roidb import combined_roidb
 from roi_data_layer.roibatchLoader import roibatchLoader
 from model.utils.config import cfg, cfg_from_file, cfg_from_list, get_output_dir
 from model.utils.net_utils import weights_normal_init, save_net, load_net, \
-      adjust_learning_rate, save_checkpoint, clip_gradient
+      adjust_learning_rate, save_checkpoint, clip_gradient, gradient_norm
 
 import model.FasterRCNN as FasterRCNN
 import model.FPN as FPN
@@ -1010,8 +1010,10 @@ if __name__ == '__main__':
             # backward
             optimizer.zero_grad()
             loss.backward()
+            totalnorm = gradient_norm(Network)
             if args.net == "vgg16":
                  clip_gradient(Network, 10.)
+            print(totalnorm)
             optimizer.step()
 
             # record training information
@@ -1151,7 +1153,7 @@ if __name__ == '__main__':
                             save_checkpoint({
                                 'session': args.session,
                                 'epoch': epoch + 1,
-                                'model': Network.module.state_dict(),
+                                'model': Network.cpu().module.state_dict(),
                                 'optimizer': optimizer.state_dict(),
                                 'pooling_mode': cfg.RCNN_COMMON.POOLING_MODE,
                                 'class_agnostic': args.class_agnostic,
@@ -1163,7 +1165,7 @@ if __name__ == '__main__':
                             save_checkpoint({
                                 'session': args.session,
                                 'epoch': epoch + 1,
-                                'model': Network.state_dict(),
+                                'model': Network.cpu().state_dict(),
                                 'optimizer': optimizer.state_dict(),
                                 'pooling_mode': cfg.RCNN_COMMON.POOLING_MODE,
                                 'class_agnostic': args.class_agnostic,
@@ -1188,8 +1190,6 @@ if __name__ == '__main__':
                         save_name = os.path.join(output_dir,
                                     args.frame + '_{}_{}_{}_{}.pth'.format(args.session, epoch, step, args.GPU))
                         torch.cuda.empty_cache()
-                        if args.gpu:
-                            Network.cpu()
                         save_checkpoint({
                                 'session': args.session,
                                 'epoch': epoch + 1,
@@ -1198,8 +1198,6 @@ if __name__ == '__main__':
                                 'pooling_mode': cfg.RCNN_COMMON.POOLING_MODE,
                                 'class_agnostic': args.class_agnostic,
                         }, save_name)
-                        if args.gpu:
-                            Network.cuda()
                     print('save model: {}'.format(save_name))
 
         end = time.time()

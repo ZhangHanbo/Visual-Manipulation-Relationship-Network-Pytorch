@@ -323,10 +323,8 @@ class roibatchLoader(data.Dataset):
             if ratio < 1:
                 # this means that data_width < data_height
                 trim_size = int(np.floor(data_width / ratio))
-                print(1. / ratio)
                 padding_data = torch.FloatTensor(int(np.ceil(data_width / ratio)), \
                                                data_width, 3).zero_()
-                print(padding_data.shape)
 
                 padding_data[:data_height, :, :] = data[0]
                 # update im_info
@@ -335,10 +333,8 @@ class roibatchLoader(data.Dataset):
             elif ratio > 1:
                 # this means that data_width > data_height
                 # if the image need to crop.
-                print(1. / ratio)
                 padding_data = torch.FloatTensor(data_height, \
                                                int(np.ceil(data_height * ratio)), 3).zero_()
-                print(padding_data.shape)
                 padding_data[:, :data_width, :] = data[0]
                 im_info[0, 1] = padding_data.size(1)
             else:

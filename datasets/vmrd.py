@@ -267,12 +267,14 @@ class vmrd(pascal_voc):
         img_ntp_dif_objnum = {2:0,3:0,4:0,5:0}
         img_num_dif_objnum = {2:0,3:0,4:0,5:0}
 
+        infos = []
         for im_ind, index in enumerate(self.image_index):
             det_result = all_rel[im_ind]
             anno = self._load_vmrd_annotation(index)
             img_num_dif_objnum[anno['boxes'].shape[0]] += 1
 
-            ntp, nfp, ngt = self.do_rel_single_image_eval(det_result, anno)
+            ntp, nfp, ngt, info = self.do_rel_single_image_eval(det_result, anno)
+            infos += info
 
             all_tp += ntp
             all_fp += nfp
@@ -289,10 +291,14 @@ class vmrd(pascal_voc):
         img_prec_dif_objnum = []
         for i in range(2,6):
             img_prec_dif_objnum.append(str(img_ntp_dif_objnum[i]) + '/' + str(img_num_dif_objnum[i]))
-
+        import pickle as pkl
+        with open("rel_density_estimation.pkl", "wb") as f:
+            pkl.dump(infos, f)
         return o_rec, o_prec, img_prec, img_prec_dif_objnum
 
     def do_rel_single_image_eval(self,det_result, anno):
+        # info is for collecting all detection data and the corresponding ground truth
+        info = []
         gt_bboxes = anno["boxes"]
         gt_classes = anno["gt_classes"]
         num_gt = gt_bboxes.shape[0]
@@ -321,7 +327,7 @@ class vmrd(pascal_voc):
 
         # no detected rel, tp and fp is all 0
         if not det_rel_prob.shape[0]:
-            return 0, 0, num_gt * (num_gt - 1) /2
+            return 0, 0, num_gt * (num_gt - 1) /2, []
 
         det_rel = np.argmax(det_rel_prob, 1) + 1
         n_det_rel = det_rel_prob.shape[0]
@@ -368,6 +374,7 @@ class vmrd(pascal_voc):
                     b1_gt = np.argmax(match_mat[b1])
                     b2_gt = np.argmax(match_mat[b2])
                     rel_gt = rel_mat_gt[b1_gt, b2_gt]
+                    info.append({"gt": rel_gt, "det_score": det_rel_prob[rel_ind]})
                     if rel_gt == det_rel[rel_ind]:
                         tp += 1
                     else:
@@ -375,7 +382,7 @@ class vmrd(pascal_voc):
                 else:
                     fp += 1
                 rel_ind += 1
-        return tp, fp, ngt_rel
+        return tp, fp, ngt_rel, info
 
     def evaluate_multigrasp_detections(self, all_boxes):
         print('-----------------------------------------------------')

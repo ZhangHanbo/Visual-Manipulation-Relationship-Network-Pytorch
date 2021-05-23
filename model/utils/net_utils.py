@@ -41,15 +41,18 @@ def weights_normal_init(model, dev=0.01):
                 m.weight.data.normal_(0.0, dev)
 
 
-def clip_gradient(model, clip_norm):
-    """Computes a gradient clipping coefficient based on gradient norm."""
+def gradient_norm(model):
     totalnorm = 0
     for p in model.parameters():
         if p.requires_grad and p.grad is not None:
             modulenorm = p.grad.data.norm()
             totalnorm += modulenorm ** 2
     totalnorm = np.sqrt(totalnorm.item())
+    return totalnorm
 
+def clip_gradient(model, clip_norm):
+    """Computes a gradient clipping coefficient based on gradient norm."""
+    totalnorm = gradient_norm(model)
     norm = clip_norm / max(totalnorm, clip_norm)
     for p in model.parameters():
         if p.requires_grad and p.grad is not None:
@@ -366,9 +369,7 @@ def rel_prob_to_mat(rel_cls_prob, num_obj):
                 rel_mat[o1, o2] = 3 - rel_mat[o2, o1]
             else:
                 raise RuntimeError
-            rel_score_mat[:, o1, o2] = [rel_score_mat[:, o2, o1][1],
-                                        rel_score_mat[:, o2, o1][0],
-                                        rel_score_mat[:, o2, o1][2]]
+            rel_score_mat[:, o1, o2] = rel_score_mat[:, o2, o1]
     return rel_mat, rel_score_mat
 
 

@@ -19,3 +19,4 @@ def nms(dets, thresh, force_cpu=False):
     # ---pytorch version---
 
     return nms_gpu(dets, thresh) if force_cpu == False else nms_cpu(dets, thresh)
+    # return nms_cpu(dets.cpu(), thresh).cuda()
