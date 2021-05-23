@@ -1010,10 +1010,8 @@ if __name__ == '__main__':
             # backward
             optimizer.zero_grad()
             loss.backward()
-            totalnorm = gradient_norm(Network)
             if args.net == "vgg16":
                  clip_gradient(Network, 10.)
-            print(totalnorm)
             optimizer.step()
 
             # record training information

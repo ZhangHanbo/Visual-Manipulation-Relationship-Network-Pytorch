@@ -199,6 +199,7 @@ class _All_in_One(nn.Module):
         # bs*N x K*A x 8
         grasp_pred_boxes = labels2points(grasp_pred).contiguous().view(obj_rois.size(0), -1, 8)
         # bs*N x K*A
+
         grasp_pos_scores = grasp_scores[:, :, 1]
         # bs*N x K*A
         _, grasp_score_idx = torch.sort(grasp_pos_scores, dim=1, descending=True)
@@ -260,7 +261,6 @@ class _All_in_One(nn.Module):
         rois = Variable(rois)
 
         pooled_feat = self._roi_pooing(base_feat, rois)
-        print(pooled_feat.mean().item(), pooled_feat.max().item(), pooled_feat.min().item(), pooled_feat.std().item())
 
         if self.training:
             pooled_feat_shape = pooled_feat.size()
