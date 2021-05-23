@@ -218,7 +218,7 @@ class imdb(object):
     for r in range(1,4):
       for i in range(num_images):
         entry = {}
-        assert not self.roidb[i]['flipped'], "Images should be rotated first."
+        assert not self.roidb[i]['flipped'], "Images should be rotated first before flipped."
         entry['flipped'] = False
         entry['rotated'] = r
         if 'boxes' in self.roidb[i]:

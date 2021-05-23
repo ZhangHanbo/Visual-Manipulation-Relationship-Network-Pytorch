@@ -293,6 +293,7 @@ __C.VMRN.CHILD = 2
 __C.VMRN.NOREL = 3
 # use shared weights in relationship network
 __C.VMRN.SHARE_WEIGHTS = False
+__C.VMRN.WITH_OBJ_DET = True
 
 __C.SSD = edict()
 __C.SSD.FEATURE_MAPS = [38, 19, 10, 5, 3, 1]

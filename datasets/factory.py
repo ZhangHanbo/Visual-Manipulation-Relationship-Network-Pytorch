@@ -19,6 +19,7 @@ from datasets.vmrd import vmrd
 from datasets.bdds import bdds
 from datasets.cornell import cornell
 from datasets.jacquard import jacquard
+from datasets.regrad import regrad
 
 import numpy as np
 
@@ -86,6 +87,11 @@ for split in ['trainval', 'test']:
             name = 'jacquard_{}_{}_{}'.format(version, split, testfold)
             __sets[name] = (lambda split=split, version=version, testfold=testfold:
                                 jacquard(split, version, testfold))
+
+for version in ['supermini', 'mini', 'v1']:
+    for split in ['train', 'seenval', 'seentest', 'unseenval', 'unseentest']:
+        name = 'regrad_{}_{}'.format(version, split)
+        __sets[name] = (lambda split=split, version=version: regrad(split, version))
 
 def get_imdb(name):
   """Get an imdb (image database) by name."""

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-CUDA_PATH=/usr/local/cuda/
+CUDA_PATH=/data/svc4/cuda/
 
 python setup.py build_ext --inplace
 rm -rf build
@@ -51,12 +51,3 @@ nvcc -c -o roi_crop_cuda_kernel.cu.o roi_crop_cuda_kernel.cu \
 cd ../
 python build.py
 
-# compile psroi_pooling
-cd ../../
-cd model/psroi_pooling/src
-echo "Compiling position sensitive roi pooling kernels by nvcc..."
-nvcc -c -o psroi_pooling.cu.o psroi_pooling_kernel.cu \
-	 -D GOOGLE_CUDA=1 -x cu -Xcompiler -fPIC $CUDA_ARCH \
-	 -std c++11
-cd ../
-python build.py

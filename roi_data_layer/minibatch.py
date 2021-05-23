@@ -299,8 +299,6 @@ def _get_image_blob_with_aug(roidb, scale_inds = -1, training = True):
             im, im_scale = prep_im_for_blob(im, cfg.PIXEL_MEANS, target_size,
                     cfg.TRAIN.COMMON.MAX_SIZE)
 
-        print(im.shape[:2])
-
         processed_ims.append(im)
         im_scales.append(im_scale)
 

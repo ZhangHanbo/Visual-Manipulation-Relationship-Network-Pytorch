@@ -394,9 +394,10 @@ class RandomCropKeepBoxes(object):
         bs[:, 0::2] -= x_start
         bs[:, 1::2] -= y_start
 
-        # Adjust the grasp boxes to fit the cropped image
-        gr[:, 0::2] -= x_start
-        gr[:, 1::2] -= y_start
+        if gr is not None:
+            # Adjust the grasp boxes to fit the cropped image
+            gr[:, 0::2] -= x_start
+            gr[:, 1::2] -= y_start
 
         return im, bs, ls, gr, bk, gk
 

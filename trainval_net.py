@@ -601,6 +601,13 @@ if __name__ == '__main__':
         args.imdb_name = 'jacquard_{}_trainval_{}'.format(jacquard[1], jacquard[2])
         args.imdbval_name = 'jacquard_{}_test_{}'.format(jacquard[1], jacquard[2])
         args.set_cfgs = ['MAX_NUM_GT_GRASPS', '1000']
+    elif args.dataset.split("_")[0] == 'regrad':
+        # e.g. regrad_mini_unseenval
+        version = args.dataset.split("_")[1]
+        test_split = args.dataset.split("_")[2]
+        args.imdb_name = "regrad_{}_train".format(version)
+        args.imdbval_name = "regrad_{}_{}".format(version, test_split)
+        args.set_cfgs = ['MAX_NUM_GT_BOXES', '20']
 
     if args.dataset[:7] == 'cornell':
         args.cfg_file = "cfgs/cornell_{}_{}_ls.yml".format(args.frame, args.net) if args.large_scale \
@@ -608,6 +615,9 @@ if __name__ == '__main__':
     elif args.dataset[:8] == 'jacquard':
         args.cfg_file = "cfgs/jacquard_{}_{}_ls.yml".format(args.frame, args.net) if args.large_scale \
         else "cfgs/jacquard_{}_{}.yml".format(args.frame, args.net)
+    elif args.dataset[:6] == "regrad":
+        args.cfg_file = "cfgs/regrad_{}_{}_ls.yml".format(args.frame, args.net) if args.large_scale \
+            else "cfgs/regrad_{}_{}.yml".format(args.frame, args.net)
     else:
         args.cfg_file = "cfgs/{}_{}_{}_ls.yml".format(args.dataset, args.frame, args.net) if args.large_scale \
         else "cfgs/{}_{}_{}.yml".format(args.dataset, args.frame, args.net)
@@ -1106,7 +1116,7 @@ if __name__ == '__main__':
                     if rel_loss_cls:
                         info['loss_rel_pred'] = loss_rel_pred
                     for tag, value in info.items():
-                        logger.scalar_summary(tag, value, step)
+                        logger.scalar_summary(tag, value, iter_counter)
 
                 loss_temp = 0.
                 loss_rpn_cls = 0.
@@ -1187,7 +1197,8 @@ if __name__ == '__main__':
                     else:
                         save_name = os.path.join(output_dir,
                                     args.frame + '_{}_{}_{}_{}.pth'.format(args.session, epoch, step, args.GPU))
-                        torch.cuda.empty_cache()
+                        if args.cuda:
+                            Network.cpu()
                         save_checkpoint({
                                 'session': args.session,
                                 'epoch': epoch + 1,
@@ -1196,6 +1207,8 @@ if __name__ == '__main__':
                                 'pooling_mode': cfg.RCNN_COMMON.POOLING_MODE,
                                 'class_agnostic': args.class_agnostic,
                         }, save_name)
+                        if args.cuda:
+                            Network.cuda()
                     print('save model: {}'.format(save_name))
 
         end = time.time()

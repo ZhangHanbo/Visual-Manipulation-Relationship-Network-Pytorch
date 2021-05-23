@@ -164,12 +164,23 @@ if __name__ == '__main__':
         args.imdbval_name = 'jacquard_{}_test_{}'.format(jacquard[1], jacquard[2])
         args.set_cfgs = ['MAX_NUM_GT_BOXES', '1000']
 
+    elif args.dataset.split("_")[0] == 'regrad':
+        # e.g. regrad_mini_unseenval
+        version = args.dataset.split("_")[1]
+        test_split = args.dataset.split("_")[2]
+        args.imdb_name = "regrad_{}_train".format(version)
+        args.imdbval_name = "regrad_{}_{}".format(version, test_split)
+        args.set_cfgs = ['MAX_NUM_GT_BOXES', '20']
+
     if args.dataset[:7] == 'cornell':
         args.cfg_file = "cfgs/cornell_{}_{}_ls.yml".format(args.frame, args.net) if args.large_scale \
         else "cfgs/cornell_{}_{}.yml".format(args.frame, args.net)
     elif args.dataset[:8] == 'jacquard':
         args.cfg_file = "cfgs/jacquard_{}_{}_ls.yml".format(args.frame, args.net) if args.large_scale \
         else "cfgs/jacquard_{}_{}.yml".format(args.frame, args.net)
+    elif args.dataset[:6] == "regrad":
+        args.cfg_file = "cfgs/regrad_{}_{}_ls.yml".format(args.frame, args.net) if args.large_scale \
+            else "cfgs/regrad_{}_{}.yml".format(args.frame, args.net)
     else:
         args.cfg_file = "cfgs/{}_{}_{}_ls.yml".format(args.dataset, args.frame, args.net) if args.large_scale \
         else "cfgs/{}_{}_{}.yml".format(args.dataset, args.frame, args.net)
@@ -400,7 +411,8 @@ if __name__ == '__main__':
             (153, 214, 255)
         ]
         np.random.shuffle(color_pool)
-        np.random.shuffle(color_pool)
+        color_pool = color_pool * 10
+
         color_dict = {}
         for i, clsname in enumerate(imdb.classes):
             color_dict[clsname] = color_pool[i]
@@ -638,7 +650,7 @@ if __name__ == '__main__':
         im2show_obj = None
         obj_index_begin = 0
         if vis:
-            im = cv2.imread(imdb.image_path_at(roidb[i]['img_id']))
+            im = cv2.imread(imdb.image_path_from_index(roidb[i]['img_id']))
             im2show_gr = np.copy(im)
             im2show_obj = np.copy(im)
         if args.frame != 'roign':
@@ -772,8 +784,9 @@ if __name__ == '__main__':
         print("object recall:   \t%.4f" %  orec)
         print("object precision:\t%.4f" %  oprec)
         print("image acc:       \t%.4f" %  imgprec)
-        print("image acc for images with different object numbers (2,3,4,5):")
-        print("%s\t%s\t%s\t%s\t" % tuple(imgprec_difobjnum))
+        print("image acc for images with different object numbers:")
+        for i in range(len(imgprec_difobjnum)):
+            print("{:d} objjects: {:s}".format(i + 2, imgprec_difobjnum[i]))
 
     if args.frame == 'mgn' or args.frame == 'all_in_one':
         print('Evaluating grasp detection results')

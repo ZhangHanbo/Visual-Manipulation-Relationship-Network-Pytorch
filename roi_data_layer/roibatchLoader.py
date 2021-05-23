@@ -201,7 +201,6 @@ class roibatchLoader(data.Dataset):
         if self.training:
 
             gt_grasps = None
-
             if 'gt_grasps' in blobs:
                 shuffle_inds_gr = range(blobs['gt_grasps'].shape[0])
                 np.random.shuffle(shuffle_inds_gr)
@@ -323,10 +322,8 @@ class roibatchLoader(data.Dataset):
             if ratio < 1:
                 # this means that data_width < data_height
                 trim_size = int(np.floor(data_width / ratio))
-                print(1. / ratio)
                 padding_data = torch.FloatTensor(int(np.ceil(data_width / ratio)), \
                                                data_width, 3).zero_()
-                print(padding_data.shape)
 
                 padding_data[:data_height, :, :] = data[0]
                 # update im_info
@@ -335,10 +332,8 @@ class roibatchLoader(data.Dataset):
             elif ratio > 1:
                 # this means that data_width > data_height
                 # if the image need to crop.
-                print(1. / ratio)
                 padding_data = torch.FloatTensor(data_height, \
                                                int(np.ceil(data_height * ratio)), 3).zero_()
-                print(padding_data.shape)
                 padding_data[:, :data_width, :] = data[0]
                 im_info[0, 1] = padding_data.size(1)
             else:
@@ -382,7 +377,6 @@ class roibatchLoader(data.Dataset):
                 keep = torch.nonzero(not_keep == 0).view(-1)
 
                 gt_boxes_padding = torch.FloatTensor(self.max_num_box, gt_boxes.size(1)).zero_()
-                rel_mat = torch.FloatTensor(self.max_num_box, self.max_num_box).zero_()
 
                 if keep.numel() != 0:
                     gt_boxes = gt_boxes[keep]
@@ -450,12 +444,54 @@ class roibatchLoader(data.Dataset):
             data = data.permute(0, 3, 1, 2).contiguous().view(3, data_height, data_width)
             im_info = im_info.view(4)
 
-            gt_boxes = torch.FloatTensor([1, 1, 1, 1, 1])
+            shuffle_inds_bb = range(blobs['gt_boxes'].shape[0])
+            np.random.shuffle(shuffle_inds_bb)
+            shuffle_inds_bb = torch.LongTensor(shuffle_inds_bb)
+            gt_boxes = torch.from_numpy(blobs['gt_boxes'])
+            gt_boxes = gt_boxes[shuffle_inds_bb]
+
+            num_boxes = 0
+            gt_boxes_padding = torch.FloatTensor(self.max_num_box, 5).zero_()
+            rel_mat = torch.FloatTensor(self.max_num_box, self.max_num_box).zero_()
+            if 'gt_boxes' in blobs:
+                # check the bounding box:
+                not_keep = (gt_boxes[:, 0] == gt_boxes[:, 2]) | (gt_boxes[:, 1] == gt_boxes[:, 3])
+                keep = torch.nonzero(not_keep == 0).view(-1)
+
+                if keep.numel() != 0:
+                    gt_boxes = gt_boxes[keep]
+                    shuffle_inds_bb = shuffle_inds_bb[keep]
+
+                    num_boxes = min(gt_boxes.size(0), self.max_num_box)
+                    gt_boxes_padding[:num_boxes, :] = gt_boxes[:num_boxes]
+
+                    # get relationship matrix
+                    if 'nodeinds' in blobs:
+                        for o1 in range(num_boxes):
+                            for o2 in range(num_boxes):
+                                ind_o1 = blobs['nodeinds'][shuffle_inds_bb[o1].item()]
+                                ind_o2 = blobs['nodeinds'][shuffle_inds_bb[o2].item()]
+                                if ind_o2 == ind_o1 or rel_mat[o1, o2].item() != 0:
+                                    continue
+                                o1_children = blobs['children'][shuffle_inds_bb[o1].item()]
+                                o1_fathers = blobs['fathers'][shuffle_inds_bb[o1].item()]
+                                if ind_o2 in o1_children:
+                                    # o1 is o2's father
+                                    rel_mat[o1, o2] = cfg.VMRN.FATHER
+                                elif ind_o2 in o1_fathers:
+                                    # o1 is o2's child
+                                    rel_mat[o1, o2] = cfg.VMRN.CHILD
+                                else:
+                                    # o1 and o2 has no relationship
+                                    rel_mat[o1, o2] = cfg.VMRN.NOREL
+
+            # gt_boxes = torch.FloatTensor([1, 1, 1, 1, 1])
+            # num_boxes = 0
+            # rel_mat = torch.FloatTensor([0])
+
             gt_grasps = torch.FloatTensor([1, 1, 1, 1, 1, 1, 1, 1])
             gt_grasp_inds = torch.FloatTensor([0])
-            num_boxes = 0
             num_grasps = 0
-            rel_mat = torch.FloatTensor([0])
 
             return data, im_info, gt_boxes, gt_grasps, num_boxes, num_grasps, rel_mat, gt_grasp_inds
 

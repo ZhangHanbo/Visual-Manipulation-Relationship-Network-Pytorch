@@ -17,3 +17,5 @@ output/*
 
 *.o
 *.so
+
+.idea/

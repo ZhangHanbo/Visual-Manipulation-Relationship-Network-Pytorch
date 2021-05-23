@@ -41,6 +41,7 @@ class _fasterRCNN_VMRN(nn.Module):
         self.classes = classes
         self.n_classes = len(classes)
         self.class_agnostic = class_agnostic
+        self.with_obj_det = cfg.VMRN.WITH_OBJ_DET
         # loss
         self.VMRN_obj_loss_cls = 0
         self.VMRN_obj_loss_bbox = 0
@@ -63,24 +64,30 @@ class _fasterRCNN_VMRN(nn.Module):
 
         self._train_iter_conter = 0
 
-    def rel_forward_with_gtbox(self, im_data, gt):
+    def forward(self, im_data, im_info, gt_boxes, num_boxes, rel_mat):
+        if self.with_obj_det:
+            return self.rel_forward_without_gtbox(im_data, im_info, gt_boxes, num_boxes, rel_mat)
+        else:
+            return self.rel_forward_with_gtbox(im_data, im_info, gt_boxes, num_boxes, rel_mat)
+
+
+    def rel_forward_with_gtbox(self, im_data, im_info, gt_boxes, num_boxes, rel_mat):
         # object detection
         if self.training:
             self._train_iter_conter += 1
         self.batch_size = im_data.size(0)
-
-        gt_boxes = gt['boxes']
-        num_boxes = gt['num_boxes']
-        im_info = gt['im_info']
 
         # feed image data to base model to obtain base feature map
         base_feat = self.VMRN_base(im_data)
 
         # offline data
         obj_rois = []
+        print(num_boxes)
+        print(gt_boxes)
         for i in range(self.batch_size):
             obj_rois.append(torch.cat([(i * torch.ones(num_boxes[i].item(), 1)).type_as(gt_boxes),
                                        (gt_boxes[i][:num_boxes[i]][:, 0:4])], 1))
+
         obj_rois = torch.cat(obj_rois, dim=0)
         obj_num = num_boxes
         obj_rois = Variable(obj_rois)
@@ -95,12 +102,32 @@ class _fasterRCNN_VMRN(nn.Module):
             rel_cls_score = self.VMRN_rel_cls_score(obj_pair_feat)
             rel_cls_prob = F.softmax(rel_cls_score)
             VMRN_rel_loss_cls = 0
-            if (not cfg.TEST.VMRN.ISEX) and cfg.TRAIN.VMRN.ISEX:
-                rel_cls_prob = rel_cls_prob[::2, :]
+            if self.training:
+                self.rel_batch_size = rel_cls_prob.size(0)
+
+                obj_pair_rel_label = self._generate_rel_labels(obj_rois, gt_boxes, obj_num, rel_mat)
+                obj_pair_rel_label = obj_pair_rel_label.type_as(gt_boxes).long()
+
+                rel_not_keep = (obj_pair_rel_label == 0)
+
+                # no relationship is kept
+                if (rel_not_keep == 0).sum().item() > 0:
+                    rel_keep = torch.nonzero(rel_not_keep == 0).view(-1)
+
+                    rel_cls_score = rel_cls_score[rel_keep]
+                    obj_pair_rel_label = obj_pair_rel_label[rel_keep]
+
+                    obj_pair_rel_label -= 1
+
+                    VMRN_rel_loss_cls = F.cross_entropy(rel_cls_score, obj_pair_rel_label)
+            else:
+                if (not cfg.TEST.VMRN.ISEX) and cfg.TRAIN.VMRN.ISEX:
+                    rel_cls_prob = rel_cls_prob[::2, :]
+
         else:
             VMRN_rel_loss_cls = 0
             # no detected relationships
-            rel_cls_prob = Variable(torch.Tensor([]).type_as(base_feat))
+            rel_cls_prob = Variable(torch.Tensor([]).type_as(cls_prob))
 
         rel_result = None
         if not self.training:
@@ -112,9 +139,9 @@ class _fasterRCNN_VMRN(nn.Module):
             else:
                 rel_result = (obj_rois.data, obj_labels, rel_cls_prob.data)
 
-        return rel_result
+        return obj_rois, rel_result, VMRN_rel_loss_cls
 
-    def forward(self, im_data, im_info, gt_boxes, num_boxes, rel_mat):
+    def rel_forward_without_gtbox(self, im_data, im_info, gt_boxes, num_boxes, rel_mat):
         # object detection
         if self.training:
             self._train_iter_conter += 1
@@ -254,7 +281,7 @@ class _fasterRCNN_VMRN(nn.Module):
         if (obj_num > 1).sum().item() > 0:
             # filter out the detection of only one object instance
             obj_pair_feat = self.VMRN_rel_op2l(base_feat, obj_rois, self.batch_size, obj_num)
-            obj_pair_feat = obj_pair_feat.detach()
+            # obj_pair_feat = obj_pair_feat.detach()
             obj_pair_feat = self._rel_head_to_tail(obj_pair_feat)
             rel_cls_score = self.VMRN_rel_cls_score(obj_pair_feat)
 
