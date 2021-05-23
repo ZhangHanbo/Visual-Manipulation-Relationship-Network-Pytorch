@@ -15,3 +15,5 @@ model/featnet/
 data/
 
 .idea/
+
+*.so

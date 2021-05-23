@@ -1188,6 +1188,8 @@ if __name__ == '__main__':
                         save_name = os.path.join(output_dir,
                                     args.frame + '_{}_{}_{}_{}.pth'.format(args.session, epoch, step, args.GPU))
                         torch.cuda.empty_cache()
+                        if args.gpu:
+                            Network.cpu()
                         save_checkpoint({
                                 'session': args.session,
                                 'epoch': epoch + 1,
@@ -1196,6 +1198,8 @@ if __name__ == '__main__':
                                 'pooling_mode': cfg.RCNN_COMMON.POOLING_MODE,
                                 'class_agnostic': args.class_agnostic,
                         }, save_name)
+                        if args.gpu:
+                            Network.cuda()
                     print('save model: {}'.format(save_name))
 
         end = time.time()
