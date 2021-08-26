@@ -12,7 +12,8 @@ model/header/*
 model/EfficientDet.py
 model/featnet/
 
-data/
+data/*
+output/*
 
-.idea/
-
+*.o
+*.so
