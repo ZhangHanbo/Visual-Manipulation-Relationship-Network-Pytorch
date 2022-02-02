@@ -11,18 +11,20 @@ This package includes our latest proposed robotic grasping algorithms. Main fram
 
 ## Implemented Algorithms
 
-I have included some well-known object detection algorithms (e.g. Faster-RCNN, SSD, FPN and EfficientDet), and developed
-a series of algorithms related to robotc grasping. The following figure provide an overview of this package.
+I have included some well-known object detection algorithms (e.g. Faster-RCNN, SSD, and FPN), and developed
+a series of algorithms related to robotc grasping. The following figure provides an overview of this package.
 
 ![](tutorial/detectors.jpg)
 
-In the future, I will continuously update this package so that it can contain latest SOTA algorithms and improve the 
+~~In the future, I will continuously update this package so that it can contain latest SOTA algorithms and improve the 
 performance of our own algorithms. Certainly, all my new works related to robotic grasping and computer vision will 
-also be contained in this package.
+also be contained in this package.~~
+
+I stopped maintain this package. Now I am transferring to MMDetection. And maybe not further in the future, I will make my mmdet-based library open-sourced, which is with higher performance.
 
 ## Installation
 
-Since we use torchvision.ops instead of all C expansions in pytorch-1.0 version, all codes can run normally without
+Since we use torchvision.ops instead of all previous C expansions, all codes can run normally without
 any extra building. Follow training example to enjoy it.
 
 ## Training Example
@@ -41,7 +43,7 @@ python main.py --test --dataset vmrdcompv1 --frame all_in_one --net res101 --cud
 
 ## Performance
 
-I want to re-implement the SOTA performance of the related algorithms. Some performance is shown below and it will be updated continuously.
+Some performance is shown below ~~and it will be updated continuously.~~
 
 *mAP*: mean Average Precision
 
