@@ -1,3 +1,4 @@
+C_ROIPooling = None
 from .nms import nms
 
 import torch
